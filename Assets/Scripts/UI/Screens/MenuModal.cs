@@ -13,6 +13,9 @@ public class MenuModal : UIScreen
     /// <summary>Sits over the HUD rather than replacing it.</summary>
     public override bool IsOverlay => true;
 
+    /// <summary>The activity-panel option's label reflects current state.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;

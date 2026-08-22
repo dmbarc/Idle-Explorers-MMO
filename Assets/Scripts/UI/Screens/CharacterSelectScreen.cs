@@ -14,6 +14,9 @@ public class CharacterSelectScreen : UIScreen
 {
     private const int TotalSlots = 4;
 
+    /// <summary>Header and cards both render account and character state.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         UIFactory.Panel(transform, "Bg", UIManager.Theme.panelBg, true);
@@ -21,7 +24,8 @@ public class CharacterSelectScreen : UIScreen
         BuildCharacterGrid();
     }
 
-    public override void OnShow()   => Refresh();
+    // No OnShow refresh: RebuildOnShow already reran Build a moment earlier.
+    // OnResume still needs it, for returning from a non-overlay screen.
     public override void OnResume() => Refresh();
 
     private void Refresh()

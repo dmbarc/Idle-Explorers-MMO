@@ -14,8 +14,29 @@ public abstract class UIScreen : MonoBehaviour
     /// </summary>
     public virtual bool IsOverlay => false;
 
-    /// <summary>Called once when the screen is first created. Build all UI elements here.</summary>
+    /// <summary>
+    /// True for screens whose content is read from game state inside Build().
+    ///
+    /// Screens are cached and Build() normally runs once, so anything rendered at
+    /// build time is frozen at the values of the first show. Setting this makes
+    /// UIManager tear the contents down and rebuild them on every push.
+    /// </summary>
+    public virtual bool RebuildOnShow => false;
+
+    /// <summary>Called when the screen is created, and again per show if RebuildOnShow.</summary>
     public abstract void Build();
+
+    /// <summary>
+    /// Destroys existing content and runs Build() again. DestroyImmediate because
+    /// Build runs in the same frame and would otherwise see the old children.
+    /// </summary>
+    public void RebuildContents()
+    {
+        for (int i = transform.childCount - 1; i >= 0; i--)
+            DestroyImmediate(transform.GetChild(i).gameObject);
+
+        Build();
+    }
 
     /// <summary>Called every time this screen becomes the top of the stack.</summary>
     public virtual void OnShow() { }

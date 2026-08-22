@@ -6,6 +6,9 @@ using UnityEngine;
 /// </summary>
 public class CharCreateAppearanceScreen : UIScreen
 {
+    /// <summary>Will render live SPUM state in Phase 2; rebuilt now so it stays correct then.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         UIFactory.Panel(transform, "Bg", UIManager.Theme.panelBg, true);

@@ -7,6 +7,9 @@ using UnityEngine;
 /// </summary>
 public class CharCreateConfirmScreen : UIScreen
 {
+    /// <summary>The whole card is rendered from CharCreateState at build time.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         UIFactory.Panel(transform, "Bg", UIManager.Theme.panelBg, true);

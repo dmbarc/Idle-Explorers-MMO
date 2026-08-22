@@ -96,6 +96,11 @@ public class UIManager : MonoBehaviour
 
         screen.gameObject.SetActive(true);
         screen.transform.SetAsLastSibling();   // overlays must draw above the stack
+
+        // Screens that render game state inside Build() need it re-run, or they
+        // keep showing whatever was true the first time they appeared.
+        if (screen.RebuildOnShow) screen.RebuildContents();
+
         screen.OnShow();
         _screenStack.Push(screen);
         return screen;

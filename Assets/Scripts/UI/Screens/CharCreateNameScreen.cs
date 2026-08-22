@@ -7,9 +7,16 @@ public class CharCreateNameScreen : UIScreen
     private string _pendingName = "";
     private TMP_Text _hint;
 
+    /// <summary>The name field is seeded from creation state, which changes between visits.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
+
+        // Carry the name back when stepping Back from the class screen; blank for
+        // a fresh character, because GoBack resets the shared state.
+        _pendingName = CharCreateState.PendingName ?? "";
 
         UIFactory.Panel(transform, "Bg", theme.panelBg, true);
 
@@ -28,6 +35,7 @@ public class CharCreateNameScreen : UIScreen
                                               v => { _pendingName = v; ClearHint(); }, width: 500f);
         UIFactory.At(nameField, 0.33f, 0.50f, 0.67f, 0.58f);
         nameField.characterLimit = 20;
+        nameField.text = _pendingName;
 
         _hint = UIFactory.Label(transform, "", theme.fontSizeSmall,
                                  theme.accentRed, TextAlignmentOptions.Center);

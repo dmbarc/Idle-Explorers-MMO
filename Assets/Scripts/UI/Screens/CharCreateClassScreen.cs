@@ -19,9 +19,17 @@ public class CharCreateClassScreen : UIScreen
     private Button        _nextButton;
     private TMP_Text      _hint;
 
+    /// <summary>Cards reflect the current selection, which changes between visits.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
+
+        // Seed from the shared creation state so stepping Back from the appearance
+        // screen keeps your choice, while starting a new character (which resets
+        // that state) starts blank.
+        _selectedClassId = CharCreateState.PendingClassId;
 
         UIFactory.Panel(transform, "Bg", theme.panelBg, true);
 

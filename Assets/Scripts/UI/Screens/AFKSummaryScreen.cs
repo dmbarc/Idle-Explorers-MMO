@@ -14,6 +14,13 @@ public class AFKSummaryScreen : UIScreen
     /// <summary>Shown over character select while the rewards are read.</summary>
     public override bool IsOverlay => true;
 
+    /// <summary>
+    /// Every row is built from PendingSummary, so this must be rebuilt per show —
+    /// otherwise the second character you select still shows the first one's
+    /// rewards.
+    /// </summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
