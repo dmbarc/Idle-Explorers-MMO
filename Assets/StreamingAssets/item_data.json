@@ -33,5 +33,56 @@
   { "id": "gold_ore",     "name": "Gold Ore",        "description": "Shiny. The trolls hoard it but never explain why.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "mining" },
   { "id": "dragon_bones", "name": "Dragon Bones",    "description": "Worth an incredible amount. Also weigh an incredible amount.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
   { "id": "dragon_scale", "name": "Dragon Scales",   "description": "Iridescent. The dragon didn't want to give them up.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "faint_residue","name": "Faint Residue",   "description": "A trace of something that used to matter. You can feel it resisting.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "gleaning" }
+  { "id": "faint_residue","name": "Faint Residue",   "description": "A trace of something that used to matter. You can feel it resisting.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "gleaning" },
+
+  { "id": "iron_helm", "name": "Iron Helm", "description": "Dented in a way that suggests it did its job at least once.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "smithing",
+    "equipSlot": "helmet", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_1",
+    "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "maxHp", "magnitude": 15, "equipText": "Equip: +15 maximum health." } ] },
+
+  { "id": "travelers_cape", "name": "Traveller's Cape", "description": "Weathered, patched, and quietly proud of both.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "cape", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1" },
+
+  { "id": "bronze_platebody", "name": "Bronze Platebody", "description": "Heavy enough that you notice, light enough that you forgive it.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "smithing",
+    "equipSlot": "chest", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_1",
+    "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "maxHp", "magnitude": 30, "equipText": "Equip: +30 maximum health." } ] },
+
+  { "id": "linen_shirt", "name": "Linen Shirt", "description": "Comfortable. Offers approximately no protection.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "shirt", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_1" },
+
+  { "id": "leather_gloves", "name": "Leather Gloves", "description": "Worn soft at the fingertips.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "gloves" },
+
+  { "id": "guild_tabard", "name": "Guild Tabard", "description": "The guild it belonged to no longer exists. The tabard has not been told.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "tabard" },
+
+  { "id": "emberlight_aura", "name": "Emberlight", "description": "A slow drift of warm sparks that follows you everywhere.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "aura", "equipSpriteAddress": "VFX/aura_ember" },
+
+  { "id": "ring_of_the_glutton", "name": "Ring of the Glutton", "description": "Hungry on your behalf.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "ring",
+    "effects": [ { "trigger": "onCraft", "action": "doubleOutput", "param": "cooking", "chance": 0.15, "magnitude": 2, "equipText": "Equip: has a chance to double how many items are produced at a campfire." } ] },
+
+  { "id": "stormcallers_band", "name": "Stormcaller's Band", "description": "Faintly warm. Occasionally opinionated.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "ring",
+    "effects": [ { "trigger": "onAbilityUse", "action": "castEffect", "param": "lightning_ball", "chance": 0.20, "magnitude": 25, "equipText": "Equip: you have a chance to hurl a ball of lightning when you use an ability." } ] },
+
+  { "id": "miners_charm", "name": "Miner's Charm", "description": "Someone rubbed the engraving away entirely. It still works.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "amulet",
+    "effects": [ { "trigger": "onGather", "action": "bonusXp", "param": "mining", "chance": 0.25, "magnitude": 15, "equipText": "Equip: has a chance to grant bonus Mining experience when you gather." } ] },
+
+  { "id": "pendant_of_vigor", "name": "Pendant of Vigor", "description": "Beats very faintly, slightly out of time with you.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "amulet",
+    "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "maxHp", "magnitude": 25, "equipText": "Equip: +25 maximum health." } ] },
+
+  { "id": "whetstone_trinket", "name": "Keen Whetstone", "description": "Never wears down. Never explains itself.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "trinket",
+    "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "attackDamage", "magnitude": 5, "equipText": "Equip: +5 attack damage." } ] },
+
+  { "id": "swiftness_trinket", "name": "Quickstep Charm", "description": "You keep arriving slightly before you meant to.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "trinket",
+    "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "attackSpeed", "magnitude": 0.3, "equipText": "Equip: attack 0.3s faster." } ] },
+
+  { "id": "campfire_sprite", "name": "Campfire Sprite", "description": "It watches you cook and offers no advice.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
+    "equipSlot": "companion",
+    "effects": [ { "trigger": "onCraft", "action": "doubleOutput", "chance": 0.10, "magnitude": 2, "equipText": "Equip: has a chance to double anything you craft." } ] }
 ]

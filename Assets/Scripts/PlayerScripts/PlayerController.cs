@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
@@ -46,7 +47,15 @@ public class PlayerController : MonoBehaviour
         _spawnPointSet = true;
 
         ApplyClassStats();
+
+        // Cosmetics are drawn by their own component so the rig lookup stays out of
+        // the controller; adding it here means every spawned player gets it.
+        if (GetComponent<CharacterAppearance>() == null)
+            gameObject.AddComponent<CharacterAppearance>();
     }
+
+    void OnEnable()  => GameEvents.OnEquipmentChanged += OnEquipmentChanged;
+    void OnDisable() => GameEvents.OnEquipmentChanged -= OnEquipmentChanged;
 
     /// <summary>
     /// Pulls base combat stats from the active character's class in class_data.json.
@@ -76,7 +85,40 @@ public class PlayerController : MonoBehaviour
             Debug.LogWarning($"[PlayerController] Unknown classId '{character.classId}' — using Inspector defaults.");
         }
 
+        ApplyEquipmentBonuses();
+
         currentHealthPoints = maxHealthPoints;
+        GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+    }
+
+    /// <summary>
+    /// Layers worn gear on top of the class baseline. Re-runs whenever equipment
+    /// changes, so the class stats are recomputed from scratch each time rather than
+    /// the bonuses compounding on themselves.
+    /// </summary>
+    private void ApplyEquipmentBonuses()
+    {
+        var equipment = GameManager.Equipment;
+        if (equipment == null) return;
+
+        maxHealthPoints += equipment.AggregateStat("maxHp");
+        attackDamage    += equipment.AggregateStat("attackDamage");
+
+        // Attack speed is an interval, so a bonus makes it SMALLER. Clamped so gear
+        // can never drive it to zero and produce an infinite attack rate.
+        attackSpeed = Mathf.Max(0.2f, attackSpeed - equipment.AggregateStat("attackSpeed"));
+    }
+
+    /// <summary>Recomputes stats from the class baseline plus current gear.</summary>
+    private void OnEquipmentChanged()
+    {
+        double healthFraction = maxHealthPoints > 0 ? currentHealthPoints / maxHealthPoints : 1d;
+
+        ApplyClassStats();
+
+        // Preserve how hurt the player was rather than refilling them — otherwise
+        // swapping a ring mid-fight is a free heal.
+        currentHealthPoints = System.Math.Max(1d, maxHealthPoints * healthFraction);
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
     }
 
@@ -531,6 +573,11 @@ public class PlayerController : MonoBehaviour
     /// <summary>Fires the ability in the given action bar slot (0-4).</summary>
     public void UseAbility(int slot)
     {
+        // Update() early-returns before HandleAbilityKeys when dead, so the keyboard
+        // path was already safe — but the HUD buttons call straight in here, and a
+        // corpse casting Fireball is not a feature.
+        if (!alive) return;
+
         var ability = GetAbility(slot);
         if (ability == null) return;
 
@@ -551,6 +598,40 @@ public class PlayerController : MonoBehaviour
         _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds;
         GameEvents.FireToast($"✦ {ability.name}");
         anim.SetBool("2_Attack", true);
+
+        // The ability's own visual, then any worn proc that triggers on casting.
+        AbilityVFX.Play(AbilityVfxId(ability), AbilityOrigin(ability));
+        ItemEffectResolver.Fire("onAbilityUse", ability.id);
+    }
+
+    /// <summary>
+    /// Which effect prefab an ability plays. A per-ability vfxAddress wins; otherwise
+    /// the effect type picks a shared default, so every ability has SOME visual
+    /// without needing bespoke art for all twenty-five.
+    /// </summary>
+    private static string AbilityVfxId(AbilityData ability)
+    {
+        if (!string.IsNullOrEmpty(ability.vfxAddress)) return ability.vfxAddress;
+
+        return ability.effect switch
+        {
+            "damage"  => "impact",
+            "aoe"     => "aoe_burst",
+            "heal"    => "heal",
+            "haste"   => "haste_aura",
+            "slow"    => "frost",
+            "stealth" => "smoke",
+            "blink"   => "blink",
+            "summon"  => "aoe_burst",
+            _         => null,
+        };
+    }
+
+    /// <summary>Single-target effects play on the victim; everything else on the caster.</summary>
+    private Vector3 AbilityOrigin(AbilityData ability)
+    {
+        bool onTarget = ability.effect == "damage" && currentTarget != null;
+        return onTarget ? currentTarget.transform.position : transform.position;
     }
 
     /// <summary>Returns false when the ability could not be used (e.g. no target).</summary>
@@ -559,13 +640,30 @@ public class PlayerController : MonoBehaviour
         switch (ability.effect)
         {
             case "damage":
+            {
                 if (currentTarget == null || !currentTarget.IsAlive())
                 {
                     GameEvents.FireToast("No target.");
                     return false;
                 }
-                currentTarget.TakeDamage(attackDamage * ability.power);
+
+                // Rapid Shot says "three quick shots" and used to land exactly one.
+                int    strikes = Mathf.Max(1, ability.hits);
+                double dealt   = 0d;
+
+                for (int i = 0; i < strikes && currentTarget != null && currentTarget.IsAlive(); i++)
+                {
+                    double blow = attackDamage * ability.power;
+                    currentTarget.TakeDamage(blow);
+                    dealt += blow;
+                }
+
+                // Soul Drain: "what it loses, you gain".
+                if (ability.lifestealFraction > 0f)
+                    Heal(dealt * ability.lifestealFraction);
+
                 return true;
+            }
 
             case "aoe":
             {
@@ -599,10 +697,104 @@ public class PlayerController : MonoBehaviour
                 _hasteUntil      = Time.time + ability.durationSeconds;
                 return true;
 
+            // ── Effects added so the descriptions stop lying ──────────────────
+            //
+            // Frost Nova, Smoke Bomb, Blink and Deploy Turret all shipped as plain
+            // "aoe"/"heal" and did none of what their text claimed.
+
+            case "slow":
+            {
+                int slowed = 0;
+                foreach (var m in InRange(ability.aoeRadius))
+                {
+                    m.TakeDamage(attackDamage * ability.power);
+                    m.ApplySlow(0.4f, ability.durationSeconds);
+                    slowed++;
+                }
+                if (slowed == 0) { GameEvents.FireToast("Nothing in range."); return false; }
+                return true;
+            }
+
+            case "stealth":
+            {
+                int dropped = 0;
+                foreach (var m in InRange(ability.aoeRadius))
+                {
+                    m.DropAggro(ability.durationSeconds);
+                    dropped++;
+                }
+                if (dropped == 0) { GameEvents.FireToast("Nothing is watching you."); return false; }
+
+                // Being forgotten mid-fight should also end your own pursuit,
+                // otherwise you immediately walk back into what just lost you.
+                currentTarget = null;
+                return true;
+            }
+
+            case "blink":
+            {
+                if (!TryBlink(ability.aoeRadius))
+                {
+                    GameEvents.FireToast("Nowhere to blink to.");
+                    return false;
+                }
+                if (ability.power > 0f) Heal(maxHealthPoints * ability.power);
+                return true;
+            }
+
+            case "summon":
+            {
+                TurretController.Deploy(transform.position, attackDamage * ability.power,
+                                         ability.aoeRadius, ability.durationSeconds);
+                return true;
+            }
+
             default:
                 GameEvents.FireToast($"{ability.name} does nothing yet.");
                 return false;
         }
+    }
+
+    /// <summary>Living monsters within a radius of the player.</summary>
+    private List<MonsterController> InRange(float radius)
+    {
+        var found = new List<MonsterController>();
+
+        foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+        {
+            if (m == null || !m.IsAlive()) continue;
+            if (Vector3.Distance(transform.position, m.transform.position) > radius) continue;
+            found.Add(m);
+        }
+        return found;
+    }
+
+    /// <summary>
+    /// Teleports toward the cursor, or straight ahead when there is no pointer.
+    /// Snapped to the NavMesh so a blink can never strand the agent off-mesh, which
+    /// would leave the player unable to move at all.
+    /// </summary>
+    private bool TryBlink(float distance)
+    {
+        Vector3 direction = transform.forward;
+
+        var mouse  = Mouse.current;
+        var camera = Camera.main;
+        if (mouse != null && camera != null &&
+            Physics.Raycast(camera.ScreenPointToRay(mouse.position.ReadValue()), out RaycastHit hit, 200f))
+        {
+            Vector3 toCursor = hit.point - transform.position;
+            toCursor.y = 0f;
+            if (toCursor.sqrMagnitude > 0.01f) direction = toCursor.normalized;
+        }
+
+        Vector3 desired = transform.position + direction * distance;
+
+        if (!NavMesh.SamplePosition(desired, out NavMeshHit navHit, distance, NavMesh.AllAreas))
+            return false;
+
+        agent.Warp(navHit.position);
+        return true;
     }
 
     /// <summary>Attack interval after any active haste buff.</summary>

@@ -279,6 +279,11 @@ public class ActivityManager : MonoBehaviour
                                         * hours * activity.afkRateMulti);
         if (possibleCrafts <= 0) return;
 
+        // Worn procs have to apply offline too, or an item that doubles campfire
+        // output is worthless in an idle game. Expected value rather than per-craft
+        // rolls, for the same reason the consumption below is bulk.
+        float outputMultiplier = ItemEffectResolver.AggregateMultiplier("onCraft", "doubleOutput", recipe.skillId);
+
         long maxByInputs  = CraftingSupply.MaxCrafts(recipe, out string limitingItemId);
         long actualCrafts = System.Math.Min(possibleCrafts, maxByInputs);
 
@@ -304,7 +309,9 @@ public class ActivityManager : MonoBehaviour
             CraftingSupply.Consume(input.itemId, input.quantity * actualCrafts);
         }
 
-        long produced = recipe.outputQuantity * actualCrafts;
+        // The multiplier lands on output only — a proc that doubles what you make
+        // must not also double what it cost you to make it.
+        long produced = (long)(recipe.outputQuantity * actualCrafts * outputMultiplier);
         GameManager.Inventory?.AddItem(recipe.outputItemId, produced);
         summary?.AddItem(recipe.outputItemId, produced);
 

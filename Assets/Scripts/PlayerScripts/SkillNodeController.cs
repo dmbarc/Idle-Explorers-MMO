@@ -205,8 +205,15 @@ public class SkillNodeController : MonoBehaviour
         foreach (var input in _recipe.inputs)
             CraftingSupply.Consume(input.itemId, input.quantity);
 
-        GameManager.Inventory.AddItem(_recipe.outputItemId, _recipe.outputQuantity);
+        // Procs multiply the output, never the inputs — doubling a craft must not
+        // also double what it cost.
+        float multiplier = ItemEffectResolver.AggregateMultiplier("onCraft", "doubleOutput", _recipe.skillId);
+        long  produced   = (long)Mathf.Max(1f, _recipe.outputQuantity * multiplier);
+
+        GameManager.Inventory.AddItem(_recipe.outputItemId, produced);
         GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
+
+        ItemEffectResolver.Fire("onCraft", _recipe.skillId);
         return true;
     }
 
@@ -298,6 +305,7 @@ public class SkillNodeController : MonoBehaviour
         }
 
         GameManager.Skills?.AddSkillXP(_entry.skillId, (long)_entry.xpPerAction);
+        ItemEffectResolver.Fire("onGather", _entry.skillId);
     }
 
     /// <summary>XP/hour at the active rate — shown in the HUD and used for AFK accrual.</summary>

@@ -81,7 +81,14 @@ public class MonsterController : MonoBehaviour
 
         if (alive)
         {
-            if (player != null && playerController != null && (agent.isOnNavMesh || !agent.pathPending))
+            UpdateDebuffs();
+
+            // Smoke Bomb: the player is briefly not worth noticing. Wandering rather
+            // than standing still, so a stealthed player sees them lose interest.
+            bool aggroSuppressed = Time.time < _aggroBlockedUntil;
+
+            if (player != null && playerController != null && !aggroSuppressed &&
+                (agent.isOnNavMesh || !agent.pathPending))
             {
                 float dist = Vector3.Distance(transform.position, player.position);
 
@@ -231,6 +238,47 @@ public class MonsterController : MonoBehaviour
     }
 
     public bool IsAlive() => alive;
+
+    // ── Debuffs ───────────────────────────────────────────────────────────────
+
+    private float _slowUntil;
+    private float _aggroBlockedUntil;
+    private float _baseSpeed = -1f;
+
+    /// <summary>
+    /// Frost Nova. multiplier is a fraction of normal movement speed, so 0.4 means
+    /// 40% as fast. The base speed is captured on first use rather than in Start,
+    /// because Initialize may not have run yet when a monster is spawned.
+    /// </summary>
+    public void ApplySlow(float multiplier, float duration)
+    {
+        if (agent == null || !alive) return;
+
+        if (_baseSpeed < 0f) _baseSpeed = agent.speed;
+
+        agent.speed = _baseSpeed * Mathf.Clamp(multiplier, 0.05f, 1f);
+        _slowUntil  = Mathf.Max(_slowUntil, Time.time + duration);
+    }
+
+    /// <summary>Smoke Bomb. Stops this monster noticing the player for a while.</summary>
+    public void DropAggro(float duration)
+    {
+        if (!alive) return;
+
+        _aggroBlockedUntil = Mathf.Max(_aggroBlockedUntil, Time.time + duration);
+        anim?.SetBool("2_Attack", false);
+        PickNewWanderPoint();
+    }
+
+    /// <summary>Restores anything whose timer has run out.</summary>
+    private void UpdateDebuffs()
+    {
+        if (_slowUntil > 0f && Time.time >= _slowUntil)
+        {
+            if (agent != null && _baseSpeed >= 0f) agent.speed = _baseSpeed;
+            _slowUntil = 0f;
+        }
+    }
 
     void PickNewWanderPoint()
     {

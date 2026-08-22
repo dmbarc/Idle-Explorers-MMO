@@ -133,10 +133,11 @@ public class GameHUD : UIScreen
         UIFactory.At(navStack.transform, 0.70f, 0.10f, 0.99f, 0.90f);
 
         BuildAutoToggle(navStack.transform);
-        UIFactory.Button(navStack.transform, "INV", () => GameManager.UI?.Push<InventoryPanel>(), width: 62f);
-        UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 62f);
-        UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 62f);
-        UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 62f);
+        UIFactory.Button(navStack.transform, "INV", () => GameManager.UI?.Push<InventoryPanel>(), width: 54f);
+        UIFactory.Button(navStack.transform, "EQP", () => GameManager.UI?.Push<EquipmentPanel>(), width: 54f);
+        UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 54f);
+        UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 54f);
+        UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 54f);
     }
 
     /// <summary>

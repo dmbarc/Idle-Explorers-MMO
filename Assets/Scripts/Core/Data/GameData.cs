@@ -55,6 +55,14 @@ public class ItemData
     /// <summary>Empty when the item cannot be worn; otherwise a slot id.</summary>
     public string   equipSlot;
 
+    /// <summary>
+    /// Resources path to the sprite drawn ON THE CHARACTER when this is worn —
+    /// deliberately separate from iconAddress, which is the inventory icon. An
+    /// inventory icon pasted onto a SPUM layer would be the wrong art at the wrong
+    /// scale. Empty means the item equips without changing how the character looks.
+    /// </summary>
+    public string   equipSpriteAddress;
+
     public ItemEffect[] effects;
 
     // convenience aliases
@@ -215,6 +223,18 @@ public class AbilityData
     public float    aoeRadius = 5f;
     public float    durationSeconds = 5f;
     public string   iconAddress;
+
+    /// <summary>
+    /// Resources/VFX prefab played on cast. Empty falls back to a per-effect-type
+    /// default, so a new ability has a visual before it has bespoke art.
+    /// </summary>
+    public string   vfxAddress;
+
+    /// <summary>How many times a "damage" ability strikes. Rapid Shot fires three.</summary>
+    public int      hits = 1;
+
+    /// <summary>Fraction of damage dealt returned as healing. Soul Drain uses this.</summary>
+    public float    lifestealFraction;
 
     public bool IsActivatable => !isPassive && effect != "passive";
 }
