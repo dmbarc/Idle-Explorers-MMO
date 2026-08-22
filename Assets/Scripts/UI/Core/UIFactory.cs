@@ -140,12 +140,46 @@ public static class UIFactory
         fillRt.offsetMax = Vector2.zero;
 
         var fillImg = fillGo.GetComponent<Image>();
-        fillImg.color = fillColor ?? T.xpFill;
-        fillImg.type  = Image.Type.Filled;
-        fillImg.fillMethod = Image.FillMethod.Horizontal;
-        fillImg.fillAmount = 1f;
+        fillImg.color         = fillColor ?? T.xpFill;
+        fillImg.sprite        = WhiteSprite;   // without a sprite, fillAmount is ignored
+        fillImg.type          = Image.Type.Filled;
+        fillImg.fillMethod    = Image.FillMethod.Horizontal;
+        fillImg.fillOrigin    = (int)Image.OriginHorizontal.Left;
+        fillImg.fillAmount    = 1f;
+        fillImg.raycastTarget = false;
 
         return (root, fillImg);
+    }
+
+    // ── Shared white sprite ───────────────────────────────────────────────────
+
+    private static Sprite _whiteSprite;
+
+    /// <summary>
+    /// A plain white 4x4 sprite.
+    ///
+    /// Required by every Image using Type.Filled. Image.OnPopulateMesh returns
+    /// early with a plain quad when its sprite is null, so fillAmount is silently
+    /// ignored — which is why the HP bar rendered permanently full and the ability
+    /// cooldown sweeps never appeared.
+    /// </summary>
+    public static Sprite WhiteSprite
+    {
+        get
+        {
+            if (_whiteSprite != null) return _whiteSprite;
+
+            const int size = 4;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "ui_white" };
+            var pixels = new Color[size * size];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
+            tex.SetPixels(pixels);
+            tex.Apply();
+
+            _whiteSprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+            _whiteSprite.name = "ui_white";
+            return _whiteSprite;
+        }
     }
 
     // ── Placeholder icons ─────────────────────────────────────────────────────

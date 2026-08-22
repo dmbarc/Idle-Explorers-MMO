@@ -84,10 +84,36 @@ public class ZoneManager : MonoBehaviour
         GameEvents.FireMapEntered(map.id);
         GameEvents.OnZoneEntered?.Invoke(map.zoneId);
 
-        // Default to fighting this map's monster unless the player picks a node
-        GameManager.Activity?.SetDefaultCombatActivity(map.id);
+        RestoreOrDefaultActivity(map);
 
         Debug.Log($"[ZoneManager] Entered {map.DisplayName} ({map.id}) in {CurrentZone?.DisplayName ?? map.zoneId}");
+    }
+
+    /// <summary>
+    /// Resumes whatever the character was last doing on this map, falling back to
+    /// combat only when there is nothing to resume.
+    ///
+    /// Entering a map used to overwrite the saved activity with combat
+    /// unconditionally, so a character parked at a fishing spot came back reported
+    /// as having been fighting — and accrued the wrong rewards.
+    /// </summary>
+    private void RestoreOrDefaultActivity(MapData map)
+    {
+        var saved = CharacterManager.Current?.currentActivity;
+
+        bool resumable = saved != null
+                         && !string.IsNullOrEmpty(saved.skillId)
+                         && saved.skillId != "combat"
+                         && saved.mapId == map.id;
+
+        if (resumable)
+        {
+            GameManager.Activity?.ResumeActivity(saved);
+            Debug.Log($"[ZoneManager] Resumed {saved.skillId} on {saved.activityTargetName}.");
+            return;
+        }
+
+        GameManager.Activity?.SetDefaultCombatActivity(map.id);
     }
 
     // ── Teardown ──────────────────────────────────────────────────────────────

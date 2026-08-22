@@ -42,6 +42,9 @@ public class PlayerController : MonoBehaviour
         agent.speed = movementSpeed;
         agent.stoppingDistance = 0.1f;
 
+        _spawnPoint    = transform.position;
+        _spawnPointSet = true;
+
         ApplyClassStats();
     }
 
@@ -389,15 +392,74 @@ public class PlayerController : MonoBehaviour
 
         if (currentHealthPoints <= 0)
         {
-            alive = false;
-            anim.SetBool("1_Move", false);
-            anim.SetBool("4_Death", true);
+            Die();
         }
         else
         {
             anim.SetBool("1_Move", false);
             anim.SetBool("3_Damaged", true);
         }
+    }
+
+    // ── Death and respawn ─────────────────────────────────────────────────────
+
+    /// <summary>Where the character reappears on respawn — where they entered the map.</summary>
+    private Vector3 _spawnPoint;
+    private bool    _spawnPointSet;
+
+    private void Die()
+    {
+        if (!alive) return;
+
+        alive = false;
+        anim.SetBool("1_Move", false);
+        anim.SetBool("4_Death", true);
+
+        currentTarget     = null;
+        currentItemTarget = null;
+        ClearNodeTarget();
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.ResetPath();
+            agent.isStopped = true;
+        }
+
+        GameManager.Audio?.PlayDeath();
+        GameEvents.OnPlayerDied?.Invoke();
+    }
+
+    /// <summary>
+    /// Puts the character back on their feet at the spawn point with full health.
+    /// Called by DeathScreen — there is no death penalty yet beyond the walk back.
+    /// </summary>
+    public void Respawn()
+    {
+        alive               = true;
+        currentHealthPoints = maxHealthPoints;
+        attackTimer         = 0f;
+        regenTimer          = 0f;
+
+        anim.SetBool("4_Death", false);
+        anim.SetBool("3_Damaged", false);
+        anim.SetBool("2_Attack", false);
+        anim.SetBool("1_Move", false);
+
+        if (agent != null)
+        {
+            // Warp rather than SetDestination: a plain move would leave the agent
+            // pathing away from where the corpse fell. If Start never recorded a
+            // spawn point, revive in place rather than teleporting to the origin.
+            if (_spawnPointSet &&
+                NavMesh.SamplePosition(_spawnPoint, out NavMeshHit hit, 10f, NavMesh.AllAreas))
+                agent.Warp(hit.position);
+
+            agent.isStopped = false;
+            agent.ResetPath();
+        }
+
+        GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+        GameEvents.FireToast("You are back on your feet.");
     }
 
     public void RegenHealth()

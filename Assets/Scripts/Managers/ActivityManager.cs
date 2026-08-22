@@ -40,6 +40,21 @@ public class ActivityManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Restores a previously saved activity without resetting its start time or
+    /// re-announcing it. Used when re-entering the map a character was parked on.
+    /// </summary>
+    public void ResumeActivity(SkillActivityData saved)
+    {
+        if (saved == null) return;
+
+        CurrentActivity = saved;
+        if (CharacterManager.Current != null)
+            CharacterManager.Current.currentActivity = saved;
+
+        GameEvents.FireActivityChanged(saved);
+    }
+
+    /// <summary>
     /// Set the default map activity (combat vs. the map's default monster).
     /// Called automatically when entering a map without interacting with a skill node.
     /// </summary>

@@ -22,6 +22,8 @@ public class InventoryPanel : UIScreen
 
     private readonly List<GameObject> _slotObjects = new();
 
+    private const int Columns = 6;
+
     /// <summary>Sits over the HUD rather than replacing it.</summary>
     public override bool IsOverlay => true;
 
@@ -82,17 +84,24 @@ public class InventoryPanel : UIScreen
 
     private void BuildGrid(Transform parent, UITheme theme)
     {
-        var (scroll, content) = UIFactory.ScrollView(parent, "InventoryScroll");
-        var scrollRt = scroll.GetComponent<RectTransform>();
-        scrollRt.anchorMin = new Vector2(0.03f, 0.13f);
-        scrollRt.anchorMax = new Vector2(0.97f, 0.88f);
-        scrollRt.offsetMin = scrollRt.offsetMax = Vector2.zero;
+        // No ScrollView: 30 slots at 6 columns always fit, and the scroll content
+        // was sized from an unset sizeDelta so the grid overflowed its viewport and
+        // the first column was clipped off the left edge.
+        var container = UIFactory.Panel(parent, "GridContainer", Color.clear, false, raycastTarget: false);
+        UIFactory.At(container.transform, 0.03f, 0.13f, 0.97f, 0.88f);
 
-        var grid = UIFactory.Grid(content, cols: 6, cellSize: theme.slotSize, spacing: theme.spacing);
-        _grid = grid.GetComponent<RectTransform>();
-        _grid.anchorMin = new Vector2(0f, 1f);
-        _grid.anchorMax = new Vector2(1f, 1f);
-        _grid.pivot     = new Vector2(0.5f, 1f);
+        var gridGo = new GameObject("Grid", typeof(RectTransform), typeof(GridLayoutGroup));
+        gridGo.transform.SetParent(container.transform, false);
+
+        var grid = gridGo.GetComponent<GridLayoutGroup>();
+        grid.cellSize        = new Vector2(theme.slotSize, theme.slotSize);
+        grid.spacing         = new Vector2(theme.spacing, theme.spacing);
+        grid.constraint      = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = Columns;
+        grid.childAlignment  = TextAnchor.UpperCenter;
+
+        _grid = gridGo.GetComponent<RectTransform>();
+        UIFactory.At(_grid, 0f, 0f, 1f, 1f);
     }
 
     private void BuildCloseButton(Transform parent, UITheme theme)
@@ -166,19 +175,23 @@ public class InventoryPanel : UIScreen
             rt.anchoredPosition = local + new Vector2(16f, -16f);
     }
 
-    private void HideTooltip()
+    public void HideTooltip()
     {
         if (_tooltip != null) _tooltip.SetActive(false);
     }
 
     // ── Contents ──────────────────────────────────────────────────────────────
 
-    private void Refresh()
+    /// <summary>
+    /// Rebuilds every cell. Cheap at 30 slots, and it keeps slot indices and the
+    /// underlying list in exact agreement after a drag reorder.
+    /// </summary>
+    public void Refresh()
     {
         if (_grid == null) return;
 
         foreach (var slot in _slotObjects)
-            if (slot != null) Destroy(slot);
+            if (slot != null) DestroyImmediate(slot);
         _slotObjects.Clear();
 
         var items = GameManager.Inventory?.Items;
@@ -195,10 +208,15 @@ public class InventoryPanel : UIScreen
             var icon = slot.transform.Find("Icon")?.GetComponent<Image>();
             var qty  = slot.transform.Find("Quantity")?.GetComponent<TMP_Text>();
 
-            if (items != null && i < items.Count)
+            // The cell itself must be a raycast target or it can never be a drop
+            // target; UIFactory.Slot leaves the root image raycastable.
+            var view = slot.AddComponent<InventorySlotView>();
+            view.Bind(i, this, icon);
+
+            bool filled = items != null && i < items.Count;
+            if (filled)
             {
                 var entry = items[i];
-                var item  = GameManager.Content?.GetItem(entry.itemId);
 
                 if (icon != null)
                 {
@@ -208,31 +226,22 @@ public class InventoryPanel : UIScreen
                     icon.enabled = sprite != null;
                 }
                 if (qty != null) qty.text = NumberFormatter.Format(entry.quantity);
-
-                AttachHover(slot, item, entry.quantity);
             }
             else
             {
-                // Empty slot — hide the icon so the placeholder colour does not
-                // read as a real item.
                 if (icon != null) icon.enabled = false;
                 if (qty  != null) qty.text = "";
             }
         }
     }
 
-    private void AttachHover(GameObject slot, ItemData item, long quantity)
+    /// <summary>Called by a cell on hover. Looks the item up by slot index.</summary>
+    public void ShowTooltipForSlot(int slotIndex, Vector2 screenPos)
     {
-        if (item == null) return;
+        var items = GameManager.Inventory?.Items;
+        if (items == null || slotIndex < 0 || slotIndex >= items.Count) return;
 
-        var trigger = slot.AddComponent<EventTrigger>();
-
-        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-        enter.callback.AddListener(data => ShowTooltip(item, quantity, ((PointerEventData)data).position));
-        trigger.triggers.Add(enter);
-
-        var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
-        exit.callback.AddListener(_ => HideTooltip());
-        trigger.triggers.Add(exit);
+        var entry = items[slotIndex];
+        ShowTooltip(GameManager.Content?.GetItem(entry.itemId), entry.quantity, screenPos);
     }
 }

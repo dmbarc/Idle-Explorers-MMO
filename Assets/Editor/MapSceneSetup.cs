@@ -89,6 +89,7 @@ public static class MapSceneSetup
         int stripped = StripLegacyObjects(scene);
         int nodes    = PlaceSkillNodes();
         EnsurePlayerTag();
+        EnsureCameraController();
 
         EditorSceneManager.MarkSceneDirty(scene);
         bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
@@ -166,6 +167,23 @@ public static class MapSceneSetup
         }
 
         return removed;
+    }
+
+    /// <summary>Gives the map camera WASD panning, scroll zoom and player follow.</summary>
+    private static void EnsureCameraController()
+    {
+        var camera = Camera.main;
+        if (camera == null)
+        {
+            Debug.LogWarning("[MapSetup] No MainCamera in the scene — camera controls not added.");
+            return;
+        }
+
+        if (camera.GetComponent<CameraController>() == null)
+        {
+            camera.gameObject.AddComponent<CameraController>();
+            Debug.Log("[MapSetup] Added CameraController to the map camera.");
+        }
     }
 
     /// <summary>PlayerController's drop pickups depend on the Player tag being set.</summary>

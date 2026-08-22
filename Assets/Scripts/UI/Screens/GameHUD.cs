@@ -47,6 +47,7 @@ public class GameHUD : UIScreen
         GameEvents.OnActivityChanged     += OnActivityChanged;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
         GameEvents.OnCoinsChanged        += RefreshCoins;
+        GameEvents.OnPlayerDied          += OnPlayerDied;
     }
 
     public override void OnHide()
@@ -55,6 +56,7 @@ public class GameHUD : UIScreen
         GameEvents.OnActivityChanged     -= OnActivityChanged;
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
         GameEvents.OnCoinsChanged        -= RefreshCoins;
+        GameEvents.OnPlayerDied          -= OnPlayerDied;
     }
 
     public override void OnResume() => OnShow();
@@ -193,6 +195,7 @@ public class GameHUD : UIScreen
             var overlay = overlayGo.GetComponent<Image>();
             overlay.color         = new Color(0f, 0f, 0f, 0.72f);
             overlay.raycastTarget = false;
+            overlay.sprite        = UIFactory.WhiteSprite;   // Filled needs a sprite
             overlay.type          = Image.Type.Filled;
             overlay.fillMethod    = Image.FillMethod.Radial360;
             overlay.fillOrigin    = (int)Image.Origin360.Top;
@@ -321,6 +324,8 @@ public class GameHUD : UIScreen
         if (_hpFill != null) _hpFill.fillAmount = Mathf.Clamp01((float)(current / max));
         if (_hpText != null) _hpText.text = $"{(long)current} / {(long)max}";
     }
+
+    private void OnPlayerDied() => GameManager.UI?.Push<DeathScreen>();
 
     private void OnActivityChanged(SkillActivityData activity) => SetActivityText(activity);
 

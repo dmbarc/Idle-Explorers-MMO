@@ -46,6 +46,7 @@ public static class GameEvents
     public static Action<string>          OnMonsterKilled;        // monsterId
     public static Action<double>          OnPlayerDamageTaken;
     public static Action<double, double>  OnPlayerHealthChanged;  // current, max
+    public static Action                  OnPlayerDied;
 
     // ── Economy ──────────────────────────────────────────────────────────────
     public static Action<long>            OnCoinsChanged;         // new total
@@ -116,6 +117,7 @@ public static class GameEvents
         OnMonsterKilled          = null;
         OnPlayerDamageTaken      = null;
         OnPlayerHealthChanged    = null;
+        OnPlayerDied             = null;
 
         OnCoinsChanged           = null;
         OnAuctionListingPosted   = null;
