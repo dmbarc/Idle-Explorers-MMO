@@ -1,3 +1,15 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:b36be7e6b0dd275a9c30d097400c9bb83b4dc00ff1cc664f0a52935d24a0a929
-size 364
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!134 &13400000
+PhysicsMaterial:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ItemDropPhysMat
+  serializedVersion: 2
+  m_DynamicFriction: 10
+  m_StaticFriction: 10
+  m_Bounciness: 0
+  m_FrictionCombine: 3
+  m_BounceCombine: 2
