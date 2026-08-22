@@ -22,6 +22,9 @@ public class InventoryPanel : UIScreen
 
     private readonly List<GameObject> _slotObjects = new();
 
+    /// <summary>Sits over the HUD rather than replacing it.</summary>
+    public override bool IsOverlay => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
@@ -199,9 +202,10 @@ public class InventoryPanel : UIScreen
 
                 if (icon != null)
                 {
-                    icon.sprite  = GameManager.Content?.GetItemIcon(entry.itemId);
+                    var sprite   = GameManager.Content?.GetItemIcon(entry.itemId);
+                    icon.sprite  = sprite;
                     icon.color   = Color.white;
-                    icon.enabled = true;
+                    icon.enabled = sprite != null;
                 }
                 if (qty != null) qty.text = NumberFormatter.Format(entry.quantity);
 

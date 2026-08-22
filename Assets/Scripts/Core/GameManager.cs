@@ -81,6 +81,9 @@ public class GameManager : MonoBehaviour
         // content loads.
         TransitionTo(GameState.Splash);
 
+        // Volume / quality / fullscreen chosen in a previous session
+        SettingsPanel.ApplySavedSettings();
+
         // Content loads first (async), then transitions to Login when ready
         if (Content != null)
             Content.LoadAll(OnContentReady);

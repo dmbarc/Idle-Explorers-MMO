@@ -6,11 +6,11 @@
     "baseHp": 120, "baseMp": 40, "baseAttackMin": 8, "baseAttackMax": 14,
     "attackSpeedSeconds": 2.8,
     "abilities": [
-      { "id": "cleave",         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.", "isPassive": false },
-      { "id": "shield_bash",    "name": "Shield Bash",    "description": "Stuns an enemy briefly.",               "isPassive": false },
-      { "id": "battlecry",      "name": "Battlecry",      "description": "(Party buff — Phase 8)",                "isPassive": false },
-      { "id": "reckless_strike","name": "Reckless Strike","description": "Massive damage, but you take a hit too.","isPassive": false },
-      { "id": "endure",         "name": "Endure",         "description": "Passive: survive one hit at 1 HP once every 90s.", "isPassive": true }
+      { "id": "cleave",         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.",              "isPassive": false, "effect": "aoe",     "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0 },
+      { "id": "shield_bash",    "name": "Shield Bash",    "description": "A brutal shove that staggers what it hits.",           "isPassive": false, "effect": "damage",  "power": 2.0, "cooldownSeconds": 6 },
+      { "id": "battlecry",      "name": "Battlecry",      "description": "Swing faster for a short while.",                      "isPassive": false, "effect": "haste",   "power": 1.5, "cooldownSeconds": 20, "durationSeconds": 8 },
+      { "id": "reckless_strike","name": "Reckless Strike","description": "Massive damage. You will feel it too.",                "isPassive": false, "effect": "damage",  "power": 3.5, "cooldownSeconds": 12 },
+      { "id": "endure",         "name": "Endure",         "description": "Passive: you simply refuse to go down.",               "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": []
   },
@@ -21,11 +21,11 @@
     "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
     "attackSpeedSeconds": 1.6,
     "abilities": [
-      { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",          "isPassive": false },
-      { "id": "marked_target", "name": "Marked Target", "description": "Next attack on this enemy deals 2x.",   "isPassive": false },
-      { "id": "barrage",       "name": "Barrage",       "description": "Arrow rain hitting a large area.",      "isPassive": false },
-      { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Dodge next attack completely.",         "isPassive": false },
-      { "id": "eagle_eye",     "name": "Eagle Eye",     "description": "Passive: +15% critical strike chance.", "isPassive": true }
+      { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",                          "isPassive": false, "effect": "damage",  "power": 2.2, "cooldownSeconds": 5 },
+      { "id": "marked_target", "name": "Marked Target", "description": "Line up the shot. It lands hard.",                       "isPassive": false, "effect": "damage",  "power": 3.0, "cooldownSeconds": 10 },
+      { "id": "barrage",       "name": "Barrage",       "description": "Arrow rain across a wide area.",                         "isPassive": false, "effect": "aoe",     "power": 1.2, "cooldownSeconds": 12, "aoeRadius": 7.0 },
+      { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Roll clear and catch your breath.",                      "isPassive": false, "effect": "heal",    "power": 0.2, "cooldownSeconds": 18 },
+      { "id": "eagle_eye",     "name": "Eagle Eye",     "description": "Passive: you see the gaps in everything.",               "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": []
   },
@@ -36,11 +36,11 @@
     "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
     "attackSpeedSeconds": 3.5,
     "abilities": [
-      { "id": "fireball",      "name": "Fireball",       "description": "High-damage AoE fire projectile.",     "isPassive": false },
-      { "id": "frost_nova",    "name": "Frost Nova",     "description": "Freezes all nearby enemies briefly.",  "isPassive": false },
-      { "id": "arcane_surge",  "name": "Arcane Surge",  "description": "Next spell costs no MP.",              "isPassive": false },
-      { "id": "blink",         "name": "Blink",          "description": "Teleport to clicked location.",        "isPassive": false },
-      { "id": "mana_eff",      "name": "Mana Efficiency","description": "Passive: all abilities cost 20% less MP.", "isPassive": true }
+      { "id": "fireball",      "name": "Fireball",       "description": "It goes where you point and everything nearby regrets it.", "isPassive": false, "effect": "aoe",    "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0 },
+      { "id": "frost_nova",    "name": "Frost Nova",     "description": "Everything close by stops moving quite so confidently.",    "isPassive": false, "effect": "aoe",    "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0 },
+      { "id": "arcane_surge",  "name": "Arcane Surge",   "description": "Cast considerably faster for a moment.",                    "isPassive": false, "effect": "haste",  "power": 1.8, "cooldownSeconds": 24, "durationSeconds": 6 },
+      { "id": "blink",         "name": "Blink",          "description": "Be somewhere else. Recover slightly.",                      "isPassive": false, "effect": "heal",   "power": 0.15, "cooldownSeconds": 15 },
+      { "id": "mana_eff",      "name": "Mana Efficiency","description": "Passive: the magic costs you less than it should.",         "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": []
   },
@@ -51,11 +51,11 @@
     "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
     "attackSpeedSeconds": 2.2,
     "abilities": [
-      { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "Places an auto-firing turret.",       "isPassive": false },
-      { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "AoE confuse for 4s.",                 "isPassive": false },
-      { "id": "overclock",      "name": "Overclock",      "description": "+50% attack speed for 8s.",           "isPassive": false },
-      { "id": "salvage_strike", "name": "Salvage Strike", "description": "Damage + small material recovery.",   "isPassive": false },
-      { "id": "jury_rig",       "name": "Jury-Rig",       "description": "Passive: at <20% HP, improvise a shield (once per fight).", "isPassive": true }
+      { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "It fires at whatever is closest. It is not fussy.",     "isPassive": false, "effect": "aoe",    "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0 },
+      { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "Everything nearby loses track of you, briefly.",        "isPassive": false, "effect": "aoe",    "power": 0.8, "cooldownSeconds": 12, "aoeRadius": 5.0 },
+      { "id": "overclock",      "name": "Overclock",      "description": "Push the machinery past its rated tolerances.",         "isPassive": false, "effect": "haste",  "power": 1.6, "cooldownSeconds": 20, "durationSeconds": 8 },
+      { "id": "salvage_strike", "name": "Salvage Strike", "description": "Hit it hard, take the useful parts.",                   "isPassive": false, "effect": "damage", "power": 2.4, "cooldownSeconds": 7 },
+      { "id": "jury_rig",       "name": "Jury-Rig",       "description": "Passive: an improvised solution to being nearly dead.",  "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": []
   },
@@ -66,11 +66,11 @@
     "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
     "attackSpeedSeconds": 2.0,
     "abilities": [
-      { "id": "spectral_strike","name": "Spectral Strike","description": "Bypasses physical armour.",            "isPassive": false },
-      { "id": "phase_shift",    "name": "Phase Shift",    "description": "Brief invulnerability (2s).",         "isPassive": false },
-      { "id": "haunt",          "name": "Haunt",          "description": "Applies debuff: target takes +25% damage from all sources.", "isPassive": false },
-      { "id": "soul_drain",     "name": "Soul Drain",     "description": "Lifesteal on next hit.",              "isPassive": false },
-      { "id": "liminal",        "name": "Liminal",        "description": "Passive: +40% damage on first hit against each new enemy type encountered.", "isPassive": true }
+      { "id": "spectral_strike","name": "Spectral Strike","description": "Goes straight through armour as though it were a suggestion.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6 },
+      { "id": "phase_shift",    "name": "Phase Shift",    "description": "Be briefly less present. It helps.",                              "isPassive": false, "effect": "heal",   "power": 0.25, "cooldownSeconds": 20 },
+      { "id": "haunt",          "name": "Haunt",          "description": "Everything nearby takes it personally.",                          "isPassive": false, "effect": "aoe",    "power": 1.5, "cooldownSeconds": 11, "aoeRadius": 6.0 },
+      { "id": "soul_drain",     "name": "Soul Drain",     "description": "What it loses, you gain.",                                        "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 9 },
+      { "id": "liminal",        "name": "Liminal",        "description": "Passive: the first blow against anything new lands hardest.",     "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": []
   }

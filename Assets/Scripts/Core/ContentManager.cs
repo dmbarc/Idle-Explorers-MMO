@@ -89,11 +89,62 @@ public class ContentManager : MonoBehaviour
         return UIFactory.PlaceholderIcon(fallbackId ?? address);
     }
 
-    /// <summary>Icon for an item id, honouring its iconAddress when one is set.</summary>
+    // ── Icon library (real art from the imported packs) ────────────────────────
+
+    private IconLibrary _icons;
+    private bool        _iconsLoaded;
+
+    private IconLibrary Icons
+    {
+        get
+        {
+            if (!_iconsLoaded)
+            {
+                _icons = Resources.Load<IconLibrary>("IconLibrary");
+                _iconsLoaded = true;
+                if (_icons == null)
+                    Debug.Log("[ContentManager] No IconLibrary asset — using placeholder icons. " +
+                              "Run: Idle Explorers → Rebuild Icon Library");
+            }
+            return _icons;
+        }
+    }
+
+    /// <summary>
+    /// Icon for an item. Resolution order: explicit iconAddress → the icon library
+    /// built from the art packs → a generated placeholder. Never returns null.
+    /// </summary>
     public Sprite GetItemIcon(string itemId)
     {
         var item = GetItem(itemId);
-        return GetSprite(item?.iconAddress, itemId);
+
+        if (!string.IsNullOrEmpty(item?.iconAddress))
+        {
+            var direct = Resources.Load<Sprite>(item.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        var mapped = Icons?.GetItemIcon(itemId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(itemId);
+    }
+
+    /// <summary>Icon for a skill, with the same resolution order as items.</summary>
+    public Sprite GetSkillIcon(string skillId)
+    {
+        var skill = GetSkill(skillId);
+
+        if (!string.IsNullOrEmpty(skill?.iconAddress))
+        {
+            var direct = Resources.Load<Sprite>(skill.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        var mapped = Icons?.GetSkillIcon(skillId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(skillId);
     }
 
     // ── Lookup helpers ────────────────────────────────────────────────────────

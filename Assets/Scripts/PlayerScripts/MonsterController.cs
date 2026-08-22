@@ -263,6 +263,14 @@ public class MonsterController : MonoBehaviour
             long rolled = RandomRangeLong(entry.minQty, entry.maxQty);
             long qty    = (long)System.Math.Max(1d, rolled * multiplier);
 
+            // Coins go straight to the wallet — they are a currency, so there is
+            // nothing to walk over and nothing to carry.
+            if (entry.itemId == InventoryManager.CoinsItemId)
+            {
+                GameManager.Inventory?.AddCoins(qty);
+                continue;
+            }
+
             // One pickup per entry regardless of size — quantities reach the
             // billions and a pickup per stack would spawn thousands of objects.
             SpawnDrop(entry.itemId, qty, basePos);

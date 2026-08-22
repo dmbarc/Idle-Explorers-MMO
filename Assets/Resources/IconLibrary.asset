@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a18dd8493b06a2a4998aa6907481aeda, type: 3}
+  m_Name: IconLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::IconLibrary
+  itemIcons:
+  - id: coins
+    sprite: {fileID: 21300000, guid: fcb9f26636f6222459c3f0da0b4d90df, type: 3}
+  - id: iron_ore
+    sprite: {fileID: 21300000, guid: 7e082cc2cf2a4433d85e388c6bf94234, type: 3}
+  - id: copper_ore
+    sprite: {fileID: 21300000, guid: 7e082cc2cf2a4433d85e388c6bf94234, type: 3}
+  - id: tin_ore
+    sprite: {fileID: 21300000, guid: 7e082cc2cf2a4433d85e388c6bf94234, type: 3}
+  - id: mithril_ore
+    sprite: {fileID: 21300000, guid: f59401c5c79564fd1ae3bfb0876455a7, type: 3}
+  - id: gold_ore
+    sprite: {fileID: 21300000, guid: f59401c5c79564fd1ae3bfb0876455a7, type: 3}
+  - id: iron_bar
+    sprite: {fileID: 21300000, guid: 2886f0f13da0f8f469bfb676e63460a1, type: 3}
+  - id: bronze_bar
+    sprite: {fileID: 21300000, guid: 2886f0f13da0f8f469bfb676e63460a1, type: 3}
+  - id: normal_logs
+    sprite: {fileID: 21300000, guid: a382b2f39d423db488e7f2c718625b0e, type: 3}
+  - id: oak_logs
+    sprite: {fileID: 21300000, guid: 135e51fc213cf344da679159703bcb13, type: 3}
+  - id: willow_logs
+    sprite: {fileID: 21300000, guid: 135e51fc213cf344da679159703bcb13, type: 3}
+  - id: raw_shrimp
+    sprite: {fileID: 21300000, guid: c8477deb286d8cb4fb05dfae9a9a68eb, type: 3}
+  - id: raw_trout
+    sprite: {fileID: 21300000, guid: c8477deb286d8cb4fb05dfae9a9a68eb, type: 3}
+  - id: raw_lobster
+    sprite: {fileID: 21300000, guid: c8477deb286d8cb4fb05dfae9a9a68eb, type: 3}
+  - id: shrimp
+    sprite: {fileID: 21300000, guid: 37b8fb50df5c6e4409ad404c1b8b33a0, type: 3}
+  - id: trout
+    sprite: {fileID: 21300000, guid: c6c123e4d01616548a61a57830f67a07, type: 3}
+  - id: lobster
+    sprite: {fileID: 21300000, guid: 8a048c64900ed364793f8793d5f2d488, type: 3}
+  - id: iron_sword
+    sprite: {fileID: 21300000, guid: e67051dce2141b448a47e3eb495f7971, type: 3}
+  - id: magic_staff
+    sprite: {fileID: 21300000, guid: 0dc929ba2b225f347a3a7c2783b9c4f4, type: 3}
+  - id: chaos_rune
+    sprite: {fileID: 21300000, guid: 436d4f3d224723240b3d522638853155, type: 3}
+  - id: death_rune
+    sprite: {fileID: 21300000, guid: 0dc929ba2b225f347a3a7c2783b9c4f4, type: 3}
+  - id: faint_residue
+    sprite: {fileID: 21300000, guid: f5fda04a60acfe84a8d9b339b698ba38, type: 3}
+  - id: coal
+    sprite: {fileID: 21300000, guid: 6db6d8f707149764ea4e5934790c56fb, type: 3}
+  - id: feathers
+    sprite: {fileID: 21300000, guid: 980e145e7d6867f4eaaa70e90d0e928d, type: 3}
+  skillIcons:
+  - id: mining
+    sprite: {fileID: 21300000, guid: dd0d69e664275f54eb9aaac1eece3b17, type: 3}
+  - id: woodcutting
+    sprite: {fileID: 21300000, guid: a382b2f39d423db488e7f2c718625b0e, type: 3}
+  - id: fishing
+    sprite: {fileID: 21300000, guid: c8477deb286d8cb4fb05dfae9a9a68eb, type: 3}
+  - id: cooking
+    sprite: {fileID: 21300000, guid: d64e0a9d8e6f9f541bd9ae7384aa1215, type: 3}
+  - id: smithing
+    sprite: {fileID: 21300000, guid: dd0d69e664275f54eb9aaac1eece3b17, type: 3}
+  - id: gleaning
+    sprite: {fileID: 21300000, guid: 0dc929ba2b225f347a3a7c2783b9c4f4, type: 3}
+  - id: fabrication
+    sprite: {fileID: 21300000, guid: 9c9d61a25b330954db345a3bd8d9330a, type: 3}
+  - id: combat
+    sprite: {fileID: 21300000, guid: e67051dce2141b448a47e3eb495f7971, type: 3}

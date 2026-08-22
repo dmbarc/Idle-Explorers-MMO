@@ -35,14 +35,37 @@ public static class UIFactory
     // ── Panel ─────────────────────────────────────────────────────────────────
 
     public static GameObject Panel(Transform parent, string name = "Panel",
-                                    Color? color = null, bool fillParent = true)
+                                    Color? color = null, bool fillParent = true,
+                                    bool? raycastTarget = null)
     {
         var go  = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var img = go.GetComponent<Image>();
         img.color = color ?? T.panelBg;
+
+        // A fully transparent panel is a spacer or a HUD root, never a click target.
+        // Leaving raycastTarget on made GameHUD's invisible full-screen background
+        // swallow every world click, which killed click-to-move entirely.
+        img.raycastTarget = raycastTarget ?? (img.color.a > 0.01f);
+
         if (fillParent) FillParent(go.GetComponent<RectTransform>());
         return go;
+    }
+
+    /// <summary>
+    /// Anchors a RectTransform to a normalized rect of its parent (0-1 in both axes).
+    /// Most layout bugs so far came from elements created without any anchoring at
+    /// all, which leaves them stretched over each other in the middle of the screen.
+    /// </summary>
+    public static T2 At<T2>(T2 component, float xMin, float yMin, float xMax, float yMax)
+        where T2 : Component
+    {
+        var rt = component.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(xMin, yMin);
+        rt.anchorMax = new Vector2(xMax, yMax);
+        rt.offsetMin = rt.offsetMax = Vector2.zero;
+        rt.sizeDelta = Vector2.zero;
+        return component;
     }
 
     // ── Label ─────────────────────────────────────────────────────────────────
@@ -206,11 +229,14 @@ public static class UIFactory
         var rootRt = root.GetComponent<RectTransform>();
         FillParent(rootRt);
 
-        var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+        // RectMask2D, NOT Mask. Mask derives its stencil from the graphic's alpha,
+        // so a viewport Image with color = clear writes nothing to the stencil and
+        // masks out *everything* inside it — which silently blanked the class list,
+        // the inventory grid and the skills list. RectMask2D clips by rectangle and
+        // needs no graphic at all.
+        var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
         viewport.transform.SetParent(root.transform, false);
         FillParent(viewport.GetComponent<RectTransform>());
-        viewport.GetComponent<Image>().color = Color.clear;
-        viewport.GetComponent<Mask>().showMaskGraphic = false;
 
         var content = new GameObject("Content", typeof(RectTransform)).GetComponent<RectTransform>();
         content.SetParent(viewport.transform, false);
@@ -298,17 +324,26 @@ public static class UIFactory
 
     public static GameObject Slot(Transform parent, string name = "Slot")
     {
+        // Root is the border; an inset child is the interior. Previously the
+        // "Border" child filled the parent completely, painting over the
+        // background so every slot rendered as one solid light block.
         var go = new GameObject(name, typeof(RectTransform), typeof(Image));
         go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(T.slotSize, T.slotSize);
-        go.GetComponent<Image>().color = T.slotBg;
+        go.GetComponent<Image>().color = T.slotBorder;
 
-        // Border
-        var border = new GameObject("Border", typeof(RectTransform), typeof(Image));
-        border.transform.SetParent(go.transform, false);
-        FillParent(border.GetComponent<RectTransform>());
-        border.GetComponent<Image>().color = T.slotBorder;
+        // Interior, inset by 2px on every side to leave the border visible
+        var inner = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        inner.transform.SetParent(go.transform, false);
+        var innerRt = inner.GetComponent<RectTransform>();
+        innerRt.anchorMin = Vector2.zero;
+        innerRt.anchorMax = Vector2.one;
+        innerRt.offsetMin = new Vector2(2f, 2f);
+        innerRt.offsetMax = new Vector2(-2f, -2f);
+        var innerImg = inner.GetComponent<Image>();
+        innerImg.color         = T.slotBg;
+        innerImg.raycastTarget = false;
 
         // Icon
         var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
@@ -318,7 +353,13 @@ public static class UIFactory
         iconRt.anchorMax = new Vector2(0.9f, 0.9f);
         iconRt.offsetMin = Vector2.zero;
         iconRt.offsetMax = Vector2.zero;
-        icon.GetComponent<Image>().color = Color.white;
+        var iconImg = icon.GetComponent<Image>();
+        iconImg.color          = Color.white;
+        iconImg.preserveAspect = true;
+        iconImg.raycastTarget  = false;
+        // An Image with no sprite draws as a white square, so start hidden and let
+        // the caller enable it once a real sprite is assigned.
+        iconImg.enabled = false;
 
         // Quantity label (bottom-right)
         var qty = new GameObject("Quantity", typeof(RectTransform), typeof(TextMeshProUGUI));

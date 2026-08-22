@@ -16,6 +16,7 @@ public class UIManager : MonoBehaviour
     public static Canvas     MainCanvas { get; private set; }
     public static Canvas     DragCanvas { get; private set; }
     public static ToastLayer Toasts     { get; private set; }
+    public static BootstrapCamera MenuCamera { get; private set; }
 
     private readonly Stack<UIScreen> _screenStack = new();
     private readonly Dictionary<Type, UIScreen> _activeScreens = new();
@@ -34,6 +35,10 @@ public class UIManager : MonoBehaviour
 
         // Toast overlay sits above both and listens for OnToastRequested
         Toasts = ToastLayer.Create();
+
+        // Menus need a camera or Unity renders "No cameras rendering" over them.
+        // It disables itself once a map scene brings its own camera.
+        MenuCamera = BootstrapCamera.Create();
 
         // Ensure EventSystem exists
         if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
@@ -76,18 +81,21 @@ public class UIManager : MonoBehaviour
 
     public T Push<T>() where T : UIScreen, new()
     {
-        // Hide the current top without destroying it. OnHide() must be called here
-        // to mirror Pop() — screens unsubscribe from GameEvents in OnHide, and
-        // skipping it leaks a duplicate subscription every time they are re-shown.
-        if (_screenStack.Count > 0)
+        var screen = GetOrCreate<T>();
+
+        // Hide the current top unless the incoming screen is an overlay. OnHide()
+        // must be called when we do hide it, mirroring Pop() — screens unsubscribe
+        // from GameEvents there, and skipping it leaks a duplicate subscription
+        // every time they are re-shown.
+        if (_screenStack.Count > 0 && !screen.IsOverlay)
         {
             var previous = _screenStack.Peek();
             previous.OnHide();
             previous.gameObject.SetActive(false);
         }
 
-        var screen = GetOrCreate<T>();
         screen.gameObject.SetActive(true);
+        screen.transform.SetAsLastSibling();   // overlays must draw above the stack
         screen.OnShow();
         _screenStack.Push(screen);
         return screen;
@@ -97,6 +105,7 @@ public class UIManager : MonoBehaviour
     {
         if (_screenStack.Count == 0) return;
         var top = _screenStack.Pop();
+        bool wasOverlay = top.IsOverlay;
         top.OnHide();
         top.gameObject.SetActive(false);
 
@@ -104,7 +113,11 @@ public class UIManager : MonoBehaviour
         {
             var prev = _screenStack.Peek();
             prev.gameObject.SetActive(true);
-            prev.OnResume();
+
+            // An overlay never hid the screen below, so that screen never had
+            // OnHide called and is still subscribed — resuming it again would
+            // double every subscription.
+            if (!wasOverlay) prev.OnResume();
         }
     }
 

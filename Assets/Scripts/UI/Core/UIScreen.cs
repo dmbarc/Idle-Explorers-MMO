@@ -7,6 +7,13 @@ using UnityEngine;
 /// </summary>
 public abstract class UIScreen : MonoBehaviour
 {
+    /// <summary>
+    /// True for panels that sit on top of the screen below rather than replacing it —
+    /// inventory, skills, the menu. The screen underneath stays visible and keeps
+    /// its event subscriptions, so the HUD does not vanish when you open a bag.
+    /// </summary>
+    public virtual bool IsOverlay => false;
+
     /// <summary>Called once when the screen is first created. Build all UI elements here.</summary>
     public abstract void Build();
 

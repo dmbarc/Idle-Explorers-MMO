@@ -11,6 +11,9 @@ using UnityEngine.UI;
 /// </summary>
 public class AFKSummaryScreen : UIScreen
 {
+    /// <summary>Shown over character select while the rewards are read.</summary>
+    public override bool IsOverlay => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;

@@ -27,23 +27,29 @@ public static class MapSceneSetup
     private struct NodePlacement
     {
         public string  NodeId;
+        public string  Label;
         public Vector3 Position;
         public Color   Color;
         public PrimitiveType Shape;
     }
 
+    // The player prefab spawns at roughly (438, 432), so nodes ring that point
+    // closely enough to be on screen the moment the map loads. A previous pass
+    // scattered them up to 13 units away and they were off-camera.
+    private static readonly Vector3 PlayerSpawn = new Vector3(438f, 0f, 432f);
+
     private static readonly NodePlacement[] GoblinCampNodes =
     {
-        new NodePlacement { NodeId = "copper_rock_1", Position = new Vector3(430f, 0f, 430f),
-                            Color = new Color(0.80f, 0.45f, 0.20f), Shape = PrimitiveType.Cube },
-        new NodePlacement { NodeId = "tin_rock_1",    Position = new Vector3(438f, 0f, 432f),
-                            Color = new Color(0.65f, 0.65f, 0.70f), Shape = PrimitiveType.Cube },
-        new NodePlacement { NodeId = "normal_tree_1", Position = new Vector3(445f, 0f, 442f),
-                            Color = new Color(0.20f, 0.55f, 0.20f), Shape = PrimitiveType.Cylinder },
-        new NodePlacement { NodeId = "shrimp_pool_1", Position = new Vector3(425f, 0f, 445f),
-                            Color = new Color(0.25f, 0.55f, 0.85f), Shape = PrimitiveType.Cylinder },
-        new NodePlacement { NodeId = "campfire_1",    Position = new Vector3(435f, 0f, 425f),
-                            Color = new Color(0.90f, 0.45f, 0.15f), Shape = PrimitiveType.Sphere },
+        new NodePlacement { NodeId = "copper_rock_1", Position = PlayerSpawn + new Vector3(-5f, 0f,  2f),
+                            Label = "Copper Rock",  Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
+        new NodePlacement { NodeId = "tin_rock_1",    Position = PlayerSpawn + new Vector3(-5f, 0f, -3f),
+                            Label = "Tin Rock",     Color = new Color(0.70f, 0.72f, 0.78f), Shape = PrimitiveType.Cube },
+        new NodePlacement { NodeId = "normal_tree_1", Position = PlayerSpawn + new Vector3( 5f, 0f,  3f),
+                            Label = "Tree",         Color = new Color(0.20f, 0.60f, 0.22f), Shape = PrimitiveType.Cylinder },
+        new NodePlacement { NodeId = "shrimp_pool_1", Position = PlayerSpawn + new Vector3( 5f, 0f, -3f),
+                            Label = "Shrimp Pool",  Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
+        new NodePlacement { NodeId = "campfire_1",    Position = PlayerSpawn + new Vector3( 0f, 0f, -6f),
+                            Label = "Campfire",     Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
     };
 
     [MenuItem("Idle Explorers/Prepare Map Scene")]
@@ -195,16 +201,18 @@ public static class MapSceneSetup
             go.name = $"Node_{placement.NodeId}";
             go.transform.SetParent(parent.transform, false);
             go.transform.position   = SnapToGround(placement.Position);
-            go.transform.localScale = Vector3.one * 1.5f;
+            go.transform.localScale = Vector3.one * 2f;
 
             // Placeholder material — distinct colours so nodes are tellable apart
-            // until real art replaces the primitives.
+            // until real art replaces the primitives. Emission keeps them visible
+            // under the map's fairly dim lighting.
             var renderer = go.GetComponent<Renderer>();
             if (renderer != null)
             {
-                var mat = new Material(Shader.Find("Universal Render Pipeline/Lit"))
-                          ?? new Material(Shader.Find("Standard"));
-                mat.color = placement.Color;
+                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+                var mat = new Material(shader) { color = placement.Color };
+                mat.EnableKeyword("_EMISSION");
+                mat.SetColor("_EmissionColor", placement.Color * 0.55f);
                 renderer.sharedMaterial = mat;
             }
 
@@ -212,10 +220,37 @@ public static class MapSceneSetup
             var node = go.AddComponent<SkillNodeController>();
             node.nodeId = placement.NodeId;
 
+            AddFloatingLabel(go.transform, placement.Label);
+
             placed++;
         }
 
         return placed;
+    }
+
+    /// <summary>
+    /// A world-space name tag above a node, so the coloured primitives are
+    /// self-explanatory rather than anonymous blocks. Billboard keeps it facing
+    /// the camera.
+    /// </summary>
+    private static void AddFloatingLabel(Transform parent, string text)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        var labelGo = new GameObject("Label");
+        labelGo.transform.SetParent(parent, false);
+        // Parent is scaled 2x; counter-scale so the text renders at a sane size
+        labelGo.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+        labelGo.transform.localScale    = Vector3.one * 0.5f;
+
+        var tmp = labelGo.AddComponent<TMPro.TextMeshPro>();
+        tmp.text                = text;
+        tmp.fontSize            = 4f;
+        tmp.alignment           = TMPro.TextAlignmentOptions.Center;
+        tmp.color               = Color.white;
+        tmp.GetComponent<RectTransform>().sizeDelta = new Vector2(6f, 1.5f);
+
+        labelGo.AddComponent<Billboard>();
     }
 
     /// <summary>Drops a node onto the terrain so it does not float or sink.</summary>

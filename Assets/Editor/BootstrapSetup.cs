@@ -83,6 +83,7 @@ public static class BootstrapSetup
     {
         Debug.Log("[Setup] ── Idle Explorers full setup ──");
         CreateUIThemeAsset();
+        IconLibrarySetup.Rebuild();          // before the scenes, so icons resolve immediately
         CreateBootstrapScene(showDialog: false);
         MapSceneSetup.Execute(showDialog: false);
 

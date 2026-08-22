@@ -138,6 +138,24 @@ public class AbilityData
     public string   name;
     public string   description;
     public bool     isPassive;
+
+    /// <summary>
+    /// What pressing this does. Kept as a string rather than an enum so new effects
+    /// can ship in class_data.json without a client rebuild:
+    ///   "damage"     — single target, scaled by power
+    ///   "aoe"        — damages every monster within aoeRadius
+    ///   "heal"       — restores power × maxHP as a fraction
+    ///   "haste"      — multiplies attack speed for durationSeconds
+    ///   "passive"    — never activates; shown greyed on the bar
+    /// </summary>
+    public string   effect;
+    public float    power = 1f;            // damage multiplier, or heal fraction
+    public float    cooldownSeconds = 6f;
+    public float    aoeRadius = 5f;
+    public float    durationSeconds = 5f;
+    public string   iconAddress;
+
+    public bool IsActivatable => !isPassive && effect != "passive";
 }
 
 [Serializable]

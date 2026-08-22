@@ -10,10 +10,39 @@ public class InventoryManager : MonoBehaviour
 {
     public const int MaxSlots = 30;
 
+    /// <summary>
+    /// Coins are a currency, not an item. They never occupy an inventory slot and
+    /// never drop as a physical pickup — they land straight in the wallet like XP.
+    /// item_data.json still defines them so tooltips and the AFK summary can name
+    /// and describe them.
+    /// </summary>
+    public const string CoinsItemId = "coins";
+
     public List<InventoryEntry> Items => CharacterManager.Current?.inventory;
+
+    public long Coins => CharacterManager.Current?.coins ?? 0;
+
+    public void AddCoins(long amount)
+    {
+        var ch = CharacterManager.Current;
+        if (ch == null || amount == 0) return;
+        ch.coins = System.Math.Max(0, ch.coins + amount);
+        GameEvents.OnCoinsChanged?.Invoke(ch.coins);
+    }
+
+    public bool TrySpendCoins(long amount)
+    {
+        var ch = CharacterManager.Current;
+        if (ch == null || amount < 0 || ch.coins < amount) return false;
+        ch.coins -= amount;
+        GameEvents.OnCoinsChanged?.Invoke(ch.coins);
+        return true;
+    }
 
     public void AddItem(string itemId, long quantity)
     {
+        if (itemId == CoinsItemId) { AddCoins(quantity); return; }
+
         var inv = Items;
         if (inv == null) return;
 
@@ -42,6 +71,8 @@ public class InventoryManager : MonoBehaviour
 
     public bool CanAddItem(string itemId)
     {
+        if (itemId == CoinsItemId) return true;   // wallet, not a slot
+
         var inv = Items;
         if (inv == null) return false;
         foreach (var e in inv) if (e.itemId == itemId) return true;

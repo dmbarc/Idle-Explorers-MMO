@@ -99,6 +99,8 @@ public class PlayerController : MonoBehaviour
         if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             HandleMouseClick();
 
+        HandleAbilityKeys();
+
         if (currentTarget != null) AttackLogic();
         else if (currentItemTarget != null) PickupLogic();
         else if (currentNodeTarget != null) GatherLogic();
@@ -276,7 +278,7 @@ public class PlayerController : MonoBehaviour
         {
             agent.isStopped = true;
             attackTimer += Time.deltaTime;
-            if (attackTimer >= attackSpeed)
+            if (attackTimer >= EffectiveAttackSpeed)
             {
                 currentTarget.TakeDamage(attackDamage);
                 anim.SetBool("1_Move", false);
@@ -407,4 +409,118 @@ public class PlayerController : MonoBehaviour
 
     public bool IsAlive() => alive;
     public void SetAutoAttack(bool autoAttackVal) { autoAttack = autoAttackVal; }
+
+    /// <summary>Number row 1-5 fires the matching action bar slot.</summary>
+    private void HandleAbilityKeys()
+    {
+        var kb = Keyboard.current;
+        if (kb == null) return;   // null on touch-only devices
+
+        if (kb.digit1Key.wasPressedThisFrame) UseAbility(0);
+        if (kb.digit2Key.wasPressedThisFrame) UseAbility(1);
+        if (kb.digit3Key.wasPressedThisFrame) UseAbility(2);
+        if (kb.digit4Key.wasPressedThisFrame) UseAbility(3);
+        if (kb.digit5Key.wasPressedThisFrame) UseAbility(4);
+    }
+
+    // ── Abilities (action bar slots 1-5) ──────────────────────────────────────
+
+    private readonly float[] _abilityReadyAt = new float[5];
+    private float _hasteUntil;
+    private float _hasteMultiplier = 1f;
+
+    /// <summary>Remaining cooldown in seconds, 0 when ready. Drives the HUD overlay.</summary>
+    public float GetAbilityCooldownRemaining(int slot)
+    {
+        if (slot < 0 || slot >= _abilityReadyAt.Length) return 0f;
+        return Mathf.Max(0f, _abilityReadyAt[slot] - Time.time);
+    }
+
+    public AbilityData GetAbility(int slot)
+    {
+        var cls = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
+        if (cls?.abilities == null || slot < 0 || slot >= cls.abilities.Length) return null;
+        return cls.abilities[slot];
+    }
+
+    /// <summary>Fires the ability in the given action bar slot (0-4).</summary>
+    public void UseAbility(int slot)
+    {
+        var ability = GetAbility(slot);
+        if (ability == null) return;
+
+        if (!ability.IsActivatable)
+        {
+            GameEvents.FireToast($"{ability.name} is passive — always active.");
+            return;
+        }
+
+        if (GetAbilityCooldownRemaining(slot) > 0f)
+        {
+            GameEvents.FireToast($"{ability.name}: {GetAbilityCooldownRemaining(slot):0.0}s");
+            return;
+        }
+
+        if (!ApplyAbilityEffect(ability)) return;
+
+        _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds;
+        GameEvents.FireToast($"✦ {ability.name}");
+        anim.SetBool("2_Attack", true);
+    }
+
+    /// <summary>Returns false when the ability could not be used (e.g. no target).</summary>
+    private bool ApplyAbilityEffect(AbilityData ability)
+    {
+        switch (ability.effect)
+        {
+            case "damage":
+                if (currentTarget == null || !currentTarget.IsAlive())
+                {
+                    GameEvents.FireToast("No target.");
+                    return false;
+                }
+                currentTarget.TakeDamage(attackDamage * ability.power);
+                return true;
+
+            case "aoe":
+            {
+                int hits = 0;
+                foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+                {
+                    if (!m.IsAlive()) continue;
+                    if (Vector3.Distance(transform.position, m.transform.position) > ability.aoeRadius) continue;
+                    m.TakeDamage(attackDamage * ability.power);
+                    hits++;
+                }
+                if (hits == 0) { GameEvents.FireToast("Nothing in range."); return false; }
+                return true;
+            }
+
+            case "heal":
+            {
+                if (currentHealthPoints >= maxHealthPoints)
+                {
+                    GameEvents.FireToast("Already at full health.");
+                    return false;
+                }
+                double amount = maxHealthPoints * ability.power;
+                currentHealthPoints = System.Math.Min(maxHealthPoints, currentHealthPoints + amount);
+                GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+                return true;
+            }
+
+            case "haste":
+                _hasteMultiplier = Mathf.Max(1f, ability.power);
+                _hasteUntil      = Time.time + ability.durationSeconds;
+                return true;
+
+            default:
+                GameEvents.FireToast($"{ability.name} does nothing yet.");
+                return false;
+        }
+    }
+
+    /// <summary>Attack interval after any active haste buff.</summary>
+    private float EffectiveAttackSpeed =>
+        Time.time < _hasteUntil ? attackSpeed / _hasteMultiplier : attackSpeed;
 }

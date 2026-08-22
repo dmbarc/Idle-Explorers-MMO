@@ -1,45 +1,102 @@
+using TMPro;
 using UnityEngine;
 
 /// <summary>Screen 4 of character creation: name entry.</summary>
 public class CharCreateNameScreen : UIScreen
 {
     private string _pendingName = "";
+    private TMP_Text _hint;
 
     public override void Build()
     {
-        UIFactory.Panel(transform, "Bg", UIManager.Theme.panelBg, true);
+        var theme = UIManager.Theme;
 
-        UIFactory.Label(transform, "NAME YOUR EXPLORER", UIManager.Theme.fontSizeTitle,
-                         UIManager.Theme.accentGold, TMPro.TextAlignmentOptions.Center)
-                  .GetComponent<RectTransform>().SetAsFirstSibling();
+        UIFactory.Panel(transform, "Bg", theme.panelBg, true);
+
+        // Every element is explicitly anchored. Without this the title, the field
+        // and both buttons all default to a centred stretch and draw on top of
+        // one another.
+        var title = UIFactory.Label(transform, "NAME YOUR EXPLORER", theme.fontSizeTitle,
+                                     theme.accentGold, TextAlignmentOptions.Center);
+        UIFactory.At(title, 0.20f, 0.74f, 0.80f, 0.86f);
+
+        var subtitle = UIFactory.Label(transform, "You can change how they look next.",
+                                        theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
+        UIFactory.At(subtitle, 0.25f, 0.68f, 0.75f, 0.73f);
 
         var nameField = UIFactory.InputField(transform, "Enter name...",
-                                              v => _pendingName = v, width: 500f);
-        var rt = nameField.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.5f, 0.5f);
-        rt.anchorMax = new Vector2(0.5f, 0.5f);
-        rt.anchoredPosition = Vector2.zero;
-        rt.sizeDelta = new Vector2(500f, UIManager.Theme.buttonHeight);
+                                              v => { _pendingName = v; ClearHint(); }, width: 500f);
+        UIFactory.At(nameField, 0.33f, 0.50f, 0.67f, 0.58f);
+        nameField.characterLimit = 20;
 
-        UIFactory.Button(transform, "NEXT →", () =>
-        {
-            if (string.IsNullOrWhiteSpace(_pendingName)) return;
-            // Store the pending name somewhere accessible to CharCreateClassScreen
-            CharCreateState.PendingName = _pendingName.Trim();
-            GameManager.UI?.Push<CharCreateClassScreen>();
-        }, 300f);
+        _hint = UIFactory.Label(transform, "", theme.fontSizeSmall,
+                                 theme.accentRed, TextAlignmentOptions.Center);
+        UIFactory.At(_hint, 0.30f, 0.43f, 0.70f, 0.48f);
 
-        UIFactory.Button(transform, "← BACK", () =>
+        var backBtn = UIFactory.Button(transform, "← BACK", GoBack, width: 0f);
+        UIFactory.At(backBtn, 0.33f, 0.28f, 0.47f, 0.35f);
+
+        var nextBtn = UIFactory.Button(transform, "NEXT →", GoNext, width: 0f);
+        UIFactory.At(nextBtn, 0.53f, 0.28f, 0.67f, 0.35f);
+    }
+
+    public override void OnShow()
+    {
+        // Returning from the class screen should not keep a stale error visible
+        ClearHint();
+    }
+
+    private void GoNext()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingName))
         {
-            GameManager.UI?.Pop();
-        }, 150f);
+            ShowHint("Your explorer needs a name.");
+            return;
+        }
+        if (_pendingName.Trim().Length < 2)
+        {
+            ShowHint("That name is too short.");
+            return;
+        }
+
+        CharCreateState.PendingName = _pendingName.Trim();
+        GameManager.UI?.Push<CharCreateClassScreen>();
+    }
+
+    /// <summary>
+    /// Back out of character creation entirely. This screen is the bottom of the
+    /// creation stack, so Pop() would leave an empty stack and a black screen —
+    /// it has to transition states instead.
+    /// </summary>
+    private void GoBack()
+    {
+        CharCreateState.Reset();
+        GameManager.Instance?.GoToCharacterSelect();
+    }
+
+    private void ShowHint(string message)
+    {
+        if (_hint != null) _hint.text = message;
+        GameEvents.FireToast(message);
+    }
+
+    private void ClearHint()
+    {
+        if (_hint != null) _hint.text = "";
     }
 }
 
 /// <summary>Temporary state passed between character creation screens.</summary>
 public static class CharCreateState
 {
-    public static string     PendingName;
-    public static string     PendingClassId;
+    public static string       PendingName;
+    public static string       PendingClassId;
     public static SpumSaveData PendingSpum = new SpumSaveData();
+
+    public static void Reset()
+    {
+        PendingName    = null;
+        PendingClassId = null;
+        PendingSpum    = new SpumSaveData();
+    }
 }

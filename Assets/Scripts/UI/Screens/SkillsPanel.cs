@@ -14,6 +14,9 @@ public class SkillsPanel : UIScreen
     private RectTransform _content;
     private readonly List<GameObject> _rows = new();
 
+    /// <summary>Sits over the HUD rather than replacing it.</summary>
+    public override bool IsOverlay => true;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
@@ -128,11 +131,15 @@ public class SkillsPanel : UIScreen
         int  level   = GameManager.Skills?.GetSkillLevel(skill.id) ?? 1;
         long xp      = GameManager.Skills?.GetSkillXP(skill.id) ?? 0;
 
+        // Skill icon
+        var icon = UIFactory.Icon(row.transform, GameManager.Content?.GetSkillIcon(skill.id), 36f);
+        UIFactory.At(icon, 0.015f, 0.18f, 0.075f, 0.82f);
+
         // Name + level
         var nameLabel = UIFactory.Label(row.transform, $"{skill.DisplayName}  —  Level {level}",
                                          theme.fontSizeSmall, theme.textPrimary, TextAlignmentOptions.MidlineLeft);
         var nameRt = nameLabel.GetComponent<RectTransform>();
-        nameRt.anchorMin = new Vector2(0.02f, 0.52f);
+        nameRt.anchorMin = new Vector2(0.09f, 0.52f);
         nameRt.anchorMax = new Vector2(0.62f, 0.95f);
         nameRt.offsetMin = nameRt.offsetMax = Vector2.zero;
 
@@ -166,7 +173,7 @@ public class SkillsPanel : UIScreen
         var (barRoot, barFill) = UIFactory.ProgressBar(row.transform, "XPBar", theme.xpFill);
         barFill.fillAmount = progress;
         var barRt = barRoot.GetComponent<RectTransform>();
-        barRt.anchorMin = new Vector2(0.02f, 0.28f);
+        barRt.anchorMin = new Vector2(0.09f, 0.28f);
         barRt.anchorMax = new Vector2(0.72f, 0.46f);
         barRt.offsetMin = barRt.offsetMax = Vector2.zero;
         barRt.sizeDelta = Vector2.zero;
