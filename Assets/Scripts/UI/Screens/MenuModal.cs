@@ -97,7 +97,39 @@ public class MenuModal : UIScreen
             : $"{NumberFormatter.Format((long)activity.xpPerHour)} xp/hr  •  AFK {NumberFormatter.FormatRate(activity.afkRateMulti)}";
         var rateLabel = UIFactory.Label(panel.transform, rateText, theme.fontSizeSmall,
                                          theme.accentGreen, TextAlignmentOptions.Center);
-        UIFactory.At(rateLabel, 0.04f, 0.05f, 0.96f, 0.28f);
+        UIFactory.At(rateLabel, 0.04f, 0.16f, 0.96f, 0.30f);
+
+        // Crafting is the one activity that can run out, so this is the number that
+        // decides whether logging out now is worth anything.
+        var supplyLabel = UIFactory.Label(panel.transform, CraftingSupplyText(activity),
+                                           theme.fontSizeLabel, theme.accentGold,
+                                           TextAlignmentOptions.Center);
+        UIFactory.At(supplyLabel, 0.04f, 0.03f, 0.96f, 0.15f);
+    }
+
+    /// <summary>How long the current recipe's materials will last, in crafts and in time.</summary>
+    private static string CraftingSupplyText(SkillActivityData activity)
+    {
+        if (activity == null || string.IsNullOrEmpty(activity.recipeId)) return "";
+
+        var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
+        if (recipe == null) return "";
+
+        long crafts = CraftingSupply.MaxCrafts(recipe, out string limitingItemId);
+        if (crafts == long.MaxValue) return "Materials: unlimited";
+
+        if (crafts <= 0)
+        {
+            string outOf = GameManager.Content?.GetItem(limitingItemId)?.DisplayName ?? limitingItemId;
+            return $"Out of {outOf} — nothing will accrue";
+        }
+
+        float craftsPerHour = ActivityManager.ActionsPerHour(activity.secondsPerAction, activity.activeRateMulti)
+                              * activity.afkRateMulti;
+        if (craftsPerHour <= 0f) return $"Materials for {NumberFormatter.Format(crafts)} more";
+
+        long seconds = (long)(crafts / craftsPerHour * 3600f);
+        return $"Materials for {NumberFormatter.Format(crafts)} more  •  ~{NumberFormatter.FormatAFKTime(seconds).Replace(" AFK", "")} AFK";
     }
 
     private void AddOption(Transform parent, string label, System.Action onClick)
