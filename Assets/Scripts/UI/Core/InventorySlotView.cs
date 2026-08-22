@@ -33,7 +33,7 @@ public interface ISlotPanel
 /// </summary>
 public class InventorySlotView : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler,
-    IPointerEnterHandler, IPointerExitHandler
+    IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
     public int               SlotIndex { get; private set; }
     public SlotContainerKind Container { get; private set; }
@@ -87,6 +87,26 @@ public class InventorySlotView : MonoBehaviour,
     }
 
     public void OnPointerExit(PointerEventData eventData) => _owner?.HideTooltip();
+
+    // ── Click ─────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Opens the item action menu. Which options it offers comes from the item's own
+    /// data, so this does not need to know what kind of item was clicked.
+    /// </summary>
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        // A drag that ends over its own cell also raises a click. Acting on it would
+        // pop the menu every time a drag was cancelled.
+        if (eventData.dragging || _isEmpty) return;
+
+        _owner?.HideTooltip();
+
+        ItemActionMenu.SourceContainer = Container;
+        ItemActionMenu.SourceSlot      = SlotIndex;
+        ItemActionMenu.ScreenPosition  = eventData.position;
+        GameManager.UI?.Push<ItemActionMenu>();
+    }
 
     // ── Drag ──────────────────────────────────────────────────────────────────
 

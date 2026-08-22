@@ -478,6 +478,20 @@ public class PlayerController : MonoBehaviour
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
     }
 
+    /// <summary>
+    /// Restores a flat amount. Returns false at full health so a consumable is not
+    /// eaten for nothing.
+    /// </summary>
+    public bool Heal(double amount)
+    {
+        if (!alive || amount <= 0) return false;
+        if (currentHealthPoints >= maxHealthPoints) return false;
+
+        currentHealthPoints = System.Math.Min(maxHealthPoints, currentHealthPoints + amount);
+        GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+        return true;
+    }
+
     public bool IsAlive() => alive;
     public void SetAutoAttack(bool autoAttackVal) { autoAttack = autoAttackVal; }
 

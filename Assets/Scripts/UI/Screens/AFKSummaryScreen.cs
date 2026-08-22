@@ -220,9 +220,15 @@ public class AFKSummaryScreen : UIScreen
         var btn = UIFactory.Button(parent, "COLLECT", () =>
         {
             GameManager.Activity?.ConsumePendingSummary();
-            // Rewards are already banked by this point; this screen sits between
-            // character select and the world, so collecting continues into the game.
-            GameManager.Instance?.GoToGame();
+
+            // Rewards are already banked by this point, so this only decides where to
+            // go next. Arriving from character select means continuing into the world;
+            // arriving from a Mystic Gem means we are ALREADY in the world, and
+            // calling GoToGame there would reload the map out from under the player.
+            if (GameManager.Instance?.CurrentState == GameManager.GameState.InGame)
+                GameManager.UI?.Pop();
+            else
+                GameManager.Instance?.GoToGame();
         }, width: 0f);
 
         var rt = btn.GetComponent<RectTransform>();

@@ -26,6 +26,10 @@ public class CharacterManager : MonoBehaviour
         // after Current is set — the reward path writes into the active character.
         if (character.lastLogoutUnixTime > 0)
             GameManager.Activity?.ProcessAFKRewards(character);
+
+        // After AFK accrual, so a top-up cannot occupy the last slot the rewards
+        // needed. Inert outside the Editor and development builds.
+        DevTools.EnsureTestItems();
     }
 
     // ── Naming ────────────────────────────────────────────────────────────────

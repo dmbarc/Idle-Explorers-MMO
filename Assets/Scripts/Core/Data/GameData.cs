@@ -9,6 +9,38 @@ using System.Collections.Generic;
 
 // ── Remote content data (loaded from Addressables JSON) ──────────────────────
 
+/// <summary>
+/// Something an item does. Kept as strings rather than enums so new effects ship in
+/// item_data.json without a client rebuild, matching how AbilityData.effect works.
+///
+/// Triggers:
+///   onConsume       — the player used it from the item menu
+///   onEquipPassive  — always active while equipped
+///   onCraft         — a craft completed at a station
+///   onGather        — a gathering action completed
+///   onKill          — a monster died
+///   onHit           — a basic attack landed
+///   onAbilityUse    — an action bar ability fired
+///
+/// Actions:
+///   heal | damageSelf | grantAfkTime | statBonus |
+///   doubleOutput | bonusXp | extraLoot | castEffect
+/// </summary>
+[Serializable]
+public class ItemEffect
+{
+    public string trigger;
+    public string action;
+    public float  chance = 1f;      // 0-1; 1 = always
+    public float  magnitude = 1f;
+    public string param;            // action-specific: skillId, stat id, vfx id
+
+    /// <summary>Shown verbatim in the tooltip, e.g. "Equip: has a chance to ...".</summary>
+    public string equipText;
+
+    public bool AlwaysFires => chance >= 1f;
+}
+
 [Serializable]
 public class ItemData
 {
@@ -19,8 +51,27 @@ public class ItemData
     public bool     stackable;
     public int      levelReq;           // JSON field: "levelReq"
     public string   sourceSkill;        // JSON field: "sourceSkill"
+
+    /// <summary>Empty when the item cannot be worn; otherwise a slot id.</summary>
+    public string   equipSlot;
+
+    public ItemEffect[] effects;
+
     // convenience aliases
     public string DisplayName => name;
+
+    public bool IsEquippable => !string.IsNullOrEmpty(equipSlot);
+
+    /// <summary>True when the item menu should offer Consume.</summary>
+    public bool IsConsumable => HasTrigger("onConsume");
+
+    public bool HasTrigger(string trigger)
+    {
+        if (effects == null) return false;
+        foreach (var e in effects)
+            if (e != null && e.trigger == trigger) return true;
+        return false;
+    }
 }
 
 [Serializable]
@@ -299,6 +350,7 @@ public class CharacterData
 
     public List<InventoryEntry>     inventory;
     public List<InventoryEntry>     mergeBoard;
+    public List<EquipmentEntry>     equipment;
 
     // Collection
     public string   equippedWardrobeId;
@@ -317,6 +369,7 @@ public class CharacterData
         skills              = new List<SkillProgress>();
         inventory           = new List<InventoryEntry>();
         mergeBoard          = new List<InventoryEntry>();
+        equipment           = new List<EquipmentEntry>();
         equippedSpiritIds   = new string[0];
         equippedRelicIds    = new string[0];
         unlockedWardrobeIds = new string[0];
@@ -361,6 +414,18 @@ public class InventoryEntry
 {
     public string   itemId;
     public long     quantity;
+}
+
+/// <summary>
+/// One worn item. A List of these rather than a Dictionary keyed by slot, because
+/// JsonUtility silently serializes dictionaries as empty — the same trap that ate
+/// every character's skill progress before skills moved to a List.
+/// </summary>
+[Serializable]
+public class EquipmentEntry
+{
+    public string slotId;
+    public string itemId;
 }
 
 [Serializable]
