@@ -104,6 +104,13 @@ public class ActivityManager : MonoBehaviour
     /// </summary>
     public const long MaxAFKSeconds = 24 * 60 * 60;
 
+    /// <summary>
+    /// Offline time below this is ignored entirely. Swapping between characters
+    /// takes seconds, and without a floor every swap produced a few XP and popped
+    /// the "while you were away" screen for an absence that never happened.
+    /// </summary>
+    public const long MinAFKSeconds = 60;
+
     /// <summary>The most recently calculated summary, consumed by AFKSummaryScreen.</summary>
     public AFKRewardSummary PendingSummary { get; private set; }
 
@@ -121,8 +128,15 @@ public class ActivityManager : MonoBehaviour
         var activity = character.currentActivity;
         if (activity.activityStartUnixTime <= 0) return null;
 
-        long realElapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - character.lastLogoutUnixTime;
-        if (realElapsed <= 0) return null;
+        long now         = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        long realElapsed = now - character.lastLogoutUnixTime;
+        if (realElapsed < MinAFKSeconds) return null;
+
+        // Close the offline window immediately, before any reward is handed out.
+        // This used to be left untouched, so the same period was re-granted every
+        // time the character was selected — the summary kept reporting an absence
+        // that had already been paid out.
+        character.lastLogoutUnixTime = now;
 
         long elapsedSeconds = System.Math.Min(realElapsed, MaxAFKSeconds);
         float hours         = elapsedSeconds / 3600f;
@@ -134,6 +148,7 @@ public class ActivityManager : MonoBehaviour
             wasCapped      = realElapsed > MaxAFKSeconds,
             skillId        = activity.skillId,
             activityName   = activity.activityTargetName,
+            characterName  = character.characterName,
         };
 
         Debug.Log($"[ActivityManager] Processing {NumberFormatter.FormatAFKTime(elapsedSeconds)} of AFK for " +
@@ -159,6 +174,10 @@ public class ActivityManager : MonoBehaviour
 
         PendingSummary = summary;
         GameEvents.OnAFKRewardsCollected?.Invoke(elapsedSeconds);
+
+        // Persist straight away so a crash cannot replay this window.
+        GameManager.Save?.Save();
+
         return summary;
     }
 
@@ -243,6 +262,7 @@ public class AFKRewardSummary
     public bool   wasCapped;
     public string skillId;
     public string activityName;
+    public string characterName;
     public long   kills;
 
     public readonly List<InventoryEntry> itemsGained = new();

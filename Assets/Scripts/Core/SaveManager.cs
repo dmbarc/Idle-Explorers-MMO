@@ -68,6 +68,11 @@ public class SaveManager : MonoBehaviour
                 ch.skills    ??= new System.Collections.Generic.List<SkillProgress>();
                 ch.inventory ??= new System.Collections.Generic.List<InventoryEntry>();
                 ch.mergeBoard ??= new System.Collections.Generic.List<InventoryEntry>();
+
+                // Nobody is online at load. If the game was killed mid-session the
+                // flag stayed true, and the character card showed "⚡ ONLINE"
+                // forever while never accruing anything.
+                ch.isOnline = false;
             }
 
             Debug.Log($"[SaveManager] Loaded {account.characters.Count} character(s) from {SavePath}");

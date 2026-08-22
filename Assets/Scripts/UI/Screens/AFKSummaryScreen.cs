@@ -60,10 +60,16 @@ public class AFKSummaryScreen : UIScreen
         else
         {
             string elapsed  = NumberFormatter.FormatAFKTime(summary.elapsedSeconds).Replace(" AFK", "");
+            string skill    = GameManager.Content?.GetSkill(summary.skillId)?.DisplayName ?? summary.skillId;
             string activity = string.IsNullOrEmpty(summary.activityName)
-                ? summary.skillId
-                : summary.activityName;
-            subtitle = $"{elapsed}  •  {activity}";
+                ? skill
+                : $"{skill} — {summary.activityName}";
+
+            // Naming the character makes it obvious at a glance which one this
+            // belongs to, rather than leaving it to be inferred from the card behind.
+            string who = string.IsNullOrEmpty(summary.characterName) ? "" : $"{summary.characterName}  •  ";
+
+            subtitle = $"{who}{elapsed}  •  {activity}";
             if (summary.wasCapped)
                 subtitle += "  (capped at 24h)";
         }

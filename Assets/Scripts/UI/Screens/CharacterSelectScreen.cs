@@ -153,9 +153,13 @@ public class CharacterSelectScreen : UIScreen
             : "Idle";
         Row(UIFactory.Label(body, activityText, theme.fontSizeLabel, theme.textSecondary, TextAlignmentOptions.Center), 36f);
 
-        string afkLabel = data.isOnline
-            ? "⚡ ONLINE"
-            : NumberFormatter.FormatAFKTime(DateTimeOffset.UtcNow.ToUnixTimeSeconds() - data.lastLogoutUnixTime);
+        // lastLogoutUnixTime is 0 for a character that has never been played, and
+        // subtracting from that reports roughly fifty years of idling.
+        string afkLabel;
+        if (data.isOnline)                    afkLabel = "⚡ ONLINE";
+        else if (data.lastLogoutUnixTime <= 0) afkLabel = "Never played";
+        else afkLabel = NumberFormatter.FormatAFKTime(
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds() - data.lastLogoutUnixTime);
         Row(UIFactory.Label(body, afkLabel, theme.fontSizeSmall,
                              data.isOnline ? theme.accentGreen : theme.textSecondary, TextAlignmentOptions.Center), 24f);
 
