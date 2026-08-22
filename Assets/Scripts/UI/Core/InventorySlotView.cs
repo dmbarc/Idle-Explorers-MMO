@@ -6,96 +6,85 @@ using UnityEngine.UI;
 /// <summary>
 /// One inventory cell: hover tooltip plus drag-and-drop reordering.
 ///
-/// The drag ghost is parented to UIManager.DragCanvas (sortingOrder 999) so it
-/// draws above the inventory panel, and has raycasts disabled so it cannot
-/// intercept the drop target underneath the cursor — the two mistakes that made
-/// the old prefab-based inventory drag unusable.
+/// The cell owns no drag state beyond its own icon tint — the ghost belongs to
+/// InventoryPanel, so a refresh mid-drag cannot orphan it on screen.
 /// </summary>
 public class InventorySlotView : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IDropHandler,
     IPointerEnterHandler, IPointerExitHandler
 {
-    public int          SlotIndex { get; set; }
-    public InventoryPanel Owner   { get; set; }
+    public int SlotIndex { get; private set; }
 
-    private Image _icon;
-    private GameObject _dragGhost;
+    private InventoryPanel _owner;
+    private Image          _icon;
+    private TMP_Text       _quantity;
+    private bool           _isEmpty = true;
 
-    public void Bind(int slotIndex, InventoryPanel owner, Image icon)
+    public void Bind(int slotIndex, InventoryPanel owner, Image icon, TMP_Text quantity)
     {
         SlotIndex = slotIndex;
-        Owner     = owner;
+        _owner    = owner;
         _icon     = icon;
+        _quantity = quantity;
     }
 
-    private bool HasItem
+    /// <summary>Updates this cell's visuals. Pass null or an empty entry to blank it.</summary>
+    public void SetContents(InventoryEntry entry)
     {
-        get
+        _isEmpty = InventoryManager.IsEmpty(entry);
+
+        if (_isEmpty)
         {
-            var items = GameManager.Inventory?.Items;
-            return items != null && SlotIndex < items.Count;
+            if (_icon != null)
+            {
+                _icon.sprite  = null;
+                _icon.enabled = false;
+            }
+            if (_quantity != null) _quantity.text = "";
+            return;
         }
+
+        if (_icon != null)
+        {
+            var sprite    = GameManager.Content?.GetItemIcon(entry.itemId);
+            _icon.sprite  = sprite;
+            _icon.color   = Color.white;
+            _icon.enabled = sprite != null;
+        }
+        if (_quantity != null) _quantity.text = NumberFormatter.Format(entry.quantity);
     }
 
     // ── Tooltip ───────────────────────────────────────────────────────────────
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (HasItem) Owner?.ShowTooltipForSlot(SlotIndex, eventData.position);
+        if (!_isEmpty) _owner?.ShowTooltipForSlot(SlotIndex, eventData.position);
     }
 
-    public void OnPointerExit(PointerEventData eventData) => Owner?.HideTooltip();
+    public void OnPointerExit(PointerEventData eventData) => _owner?.HideTooltip();
 
     // ── Drag ──────────────────────────────────────────────────────────────────
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!HasItem) return;
-
-        Owner?.HideTooltip();
+        if (_isEmpty) return;
 
         // Dim the real icon so the cell reads as "lifted"
         if (_icon != null) _icon.color = new Color(1f, 1f, 1f, 0.35f);
 
-        var canvas = UIManager.DragCanvas != null ? UIManager.DragCanvas.transform : transform.root;
-
-        _dragGhost = new GameObject("DragGhost", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
-        _dragGhost.transform.SetParent(canvas, false);
-
-        var ghostRt = _dragGhost.GetComponent<RectTransform>();
-        ghostRt.sizeDelta = new Vector2(UIManager.Theme.slotSize, UIManager.Theme.slotSize);
-
-        var ghostImg = _dragGhost.GetComponent<Image>();
-        ghostImg.sprite         = _icon != null ? _icon.sprite : null;
-        ghostImg.preserveAspect = true;
-        ghostImg.raycastTarget  = false;
-
-        var group = _dragGhost.GetComponent<CanvasGroup>();
-        group.alpha          = 0.85f;
-        group.blocksRaycasts = false;   // must not shadow the drop target
-
-        ghostRt.position = eventData.position;
+        _owner?.BeginDrag(_icon != null ? _icon.sprite : null, eventData.position);
     }
 
-    public void OnDrag(PointerEventData eventData)
-    {
-        if (_dragGhost != null)
-            _dragGhost.GetComponent<RectTransform>().position = eventData.position;
-    }
+    public void OnDrag(PointerEventData eventData) => _owner?.MoveDrag(eventData.position);
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        // Always runs, whether the drop landed on a cell or on empty space, so this
+        // is the one reliable place to clear the ghost.
         if (_icon != null) _icon.color = Color.white;
 
-        if (_dragGhost != null)
-        {
-            Destroy(_dragGhost);
-            _dragGhost = null;
-        }
-
-        // OnDrop on the target does the actual move; this just refreshes in case
-        // the drop landed on empty space.
-        Owner?.Refresh();
+        _owner?.CancelDrag();
+        _owner?.Refresh();
     }
 
     /// <summary>Fires on the cell under the cursor when a drag is released.</summary>
@@ -107,7 +96,9 @@ public class InventorySlotView : MonoBehaviour,
 
         if (source == null || source == this) return;
 
+        // Works for empty targets too: the inventory is a fixed 30-slot list, so an
+        // empty cell is a real slot that can receive a plain move.
         GameManager.Inventory?.SwapOrStackSlots(source.SlotIndex, SlotIndex);
-        Owner?.Refresh();
+        _owner?.Refresh();
     }
 }

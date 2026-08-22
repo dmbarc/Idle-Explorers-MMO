@@ -33,12 +33,10 @@ public class ZoneManager : MonoBehaviour
             return;
         }
 
-        if (IsLoading)
-        {
-            Debug.LogWarning($"[ZoneManager] Already loading a map — ignoring request for '{mapId}'.");
-            return;
-        }
-
+        // Cancel any in-flight transition rather than dropping this request. Leaving
+        // to the menu starts an unload; entering a map immediately after would
+        // otherwise race it and could leave two map scenes loaded at once.
+        StopAllCoroutines();
         StartCoroutine(EnterMapRoutine(map));
     }
 
@@ -47,13 +45,9 @@ public class ZoneManager : MonoBehaviour
         IsLoading = true;
 
         // Unload the previous map before loading the next, so two terrains never
-        // coexist and NavMesh queries stay unambiguous.
-        if (!string.IsNullOrEmpty(_loadedSceneName))
-        {
-            var unload = SceneManager.UnloadSceneAsync(_loadedSceneName);
-            if (unload != null) yield return unload;
-            _loadedSceneName = null;
-        }
+        // coexist and NavMesh queries stay unambiguous. Search by name rather than
+        // trusting _loadedSceneName, which a cancelled unload may have cleared.
+        yield return UnloadAllMapScenes();
 
         string sceneName = string.IsNullOrEmpty(map.sceneAddress) ? DefaultMapScene : map.sceneAddress;
 
@@ -120,22 +114,57 @@ public class ZoneManager : MonoBehaviour
 
     public void UnloadCurrentZone()
     {
-        if (string.IsNullOrEmpty(_loadedSceneName)) return;
-        if (gameObject.activeInHierarchy) StartCoroutine(UnloadRoutine());
+        if (!gameObject.activeInHierarchy) return;
+
+        StopAllCoroutines();
+        StartCoroutine(UnloadRoutine());
     }
 
     private IEnumerator UnloadRoutine()
     {
-        string toUnload  = _loadedSceneName;
-        _loadedSceneName = null;
-
-        var unload = SceneManager.UnloadSceneAsync(toUnload);
-        if (unload != null) yield return unload;
+        IsLoading = true;
+        yield return UnloadAllMapScenes();
 
         CurrentMap    = null;
         CurrentZone   = null;
         CurrentMapId  = null;
         CurrentZoneId = null;
+        IsLoading     = false;
+    }
+
+    /// <summary>
+    /// Unloads every loaded map scene, not just the one this manager thinks is
+    /// current. Guards against a cancelled transition leaving a stray scene behind,
+    /// which would give the next map two terrains and two players.
+    /// </summary>
+    private IEnumerator UnloadAllMapScenes()
+    {
+        for (int i = SceneManager.sceneCount - 1; i >= 0; i--)
+        {
+            var scene = SceneManager.GetSceneAt(i);
+            if (!scene.isLoaded) continue;
+            if (!IsMapScene(scene.name)) continue;
+
+            var op = SceneManager.UnloadSceneAsync(scene);
+            if (op != null) yield return op;
+        }
+        _loadedSceneName = null;
+    }
+
+    /// <summary>True for any scene that is a loadable map, so Bootstrap is never unloaded.</summary>
+    private static bool IsMapScene(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName)) return false;
+        if (sceneName == DefaultMapScene) return true;
+
+        var maps = GameManager.Content?.Maps;
+        if (maps == null) return false;
+
+        foreach (var kv in maps)
+            if (!string.IsNullOrEmpty(kv.Value.sceneAddress) && kv.Value.sceneAddress == sceneName)
+                return true;
+
+        return false;
     }
 
     // ── Requirements ──────────────────────────────────────────────────────────

@@ -40,6 +40,20 @@ public class ActivityManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Forgets the current activity and any pending summary.
+    ///
+    /// Both are manager-level state shared by every character, so leaving them set
+    /// when switching characters showed the previous one's activity and AFK
+    /// rewards on the next one.
+    /// </summary>
+    public void ClearActivity()
+    {
+        CurrentActivity = null;
+        PendingSummary  = null;
+        GameEvents.FireActivityChanged(null);
+    }
+
+    /// <summary>
     /// Restores a previously saved activity without resetting its start time or
     /// re-announcing it. Used when re-entering the map a character was parked on.
     /// </summary>

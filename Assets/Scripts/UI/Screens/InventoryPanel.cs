@@ -1,31 +1,33 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
 /// Screen 10: the inventory.
 ///
-/// POC scope: read-only grid with hover tooltips. Drag-and-drop is deferred —
-/// InventoryManager.SwapOrStackSlots already exists for it, so wiring it later
-/// is additive.
+/// The 30 cells are created once and only ever have their contents updated.
+/// Rebuilding them on every refresh destroyed the cell that was mid-drag, so its
+/// OnEndDrag never ran and the drag ghost was orphaned on screen. The ghost is
+/// owned by this panel for the same reason.
 /// </summary>
 public class InventoryPanel : UIScreen
 {
+    private const int Columns = 6;
+
+    /// <summary>Sits over the HUD rather than replacing it.</summary>
+    public override bool IsOverlay => true;
+
     private RectTransform _grid;
     private GameObject    _tooltip;
     private TMP_Text      _tooltipName;
     private TMP_Text      _tooltipDesc;
     private TMP_Text      _tooltipMeta;
     private TMP_Text      _capacityLabel;
+    private TMP_Text      _coinsLabel;
 
-    private readonly List<GameObject> _slotObjects = new();
-
-    private const int Columns = 6;
-
-    /// <summary>Sits over the HUD rather than replacing it.</summary>
-    public override bool IsOverlay => true;
+    private readonly List<InventorySlotView> _slots = new();
+    private GameObject _dragGhost;
 
     public override void Build()
     {
@@ -33,60 +35,58 @@ public class InventoryPanel : UIScreen
 
         UIFactory.Panel(transform, "Backdrop", theme.overlayBg, true);
 
-        var panel   = UIFactory.Panel(transform, "InventoryPanel", theme.panelBg, false);
-        var panelRt = panel.GetComponent<RectTransform>();
-        panelRt.anchorMin = new Vector2(0.25f, 0.15f);
-        panelRt.anchorMax = new Vector2(0.75f, 0.88f);
-        panelRt.offsetMin = panelRt.offsetMax = Vector2.zero;
+        var panel = UIFactory.Panel(transform, "InventoryPanel", theme.panelBg, false);
+        UIFactory.At(panel.transform, 0.25f, 0.15f, 0.75f, 0.88f);
 
         BuildHeader(panel.transform, theme);
         BuildGrid(panel.transform, theme);
         BuildTooltip(theme);
         BuildCloseButton(panel.transform, theme);
+
+        CreateSlots();
     }
 
     public override void OnShow()
     {
         GameEvents.OnInventoryChanged += Refresh;
+        GameEvents.OnCoinsChanged     += OnCoinsChanged;
         Refresh();
     }
 
     public override void OnHide()
     {
         GameEvents.OnInventoryChanged -= Refresh;
+        GameEvents.OnCoinsChanged     -= OnCoinsChanged;
+
         HideTooltip();
+        CancelDrag();   // closing mid-drag must not leave a ghost behind
     }
 
     // ── Layout ────────────────────────────────────────────────────────────────
 
     private void BuildHeader(Transform parent, UITheme theme)
     {
-        var header   = UIFactory.Panel(parent, "Header", theme.headerBg, false);
-        var headerRt = header.GetComponent<RectTransform>();
-        headerRt.anchorMin = new Vector2(0f, 0.90f);
-        headerRt.anchorMax = new Vector2(1f, 1f);
-        headerRt.offsetMin = headerRt.offsetMax = Vector2.zero;
+        var header = UIFactory.Panel(parent, "Header", theme.headerBg, false);
+        UIFactory.At(header.transform, 0f, 0.90f, 1f, 1f);
 
-        var title = UIFactory.Label(header.transform, "INVENTORY",
-                                     theme.fontSizeBody, theme.accentGold, TextAlignmentOptions.MidlineLeft);
-        var titleRt = title.GetComponent<RectTransform>();
-        titleRt.anchorMin = new Vector2(0.03f, 0f);
-        titleRt.anchorMax = new Vector2(0.60f, 1f);
-        titleRt.offsetMin = titleRt.offsetMax = Vector2.zero;
+        var title = UIFactory.Label(header.transform, "INVENTORY", theme.fontSizeBody,
+                                     theme.accentGold, TextAlignmentOptions.MidlineLeft);
+        UIFactory.At(title, 0.03f, 0f, 0.40f, 1f);
 
-        _capacityLabel = UIFactory.Label(header.transform, "",
-                                          theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.MidlineRight);
-        var capRt = _capacityLabel.GetComponent<RectTransform>();
-        capRt.anchorMin = new Vector2(0.60f, 0f);
-        capRt.anchorMax = new Vector2(0.88f, 1f);
-        capRt.offsetMin = capRt.offsetMax = Vector2.zero;
+        _coinsLabel = UIFactory.Label(header.transform, "", theme.fontSizeSmall,
+                                       theme.accentGold, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(_coinsLabel, 0.42f, 0f, 0.72f, 1f);
+
+        _capacityLabel = UIFactory.Label(header.transform, "", theme.fontSizeSmall,
+                                          theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(_capacityLabel, 0.74f, 0f, 0.97f, 1f);
     }
 
     private void BuildGrid(Transform parent, UITheme theme)
     {
         // No ScrollView: 30 slots at 6 columns always fit, and the scroll content
-        // was sized from an unset sizeDelta so the grid overflowed its viewport and
-        // the first column was clipped off the left edge.
+        // was sized from an unset sizeDelta so the grid overflowed its viewport
+        // and clipped the first column.
         var container = UIFactory.Panel(parent, "GridContainer", Color.clear, false, raycastTarget: false);
         UIFactory.At(container.transform, 0.03f, 0.13f, 0.97f, 0.88f);
 
@@ -107,11 +107,24 @@ public class InventoryPanel : UIScreen
     private void BuildCloseButton(Transform parent, UITheme theme)
     {
         var btn = UIFactory.Button(parent, "CLOSE", () => GameManager.UI?.Pop(), width: 0f);
-        var rt  = btn.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.35f, 0.02f);
-        rt.anchorMax = new Vector2(0.65f, 0.11f);
-        rt.offsetMin = rt.offsetMax = Vector2.zero;
-        rt.sizeDelta = Vector2.zero;
+        UIFactory.At(btn, 0.35f, 0.02f, 0.65f, 0.11f);
+    }
+
+    /// <summary>Creates the 30 cells once. They are never destroyed afterwards.</summary>
+    private void CreateSlots()
+    {
+        _slots.Clear();
+
+        for (int i = 0; i < InventoryManager.MaxSlots; i++)
+        {
+            var slotGo = UIFactory.Slot(_grid, $"Slot{i}");
+            var icon   = slotGo.transform.Find("Icon")?.GetComponent<Image>();
+            var qty    = slotGo.transform.Find("Quantity")?.GetComponent<TMP_Text>();
+
+            var view = slotGo.AddComponent<InventorySlotView>();
+            view.Bind(i, this, icon, qty);
+            _slots.Add(view);
+        }
     }
 
     // ── Tooltip ───────────────────────────────────────────────────────────────
@@ -150,15 +163,23 @@ public class InventoryPanel : UIScreen
         _tooltip.SetActive(false);
     }
 
-    private void ShowTooltip(ItemData item, long quantity, Vector2 screenPos)
+    /// <summary>Called by a cell on hover.</summary>
+    public void ShowTooltipForSlot(int slotIndex, Vector2 screenPos)
     {
-        if (_tooltip == null || item == null) return;
+        var items = GameManager.Inventory?.Items;
+        if (items == null || slotIndex < 0 || slotIndex >= items.Count) return;
+
+        var entry = items[slotIndex];
+        if (InventoryManager.IsEmpty(entry)) { HideTooltip(); return; }
+
+        var item = GameManager.Content?.GetItem(entry.itemId);
+        if (item == null || _tooltip == null) return;
 
         _tooltipName.text = item.DisplayName;
         _tooltipDesc.text = item.description ?? "";
 
-        string meta = $"Quantity: {NumberFormatter.Format(quantity)}";
-        if (item.levelReq > 0)      meta += $"\nRequires level {item.levelReq}";
+        string meta = $"Quantity: {NumberFormatter.Format(entry.quantity)}";
+        if (item.levelReq > 0) meta += $"\nRequires level {item.levelReq}";
         if (!string.IsNullOrEmpty(item.sourceSkill))
         {
             string skillName = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
@@ -169,10 +190,9 @@ public class InventoryPanel : UIScreen
         _tooltip.SetActive(true);
         _tooltip.transform.SetAsLastSibling();
 
-        var rt = _tooltip.GetComponent<RectTransform>();
         if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 (RectTransform)transform, screenPos, null, out Vector2 local))
-            rt.anchoredPosition = local + new Vector2(16f, -16f);
+            _tooltip.GetComponent<RectTransform>().anchoredPosition = local + new Vector2(16f, -16f);
     }
 
     public void HideTooltip()
@@ -180,68 +200,72 @@ public class InventoryPanel : UIScreen
         if (_tooltip != null) _tooltip.SetActive(false);
     }
 
-    // ── Contents ──────────────────────────────────────────────────────────────
+    // ── Drag ghost (owned here, not by the cell) ──────────────────────────────
 
-    /// <summary>
-    /// Rebuilds every cell. Cheap at 30 slots, and it keeps slot indices and the
-    /// underlying list in exact agreement after a drag reorder.
-    /// </summary>
-    public void Refresh()
+    public void BeginDrag(Sprite sprite, Vector2 screenPos)
     {
-        if (_grid == null) return;
+        HideTooltip();
+        CancelDrag();
 
-        foreach (var slot in _slotObjects)
-            if (slot != null) DestroyImmediate(slot);
-        _slotObjects.Clear();
+        var canvas = UIManager.DragCanvas != null ? UIManager.DragCanvas.transform : transform;
 
-        var items = GameManager.Inventory?.Items;
-        int used  = items?.Count ?? 0;
+        _dragGhost = new GameObject("DragGhost", typeof(RectTransform), typeof(Image), typeof(CanvasGroup));
+        _dragGhost.transform.SetParent(canvas, false);
 
-        if (_capacityLabel != null)
-            _capacityLabel.text = $"{used} / {InventoryManager.MaxSlots}";
+        var rt = _dragGhost.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(UIManager.Theme.slotSize, UIManager.Theme.slotSize);
+        rt.position  = screenPos;
 
-        for (int i = 0; i < InventoryManager.MaxSlots; i++)
-        {
-            var slot = UIFactory.Slot(_grid, $"Slot{i}");
-            _slotObjects.Add(slot);
+        var img = _dragGhost.GetComponent<Image>();
+        img.sprite         = sprite;
+        img.preserveAspect = true;
+        img.raycastTarget  = false;
+        img.enabled        = sprite != null;
 
-            var icon = slot.transform.Find("Icon")?.GetComponent<Image>();
-            var qty  = slot.transform.Find("Quantity")?.GetComponent<TMP_Text>();
-
-            // The cell itself must be a raycast target or it can never be a drop
-            // target; UIFactory.Slot leaves the root image raycastable.
-            var view = slot.AddComponent<InventorySlotView>();
-            view.Bind(i, this, icon);
-
-            bool filled = items != null && i < items.Count;
-            if (filled)
-            {
-                var entry = items[i];
-
-                if (icon != null)
-                {
-                    var sprite   = GameManager.Content?.GetItemIcon(entry.itemId);
-                    icon.sprite  = sprite;
-                    icon.color   = Color.white;
-                    icon.enabled = sprite != null;
-                }
-                if (qty != null) qty.text = NumberFormatter.Format(entry.quantity);
-            }
-            else
-            {
-                if (icon != null) icon.enabled = false;
-                if (qty  != null) qty.text = "";
-            }
-        }
+        var group = _dragGhost.GetComponent<CanvasGroup>();
+        group.alpha          = 0.85f;
+        group.blocksRaycasts = false;   // must not shadow the drop target
     }
 
-    /// <summary>Called by a cell on hover. Looks the item up by slot index.</summary>
-    public void ShowTooltipForSlot(int slotIndex, Vector2 screenPos)
+    public void MoveDrag(Vector2 screenPos)
     {
-        var items = GameManager.Inventory?.Items;
-        if (items == null || slotIndex < 0 || slotIndex >= items.Count) return;
+        if (_dragGhost != null)
+            _dragGhost.GetComponent<RectTransform>().position = screenPos;
+    }
 
-        var entry = items[slotIndex];
-        ShowTooltip(GameManager.Content?.GetItem(entry.itemId), entry.quantity, screenPos);
+    /// <summary>Destroys the ghost if one exists. Safe to call at any time.</summary>
+    public void CancelDrag()
+    {
+        if (_dragGhost == null) return;
+        Destroy(_dragGhost);
+        _dragGhost = null;
+    }
+
+    // ── Contents ──────────────────────────────────────────────────────────────
+
+    private void OnCoinsChanged(long total) => RefreshCoins();
+
+    private void RefreshCoins()
+    {
+        if (_coinsLabel != null)
+            _coinsLabel.text = $"◈ {NumberFormatter.Format(GameManager.Inventory?.Coins ?? 0)}";
+    }
+
+    /// <summary>Updates every cell in place — no GameObjects are created or destroyed.</summary>
+    public void Refresh()
+    {
+        var inventory = GameManager.Inventory;
+        var items     = inventory?.Items;
+
+        if (_capacityLabel != null)
+            _capacityLabel.text = $"{inventory?.UsedSlots ?? 0} / {InventoryManager.MaxSlots}";
+
+        RefreshCoins();
+
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            var entry = (items != null && i < items.Count) ? items[i] : null;
+            _slots[i].SetContents(entry);
+        }
     }
 }

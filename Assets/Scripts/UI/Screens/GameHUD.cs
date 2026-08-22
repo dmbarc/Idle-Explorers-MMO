@@ -26,6 +26,7 @@ public class GameHUD : UIScreen
 
     private readonly List<Image>    _abilityCooldownOverlays = new();
     private readonly List<TMP_Text> _abilityLabels           = new();
+    private Transform        _abilityBarRoot;
     private PlayerController _player;
 
     public override void Build()
@@ -40,8 +41,14 @@ public class GameHUD : UIScreen
 
     public override void OnShow()
     {
+        // This screen is cached and reused across characters, so everything it
+        // displays has to be re-read here — otherwise the second character you play
+        // inherits the first one's name, coins and activity.
+        _player = null;
         RefreshCharInfo();
         RefreshCoins(GameManager.Inventory?.Coins ?? 0);
+        SetActivityText(GameManager.Activity?.CurrentActivity);
+        RebuildAbilityBar();
 
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
         GameEvents.OnActivityChanged     += OnActivityChanged;
@@ -147,19 +154,38 @@ public class GameHUD : UIScreen
     /// </summary>
     private void BuildAbilityBar(Transform parent)
     {
+        var stack = UIFactory.HStack(parent, UIManager.Theme.spacing, "AbilityBar");
+        UIFactory.At(stack.transform, 0.28f, 0.08f, 0.68f, 0.92f);
+        _abilityBarRoot = stack.transform;
+
+        RebuildAbilityBar();
+    }
+
+    /// <summary>
+    /// Repopulates the action bar from the active character's class. Called on every
+    /// show, because the HUD is cached and a second character may be a different
+    /// class with entirely different abilities.
+    /// </summary>
+    private void RebuildAbilityBar()
+    {
+        if (_abilityBarRoot == null) return;
+
         var theme = UIManager.Theme;
 
-        var stack = UIFactory.HStack(parent, theme.spacing, "AbilityBar");
-        UIFactory.At(stack.transform, 0.28f, 0.08f, 0.68f, 0.92f);
+        for (int i = _abilityBarRoot.childCount - 1; i >= 0; i--)
+            DestroyImmediate(_abilityBarRoot.GetChild(i).gameObject);
+        _abilityCooldownOverlays.Clear();
+        _abilityLabels.Clear();
 
-        var cls = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
+        var stack = _abilityBarRoot;
+        var cls   = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
 
         for (int i = 0; i < 5; i++)
         {
             int slot = i;
             var ability = (cls?.abilities != null && i < cls.abilities.Length) ? cls.abilities[i] : null;
 
-            var slotGo = UIFactory.Slot(stack.transform, $"Ability{i + 1}");
+            var slotGo = UIFactory.Slot(stack, $"Ability{i + 1}");
 
             // Passive abilities are shown but cannot be pressed
             bool activatable = ability != null && ability.IsActivatable;

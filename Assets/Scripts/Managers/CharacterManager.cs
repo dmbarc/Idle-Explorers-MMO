@@ -12,6 +12,11 @@ public class CharacterManager : MonoBehaviour
 
     public void SelectCharacter(CharacterData character)
     {
+        // Drop the previous character's activity and pending AFK summary before
+        // anything reads them — otherwise selecting a second character showed the
+        // first one's rewards and current activity.
+        GameManager.Activity?.ClearActivity();
+
         Current = character;
         Current.isOnline = true;
         GameEvents.OnCharacterSelected?.Invoke(character);
@@ -56,6 +61,7 @@ public class CharacterManager : MonoBehaviour
 
         // TODO Phase 8: push to server
         Current = null;
+        GameManager.Activity?.ClearActivity();
     }
 
     public void AddXP(long amount)
