@@ -1,0 +1,46 @@
+# ── Unity generated (never track these) ──────────────────────────────────────
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+MemoryCaptures/
+Recordings/
+
+# ── Auto-generated IDE / build files ─────────────────────────────────────────
+.vs/
+*.csproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.VC.db
+
+# NOTE: do NOT ignore *.meta files — Unity needs them for all tracked assets
+
+# ── Crash reports ─────────────────────────────────────────────────────────────
+crashlytics-build.properties
+
+# ── Plastic SCM (replaced by Git) ────────────────────────────────────────────
+.plastic/
+ignore.conf
+
+# ── OS noise ─────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── PSD source art ────────────────────────────────────────────────────────────
+# Large Photoshop source files are not needed to build the game.
+# Store them in Google Drive / OneDrive alongside the repo to preserve Git LFS quota.
+# Remove this line if you want PSDs tracked in LFS instead.
+*.psd
