@@ -56,14 +56,11 @@ public class CharCreateNameScreen : UIScreen
 
     private void GoNext()
     {
-        if (string.IsNullOrWhiteSpace(_pendingName))
+        // Same rules the rename modal uses, so a name accepted here can never be
+        // rejected later — including the duplicate check creation used to skip.
+        if (!CharacterManager.ValidateName(_pendingName, null, out string error))
         {
-            ShowHint("Your explorer needs a name.");
-            return;
-        }
-        if (_pendingName.Trim().Length < 2)
-        {
-            ShowHint("That name is too short.");
+            ShowHint(error);
             return;
         }
 

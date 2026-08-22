@@ -221,6 +221,9 @@ public class CharacterData
 {
     public string   characterId;
     public string   characterName;
+    /// <summary>How many times this character has been renamed. Nothing gates on it
+    /// yet; it exists so a future paid-rename has somewhere to hook.</summary>
+    public int      renameCount;
     public string   classId;
     public int      level;
     public long     xp;

@@ -28,6 +28,85 @@ public class CharacterManager : MonoBehaviour
             GameManager.Activity?.ProcessAFKRewards(character);
     }
 
+    // ── Naming ────────────────────────────────────────────────────────────────
+
+    public const int NameMinLength = 2;
+    public const int NameMaxLength = 20;
+
+    /// <summary>
+    /// Shared name rules for both character creation and renaming.
+    ///
+    /// Creation never checked for duplicates, which is how an account ends up with
+    /// two characters of the same name and no way to tell their cards apart.
+    /// </summary>
+    /// <param name="excluding">
+    /// The character being renamed, so it does not collide with its own name.
+    /// Pass null when creating.
+    /// </param>
+    public static bool ValidateName(string name, CharacterData excluding, out string error)
+    {
+        string trimmed = (name ?? "").Trim();
+
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            error = "Your explorer needs a name.";
+            return false;
+        }
+        if (trimmed.Length < NameMinLength)
+        {
+            error = "That name is too short.";
+            return false;
+        }
+        if (trimmed.Length > NameMaxLength)
+        {
+            error = $"Names are at most {NameMaxLength} characters.";
+            return false;
+        }
+
+        var characters = AccountManager.Current?.characters;
+        if (characters != null)
+        {
+            foreach (var c in characters)
+            {
+                if (c == null || ReferenceEquals(c, excluding)) continue;
+                if (string.Equals(c.characterName, trimmed, StringComparison.OrdinalIgnoreCase))
+                {
+                    error = $"You already have a character named '{trimmed}'.";
+                    return false;
+                }
+            }
+        }
+
+        error = null;
+        return true;
+    }
+
+    /// <summary>Renames a character in place and persists. Returns false with a reason.</summary>
+    public bool TryRename(CharacterData character, string newName, out string error)
+    {
+        if (character == null)
+        {
+            error = "No character selected.";
+            return false;
+        }
+
+        if (!ValidateName(newName, character, out error)) return false;
+
+        string trimmed = newName.Trim();
+        if (string.Equals(character.characterName, trimmed, StringComparison.Ordinal))
+        {
+            error = null;
+            return true;   // no-op rename, not an error
+        }
+
+        character.characterName = trimmed;
+        character.renameCount++;
+        GameManager.Save?.Save();
+
+        error = null;
+        return true;
+    }
+
     public void CreateCharacter(CharacterData character)
     {
         if (AccountManager.Current == null) return;

@@ -76,10 +76,17 @@ public class CharCreateConfirmScreen : UIScreen
 
     private void CreateCharacter()
     {
-        if (string.IsNullOrEmpty(CharCreateState.PendingName) ||
-            string.IsNullOrEmpty(CharCreateState.PendingClassId))
+        if (string.IsNullOrEmpty(CharCreateState.PendingClassId))
         {
-            GameEvents.FireToast("Name or class is missing — go back and complete them.");
+            GameEvents.FireToast("Class is missing — go back and pick one.");
+            return;
+        }
+
+        // Re-checked at the last moment as well as on the name screen: another
+        // character could have been created (or renamed) in between.
+        if (!CharacterManager.ValidateName(CharCreateState.PendingName, null, out string nameError))
+        {
+            GameEvents.FireToast(nameError);
             return;
         }
 

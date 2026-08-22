@@ -19,11 +19,6 @@ public class GameHUD : UIScreen
     private Image    _mpFill;
     private TMP_Text _hpText;
 
-    private GameObject _activityPanel;
-    private TMP_Text   _activitySkillLabel;
-    private TMP_Text   _activityTargetLabel;
-    private TMP_Text   _activityRateLabel;
-
     private readonly List<Image>    _abilityCooldownOverlays = new();
     private readonly List<TMP_Text> _abilityLabels           = new();
     private Transform        _abilityBarRoot;
@@ -36,7 +31,6 @@ public class GameHUD : UIScreen
 
         BuildTopBar();
         BuildBottomBar();
-        BuildActivityPanel();
     }
 
     public override void OnShow()
@@ -47,11 +41,9 @@ public class GameHUD : UIScreen
         _player = null;
         RefreshCharInfo();
         RefreshCoins(GameManager.Inventory?.Coins ?? 0);
-        SetActivityText(GameManager.Activity?.CurrentActivity);
         RebuildAbilityBar();
 
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
-        GameEvents.OnActivityChanged     += OnActivityChanged;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
         GameEvents.OnCoinsChanged        += RefreshCoins;
         GameEvents.OnPlayerDied          += OnPlayerDied;
@@ -60,7 +52,6 @@ public class GameHUD : UIScreen
     public override void OnHide()
     {
         GameEvents.OnCharacterLevelUp    -= OnLevelUp;
-        GameEvents.OnActivityChanged     -= OnActivityChanged;
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
         GameEvents.OnCoinsChanged        -= RefreshCoins;
         GameEvents.OnPlayerDied          -= OnPlayerDied;
@@ -253,45 +244,10 @@ public class GameHUD : UIScreen
         });
     }
 
-    // ── Current activity panel ────────────────────────────────────────────────
-
-    private void BuildActivityPanel()
-    {
-        var theme = UIManager.Theme;
-
-        _activityPanel = UIFactory.Panel(transform, "ActivityPanel", theme.cardBg, false);
-        UIFactory.At(_activityPanel.transform, 0.76f, 0.12f, 0.99f, 0.32f);
-
-        // Each row gets its own band. Previously every label was unanchored and
-        // they drew on top of one another.
-        var header = UIFactory.Label(_activityPanel.transform, "CURRENT ACTIVITY",
-                                      theme.fontSizeLabel, theme.accentGold, TextAlignmentOptions.Center);
-        UIFactory.At(header, 0.04f, 0.78f, 0.96f, 0.97f);
-
-        UIFactory.At(UIFactory.HorizontalDivider(_activityPanel.transform).transform, 0.04f, 0.74f, 0.96f, 0.77f);
-
-        _activitySkillLabel = UIFactory.Label(_activityPanel.transform, "Idle",
-                                               theme.fontSizeBody, theme.textPrimary, TextAlignmentOptions.Center);
-        UIFactory.At(_activitySkillLabel, 0.04f, 0.48f, 0.96f, 0.72f);
-
-        _activityTargetLabel = UIFactory.Label(_activityPanel.transform, "",
-                                                theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
-        UIFactory.At(_activityTargetLabel, 0.04f, 0.26f, 0.96f, 0.46f);
-
-        _activityRateLabel = UIFactory.Label(_activityPanel.transform, "",
-                                              theme.fontSizeSmall, theme.accentGreen, TextAlignmentOptions.Center);
-        UIFactory.At(_activityRateLabel, 0.04f, 0.05f, 0.96f, 0.24f);
-
-        SetActivityText(GameManager.Activity?.CurrentActivity);
-    }
-
-    /// <summary>Show/hide the activity panel — driven by the menu's toggle.</summary>
-    public void SetActivityPanelVisible(bool visible)
-    {
-        if (_activityPanel != null) _activityPanel.SetActive(visible);
-    }
-
-    public bool IsActivityPanelVisible => _activityPanel != null && _activityPanel.activeSelf;
+    // The current-activity readout used to live here as a permanently visible panel
+    // with a show/hide toggle in the menu. It is now rendered inside MenuModal
+    // instead — one place to look, and nothing occupying screen space to be toggled
+    // off. See MenuModal.BuildActivityBlock.
 
     // ── Refresh ───────────────────────────────────────────────────────────────
 
@@ -352,27 +308,4 @@ public class GameHUD : UIScreen
     }
 
     private void OnPlayerDied() => GameManager.UI?.Push<DeathScreen>();
-
-    private void OnActivityChanged(SkillActivityData activity) => SetActivityText(activity);
-
-    private void SetActivityText(SkillActivityData activity)
-    {
-        bool idle = activity == null || string.IsNullOrEmpty(activity.skillId);
-
-        if (_activitySkillLabel != null)
-        {
-            _activitySkillLabel.text = idle
-                ? "Idle"
-                : GameManager.Content?.GetSkill(activity.skillId)?.DisplayName ?? activity.skillId;
-        }
-        if (_activityTargetLabel != null)
-            _activityTargetLabel.text = idle ? "Nothing earning while away" : activity.activityTargetName;
-
-        if (_activityRateLabel != null)
-        {
-            _activityRateLabel.text = idle
-                ? ""
-                : $"{NumberFormatter.Format((long)activity.xpPerHour)} xp/hr  •  AFK {NumberFormatter.FormatRate(activity.afkRateMulti)}";
-        }
-    }
 }

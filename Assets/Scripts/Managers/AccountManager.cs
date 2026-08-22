@@ -43,6 +43,81 @@ public class AccountManager : MonoBehaviour
         GameEvents.OnAccountLoaded?.Invoke(data);
     }
 
+    // ── Account progression ───────────────────────────────────────────────────
+    //
+    // Account XP is pooled from every character's milestones, which is what makes
+    // it the "breadth" stat: playing a second character advances the account, and
+    // the account is what gates additional character slots.
+    //
+    // Before this, AddXP had no callers at all. accountXP could never leave 0, so
+    // Account Lv. was permanently 1 — which silently locked character slots 2 and
+    // 3 (reqAccountLevel 5 / 10) and every map above reqAccountLevel 1.
+
+    void OnEnable()
+    {
+        GameEvents.OnCharacterLevelUp  += OnCharacterLevelUp;
+        GameEvents.OnSkillLevelUp      += OnSkillLevelUp;
+        GameEvents.OnMilestoneUnlocked += OnMilestoneUnlocked;
+    }
+
+    void OnDisable()
+    {
+        GameEvents.OnCharacterLevelUp  -= OnCharacterLevelUp;
+        GameEvents.OnSkillLevelUp      -= OnSkillLevelUp;
+        GameEvents.OnMilestoneUnlocked -= OnMilestoneUnlocked;
+    }
+
+    private void OnCharacterLevelUp(int newLevel)          => AddXP(newLevel * 10L);
+    private void OnSkillLevelUp(string _, int newLevel)    => AddXP(newLevel * 5L);
+    private void OnMilestoneUnlocked(string _, int level)  => AddXP(level * 25L);
+
+    public void AddXP(long amount)
+    {
+        if (Current == null || amount <= 0) return;
+
+        Current.accountXP += amount;
+
+        int newLevel = XPToLevel(Current.accountXP);
+        if (newLevel > Current.accountLevel)
+        {
+            Current.accountLevel = newLevel;
+            GameEvents.OnAccountLevelUp?.Invoke(newLevel);
+
+            // Toasted here rather than from a UI screen because account levels can
+            // rise during AFK accrual on character select, where no HUD is loaded.
+            GameEvents.FireToast($"★ Account Level {newLevel}!");
+        }
+    }
+
+    /// <summary>
+    /// Total account XP to account level. Same shape as the character and skill
+    /// curves in CharacterManager / SkillManager so all three read alike.
+    /// </summary>
+    public static int XPToLevel(long totalXP)
+    {
+        if (totalXP <= 0) return 1;
+        return Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Sqrt(totalXP / 100f)), 1, 999);
+    }
+
+    /// <summary>Account XP required to reach a given level.</summary>
+    public static long LevelToXP(int level)
+    {
+        level = Mathf.Clamp(level, 1, 999);
+        return (long)(level - 1) * (level - 1) * 100;
+    }
+
+    /// <summary>Progress through the current level, 0–1. Drives the XP bar.</summary>
+    public static float LevelProgress(AccountData account)
+    {
+        if (account == null) return 0f;
+
+        long floor = LevelToXP(account.accountLevel);
+        long roof  = LevelToXP(account.accountLevel + 1);
+        if (roof <= floor) return 1f;
+
+        return Mathf.Clamp01((account.accountXP - floor) / (float)(roof - floor));
+    }
+
     public bool IsSlotUnlocked(int slotIndex)
     {
         if (Current == null || GameManager.Content == null) return slotIndex < 2;
@@ -52,16 +127,4 @@ public class AccountManager : MonoBehaviour
         return GameManager.Content.IsSlotUnlocked(slotIndex, Current.accountLevel, highestCharLevel);
     }
 
-    public void AddXP(long amount)
-    {
-        if (Current == null) return;
-        Current.accountXP += amount;
-        // Simple level-up formula: level = floor(sqrt(accountXP / 100)) + 1, capped at 999
-        int newLevel = Mathf.Clamp(Mathf.FloorToInt(Mathf.Sqrt((float)(Current.accountXP / 100f))) + 1, 1, 999);
-        if (newLevel > Current.accountLevel)
-        {
-            Current.accountLevel = newLevel;
-            GameEvents.OnAccountLevelUp?.Invoke(newLevel);
-        }
-    }
 }

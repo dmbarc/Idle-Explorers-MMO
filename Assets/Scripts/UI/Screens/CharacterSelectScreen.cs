@@ -53,8 +53,10 @@ public class CharacterSelectScreen : UIScreen
 
         var (barRoot, barFill) = UIFactory.ProgressBar(header.transform, "AcctXPBar", theme.xpFill, 400f, 10f);
         UIFactory.At(barRoot.transform, 0.02f, 0.12f, 0.40f, 0.32f);
-        if (account != null)
-            barFill.fillAmount = (account.accountXP % 100) / 100f;
+        // Progress between this level's XP floor and the next one's. The old
+        // `accountXP % 100` assumed a linear 100-per-level curve, but the curve is
+        // quadratic, so the bar drifted further from the truth at every level.
+        barFill.fillAmount = AccountManager.LevelProgress(account);
 
         // Logging out has to go through here so the account is written to disk
         var logoutBtn = UIFactory.Button(header.transform, "LOG OUT", () =>
@@ -168,6 +170,11 @@ public class CharacterSelectScreen : UIScreen
                              data.isOnline ? theme.accentGreen : theme.textSecondary, TextAlignmentOptions.Center), 24f);
 
         Row(UIFactory.Button(body, "▶  PLAY", () => PlayCharacter(data), width: 0f), theme.buttonHeight);
+        Row(UIFactory.Button(body, "RENAME", () =>
+        {
+            RenameCharacterModal.Target = data;
+            GameManager.UI?.Push<RenameCharacterModal>();
+        }, width: 0f), theme.buttonHeight * 0.8f);
     }
 
     private void PlayCharacter(CharacterData data)

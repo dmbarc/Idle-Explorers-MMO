@@ -55,10 +55,19 @@ public class LoginScreen : UIScreen
     {
         ClearHint();
 
-        // Pre-fill the saved account so returning players just press LOGIN
-        var existing = AccountManager.Current;
-        if (_nameField != null && existing != null && !string.IsNullOrEmpty(existing.accountName))
-            _nameField.text = existing.accountName;
+        // Pre-fill the saved account so returning players just press LOGIN.
+        //
+        // Only when a save actually exists. AccountManager.Awake fabricates a stub
+        // named "Adventurer" when there is none, and pre-filling that handed every
+        // first-time player the placeholder — press CREATE ACCOUNT without clearing
+        // the field and your account is named after it.
+        bool hasSave = GameManager.Save?.HasSave ?? false;
+        var  existing = AccountManager.Current;
+
+        if (_nameField != null)
+            _nameField.text = (hasSave && !string.IsNullOrEmpty(existing?.accountName))
+                ? existing.accountName
+                : "";
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
