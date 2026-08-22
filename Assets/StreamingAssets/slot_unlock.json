@@ -1,0 +1,6 @@
+[
+  { "slot": 0, "reqAccountLevel": 0, "reqAnyCharLevel": 0 },
+  { "slot": 1, "reqAccountLevel": 0, "reqAnyCharLevel": 0 },
+  { "slot": 2, "reqAccountLevel": 5, "reqAnyCharLevel": 20 },
+  { "slot": 3, "reqAccountLevel": 10, "reqAnyCharLevel": 40 }
+]

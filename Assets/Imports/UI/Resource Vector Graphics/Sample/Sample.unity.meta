@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e5a080dbba78b44c792504d224898c1f
+timeCreated: 1508064105
+licenseType: Store
+DefaultImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 101998
+  packageName: Resource Vector Graphics
+  packageVersion: 0.2
+  assetPath: Assets/UI/Resource Vector Graphics/Sample/Sample.unity
+  uploadId: 207244

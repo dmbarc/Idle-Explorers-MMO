@@ -1,0 +1,24 @@
+[
+  {
+    "id": "bronze_bar",
+    "inputItemId": "copper_ore",
+    "inputQuantity": 2,
+    "secondaryItemId": "tin_ore",
+    "secondaryQuantity": 1,
+    "outputItemId": "bronze_bar",
+    "outputQuantity": 1,
+    "reqConvergenceLevel": 1,
+    "xpGained": 13
+  },
+  {
+    "id": "iron_bar",
+    "inputItemId": "iron_ore",
+    "inputQuantity": 2,
+    "secondaryItemId": "coal",
+    "secondaryQuantity": 1,
+    "outputItemId": "iron_bar",
+    "outputQuantity": 1,
+    "reqConvergenceLevel": 1,
+    "xpGained": 25
+  }
+]

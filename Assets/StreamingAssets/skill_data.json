@@ -1,0 +1,15 @@
+[
+  { "id": "mining",       "name": "Mining",        "description": "Extract ores from formations that were minding their business.",  "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.6 },
+  { "id": "woodcutting",  "name": "Woodcutting",   "description": "Fell trees. They have opinions about this.",                      "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.6 },
+  { "id": "fishing",      "name": "Fishing",       "description": "Catch fish. The fish are furious.",                                "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.6 },
+  { "id": "cooking",      "name": "Cooking",       "description": "Turn raw food into HP restoration items.",                         "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.5 },
+  { "id": "smithing",     "name": "Smithing",      "description": "Turn bars into equipment at a forge.",                            "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.5 },
+  { "id": "negotiation",  "name": "Negotiation",   "description": "Diplomacy with sentient creatures. They give resources willingly, with conditions.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.55 },
+  { "id": "gleaning",     "name": "Gleaning",      "description": "Absorb magical residue from dying-world artefacts. Nobody knows what it does yet.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.5 },
+  { "id": "fabrication",  "name": "Fabrication",   "description": "Improvised engineering. Combine what the world provides in ways that shouldn't work.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.55 },
+  { "id": "infusion",     "name": "Infusion",      "description": "Combine gleaned residue with crafted materials. Results vary wildly.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.45 },
+  { "id": "chronicle",    "name": "Chronicle",     "description": "Document the dying world. Your records grant buffs. High level: you rewrite reality.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.6 },
+  { "id": "spectralwork", "name": "Spectral Work", "description": "Harvest and shape ghost energy. Synergises with the ghost system.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.5 },
+  { "id": "brokerage",    "name": "Brokerage",     "description": "Economic power through the auction house. No AFK mode — you have to actually be there.", "iconAddress": "", "hasAfkMode": false, "afkRateDefault": 0.0 },
+  { "id": "convergence",  "name": "Convergence",   "description": "The merge skill. Auto-merges at ~40% of manual speed while AFK at a Convergence node.", "iconAddress": "", "hasAfkMode": true,  "afkRateDefault": 0.4 }
+]

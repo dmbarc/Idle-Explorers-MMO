@@ -1,0 +1,77 @@
+[
+  {
+    "id": "warrior",
+    "name": "Warrior",
+    "flavorText": "Steel and fury. Outlasts everything by refusing to fall.",
+    "baseHp": 120, "baseMp": 40, "baseAttackMin": 8, "baseAttackMax": 14,
+    "attackSpeedSeconds": 2.8,
+    "abilities": [
+      { "id": "cleave",         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.", "isPassive": false },
+      { "id": "shield_bash",    "name": "Shield Bash",    "description": "Stuns an enemy briefly.",               "isPassive": false },
+      { "id": "battlecry",      "name": "Battlecry",      "description": "(Party buff — Phase 8)",                "isPassive": false },
+      { "id": "reckless_strike","name": "Reckless Strike","description": "Massive damage, but you take a hit too.","isPassive": false },
+      { "id": "endure",         "name": "Endure",         "description": "Passive: survive one hit at 1 HP once every 90s.", "isPassive": true }
+    ],
+    "talentTree": []
+  },
+  {
+    "id": "ranger",
+    "name": "Ranger",
+    "flavorText": "Rapid and ruthless. A dozen arrows while you raise your sword.",
+    "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
+    "attackSpeedSeconds": 1.6,
+    "abilities": [
+      { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",          "isPassive": false },
+      { "id": "marked_target", "name": "Marked Target", "description": "Next attack on this enemy deals 2x.",   "isPassive": false },
+      { "id": "barrage",       "name": "Barrage",       "description": "Arrow rain hitting a large area.",      "isPassive": false },
+      { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Dodge next attack completely.",         "isPassive": false },
+      { "id": "eagle_eye",     "name": "Eagle Eye",     "description": "Passive: +15% critical strike chance.", "isPassive": true }
+    ],
+    "talentTree": []
+  },
+  {
+    "id": "sorcerer",
+    "name": "Sorcerer",
+    "flavorText": "Glass cannon. You will die constantly and kill everything first.",
+    "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
+    "attackSpeedSeconds": 3.5,
+    "abilities": [
+      { "id": "fireball",      "name": "Fireball",       "description": "High-damage AoE fire projectile.",     "isPassive": false },
+      { "id": "frost_nova",    "name": "Frost Nova",     "description": "Freezes all nearby enemies briefly.",  "isPassive": false },
+      { "id": "arcane_surge",  "name": "Arcane Surge",  "description": "Next spell costs no MP.",              "isPassive": false },
+      { "id": "blink",         "name": "Blink",          "description": "Teleport to clicked location.",        "isPassive": false },
+      { "id": "mana_eff",      "name": "Mana Efficiency","description": "Passive: all abilities cost 20% less MP.", "isPassive": true }
+    ],
+    "talentTree": []
+  },
+  {
+    "id": "tinkerer",
+    "name": "Tinkerer",
+    "flavorText": "Gadget-fuelled chaos. Your Fabrication skill makes you absurdly powerful.",
+    "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
+    "attackSpeedSeconds": 2.2,
+    "abilities": [
+      { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "Places an auto-firing turret.",       "isPassive": false },
+      { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "AoE confuse for 4s.",                 "isPassive": false },
+      { "id": "overclock",      "name": "Overclock",      "description": "+50% attack speed for 8s.",           "isPassive": false },
+      { "id": "salvage_strike", "name": "Salvage Strike", "description": "Damage + small material recovery.",   "isPassive": false },
+      { "id": "jury_rig",       "name": "Jury-Rig",       "description": "Passive: at <20% HP, improvise a shield (once per fight).", "isPassive": true }
+    ],
+    "talentTree": []
+  },
+  {
+    "id": "specter",
+    "name": "Specter",
+    "flavorText": "Ghost-energy combat. Half here, half not. Synergises with Spectral Work.",
+    "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
+    "attackSpeedSeconds": 2.0,
+    "abilities": [
+      { "id": "spectral_strike","name": "Spectral Strike","description": "Bypasses physical armour.",            "isPassive": false },
+      { "id": "phase_shift",    "name": "Phase Shift",    "description": "Brief invulnerability (2s).",         "isPassive": false },
+      { "id": "haunt",          "name": "Haunt",          "description": "Applies debuff: target takes +25% damage from all sources.", "isPassive": false },
+      { "id": "soul_drain",     "name": "Soul Drain",     "description": "Lifesteal on next hit.",              "isPassive": false },
+      { "id": "liminal",        "name": "Liminal",        "description": "Passive: +40% damage on first hit against each new enemy type encountered.", "isPassive": true }
+    ],
+    "talentTree": []
+  }
+]

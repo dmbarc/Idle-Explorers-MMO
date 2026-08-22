@@ -1,0 +1,110 @@
+[
+  {
+    "id": "goblin",
+    "name": "Goblin",
+    "description": "Convinced that everything valuable is secretly theirs. Technically wrong but very committed.",
+    "level": 2,
+    "maxHp": 40,
+    "attackDamageMin": 1,
+    "attackDamageMax": 3,
+    "attackSpeedSeconds": 2.4,
+    "xpReward": 25,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",      "minQty": 5,   "maxQty": 30,  "weight": 80 },
+      { "itemId": "bones",      "minQty": 1,   "maxQty": 1,   "weight": 100 },
+      { "itemId": "copper_ore", "minQty": 1,   "maxQty": 5,   "weight": 50 }
+    ]
+  },
+  {
+    "id": "skeleton",
+    "name": "Skeleton",
+    "description": "Has been here a very long time and is not happy about how things have gone.",
+    "level": 8,
+    "maxHp": 85,
+    "attackDamageMin": 4,
+    "attackDamageMax": 7,
+    "attackSpeedSeconds": 2.0,
+    "xpReward": 75,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",    "minQty": 10,  "maxQty": 60,  "weight": 70 },
+      { "itemId": "bones",    "minQty": 1,   "maxQty": 3,   "weight": 100 },
+      { "itemId": "skull",    "minQty": 1,   "maxQty": 1,   "weight": 20 },
+      { "itemId": "iron_ore", "minQty": 1,   "maxQty": 4,   "weight": 35 }
+    ]
+  },
+  {
+    "id": "dark_wizard",
+    "name": "Dark Wizard",
+    "description": "Highly educated. Uses that education entirely for violence and complaining.",
+    "level": 18,
+    "maxHp": 130,
+    "attackDamageMin": 12,
+    "attackDamageMax": 20,
+    "attackSpeedSeconds": 3.0,
+    "xpReward": 180,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",      "minQty": 30,  "maxQty": 150, "weight": 70 },
+      { "itemId": "bones",      "minQty": 1,   "maxQty": 2,   "weight": 100 },
+      { "itemId": "chaos_rune", "minQty": 3,   "maxQty": 12,  "weight": 60 },
+      { "itemId": "death_rune", "minQty": 1,   "maxQty": 5,   "weight": 30 },
+      { "itemId": "magic_staff","minQty": 1,   "maxQty": 1,   "weight": 5  }
+    ]
+  },
+  {
+    "id": "iron_golem",
+    "name": "Iron Golem",
+    "description": "Assembled itself from discarded forge-waste. Objectively amazing and deeply confused.",
+    "level": 25,
+    "maxHp": 280,
+    "attackDamageMin": 18,
+    "attackDamageMax": 28,
+    "attackSpeedSeconds": 3.5,
+    "xpReward": 350,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",    "minQty": 80,  "maxQty": 300,  "weight": 70 },
+      { "itemId": "iron_ore", "minQty": 10,  "maxQty": 50,   "weight": 90 },
+      { "itemId": "iron_bar", "minQty": 2,   "maxQty": 8,    "weight": 60 },
+      { "itemId": "coal",     "minQty": 5,   "maxQty": 20,   "weight": 50 }
+    ]
+  },
+  {
+    "id": "troll",
+    "name": "Troll",
+    "description": "Toll collector with legitimate grievances. Legally entitled to fight you.",
+    "level": 35,
+    "maxHp": 420,
+    "attackDamageMin": 25,
+    "attackDamageMax": 40,
+    "attackSpeedSeconds": 3.8,
+    "xpReward": 520,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",      "minQty": 150,  "maxQty": 600,  "weight": 70 },
+      { "itemId": "troll_hide", "minQty": 1,    "maxQty": 3,    "weight": 80 },
+      { "itemId": "gold_ore",   "minQty": 2,    "maxQty": 10,   "weight": 40 },
+      { "itemId": "willow_logs","minQty": 20,   "maxQty": 80,   "weight": 60 }
+    ]
+  },
+  {
+    "id": "baby_dragon",
+    "name": "Baby Dragon",
+    "description": "Not a baby. Just young for a dragon, which is still four hundred years old and extremely fire-capable.",
+    "level": 55,
+    "maxHp": 850,
+    "attackDamageMin": 60,
+    "attackDamageMax": 90,
+    "attackSpeedSeconds": 4.0,
+    "xpReward": 1200,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",        "minQty": 800,  "maxQty": 3000,  "weight": 70 },
+      { "itemId": "dragon_bones", "minQty": 1,    "maxQty": 1,     "weight": 100 },
+      { "itemId": "dragon_scale", "minQty": 1,    "maxQty": 4,     "weight": 75 },
+      { "itemId": "death_rune",   "minQty": 10,   "maxQty": 40,    "weight": 50 }
+    ]
+  }
+]

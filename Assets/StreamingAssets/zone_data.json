@@ -1,0 +1,118 @@
+[
+  {
+    "id": "verdant_wilds",
+    "name": "The Verdant Wilds",
+    "description": "The world was supposed to be beautiful here. Mostly it still is, but you can feel it fraying at the edges.",
+    "reqAccountLevel": 0,
+    "backgroundAddress": "",
+    "maps": [
+      {
+        "id": "goblin_camp",
+        "name": "Goblin Camp",
+        "description": "The goblins have been here for centuries. Nobody asked them to leave. Nobody dared.",
+        "zoneId": "verdant_wilds",
+        "reqCharLevel": 1,
+        "reqAccountLevel": 0,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "goblin",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "copper_rock_1", "skillId": "mining",      "targetItemId": "copper_ore", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 18, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "tin_rock_1",    "skillId": "mining",      "targetItemId": "tin_ore",    "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 18, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "normal_tree_1", "skillId": "woodcutting", "targetItemId": "normal_logs","reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 25, "specialChance": 0.02,"specialLabel": "Bird's nest" },
+          { "nodeId": "shrimp_pool_1", "skillId": "fishing",     "targetItemId": "raw_shrimp", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 10, "specialChance": 0.01,"specialLabel": "Treasure casket" },
+          { "nodeId": "campfire_1",    "skillId": "cooking",     "targetItemId": "shrimp",     "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 30, "specialChance": 0.0, "specialLabel": "" }
+        ]
+      },
+      {
+        "id": "skeleton_graveyard",
+        "name": "Skeleton Graveyard",
+        "description": "The residents complain that the living keep disturbing them. They have a point.",
+        "zoneId": "verdant_wilds",
+        "reqCharLevel": 5,
+        "reqAccountLevel": 1,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "skeleton",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "iron_rock_1",  "skillId": "mining",      "targetItemId": "iron_ore",   "reqSkillLevel": 15, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 35, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "oak_tree_1",   "skillId": "woodcutting", "targetItemId": "oak_logs",   "reqSkillLevel": 15, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 38, "specialChance": 0.01,"specialLabel": "Bird's nest" },
+          { "nodeId": "trout_pool_1", "skillId": "fishing",     "targetItemId": "raw_trout",  "reqSkillLevel": 20, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 50, "specialChance": 0.01,"specialLabel": "Treasure casket" },
+          { "nodeId": "forge_1",      "skillId": "smithing",    "targetItemId": "bronze_bar",  "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 13, "specialChance": 0.0, "specialLabel": "" }
+        ]
+      },
+      {
+        "id": "dark_forest",
+        "name": "Dark Forest",
+        "description": "It remembers things. Older things. It is not sharing them without prompting.",
+        "zoneId": "verdant_wilds",
+        "reqCharLevel": 15,
+        "reqAccountLevel": 3,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "dark_wizard",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "coal_rock_1",  "skillId": "mining",      "targetItemId": "coal",       "reqSkillLevel": 30, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 50, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "willow_tree_1","skillId": "woodcutting", "targetItemId": "willow_logs","reqSkillLevel": 30, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 68, "specialChance": 0.01,"specialLabel": "Bird's nest" },
+          { "nodeId": "gleaning_1",   "skillId": "gleaning",    "targetItemId": "faint_residue","reqSkillLevel": 1, "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 40, "specialChance": 0.05,"specialLabel": "Crystallised memory" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "iron_highlands",
+    "name": "The Iron Highlands",
+    "description": "The magic died here first. The rocks noticed and got extremely loud about it.",
+    "reqAccountLevel": 5,
+    "backgroundAddress": "",
+    "maps": [
+      {
+        "id": "iron_works",
+        "name": "Iron Works",
+        "description": "Somebody built an entire industrial forge in a field. The field is upset but has resigned itself.",
+        "zoneId": "iron_highlands",
+        "reqCharLevel": 20,
+        "reqAccountLevel": 5,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "iron_golem",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "iron_rock_dense", "skillId": "mining",   "targetItemId": "iron_ore",    "reqSkillLevel": 15, "activeRateMulti": 1.2, "afkRateMulti": 0.7, "xpPerAction": 35, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "mithril_rock_1",  "skillId": "mining",   "targetItemId": "mithril_ore", "reqSkillLevel": 40, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 80, "specialChance": 0.02,"specialLabel": "Void crystal shard" },
+          { "nodeId": "forge_adv_1",     "skillId": "smithing", "targetItemId": "iron_bar",    "reqSkillLevel": 15, "activeRateMulti": 1.1, "afkRateMulti": 0.6, "xpPerAction": 25, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "convergence_1",   "skillId": "convergence","targetItemId": "",           "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.4, "xpPerAction": 30, "specialChance": 0.05,"specialLabel": "Convergence cascade" }
+        ]
+      },
+      {
+        "id": "troll_bridge",
+        "name": "Troll Bridge",
+        "description": "Three toll stations. One bridge. The trolls insist this is a reasonable arrangement.",
+        "zoneId": "iron_highlands",
+        "reqCharLevel": 30,
+        "reqAccountLevel": 8,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "troll",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "yew_tree_1",     "skillId": "woodcutting","targetItemId": "willow_logs","reqSkillLevel": 60, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 175,"specialChance": 0.01,"specialLabel": "Bird's nest" },
+          { "nodeId": "lobster_pool_1", "skillId": "fishing",    "targetItemId": "raw_lobster","reqSkillLevel": 40, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 90, "specialChance": 0.01,"specialLabel": "Treasure casket" }
+        ]
+      },
+      {
+        "id": "dragons_lair",
+        "name": "Dragon's Lair",
+        "description": "The dragon did not invite anyone. The dragon made this very clear. People keep coming anyway.",
+        "zoneId": "iron_highlands",
+        "reqCharLevel": 50,
+        "reqAccountLevel": 10,
+        "reqAnyCharLevel": 30,
+        "defaultMonsterId": "baby_dragon",
+        "sceneAddress": "",
+        "skillNodes": [
+          { "nodeId": "mithril_rock_lair","skillId": "mining",      "targetItemId": "mithril_ore","reqSkillLevel": 40, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 80, "specialChance": 0.02,"specialLabel": "Void crystal shard" },
+          { "nodeId": "spectral_lair_1",  "skillId": "spectralwork","targetItemId": "",           "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 60, "specialChance": 0.08,"specialLabel": "Manifested wisp" }
+        ]
+      }
+    ]
+  }
+]
