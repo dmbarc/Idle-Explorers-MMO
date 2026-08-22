@@ -19,6 +19,26 @@ public static class AbilityVFX
     private static readonly Dictionary<string, GameObject> _cache = new();
     private static readonly HashSet<string>                _missingLogged = new();
 
+    private static VFXLibrary _library;
+    private static bool       _libraryLoaded;
+
+    private static VFXLibrary Library
+    {
+        get
+        {
+            if (!_libraryLoaded)
+            {
+                _library       = Resources.Load<VFXLibrary>("VFXLibrary");
+                _libraryLoaded = true;
+
+                if (_library == null)
+                    Debug.Log("[AbilityVFX] No VFXLibrary asset — effects will not render. " +
+                              "Run: Idle Explorers → Rebuild VFX Library");
+            }
+            return _library;
+        }
+    }
+
     /// <summary>Plays an effect at a world position. Safe to call with a null or unknown id.</summary>
     public static GameObject Play(string vfxId, Vector3 position, float lifetime = 3f)
     {
@@ -53,11 +73,14 @@ public static class AbilityVFX
 
         if (_cache.TryGetValue(vfxId, out var cached)) return cached;
 
-        var prefab = Resources.Load<GameObject>(ResourceRoot + vfxId);
-        _cache[vfxId] = prefab;   // cache the miss too, so Resources.Load is not hit per frame
+        // The library first, since that is where the imported packs are referenced;
+        // Resources/VFX remains as an escape hatch for hand-made prefabs.
+        var prefab = Library?.Get(vfxId) ?? Resources.Load<GameObject>(ResourceRoot + vfxId);
+
+        _cache[vfxId] = prefab;   // cache the miss too, so lookups are not repeated per frame
 
         if (prefab == null && _missingLogged.Add(vfxId))
-            Debug.Log($"[AbilityVFX] No prefab at Resources/{ResourceRoot}{vfxId} — effect skipped.");
+            Debug.Log($"[AbilityVFX] No effect registered for '{vfxId}' — skipped.");
 
         return prefab;
     }
@@ -68,5 +91,7 @@ public static class AbilityVFX
     {
         _cache.Clear();
         _missingLogged.Clear();
+        _library       = null;
+        _libraryLoaded = false;
     }
 }

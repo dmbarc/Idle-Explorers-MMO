@@ -190,6 +190,18 @@ public class GameHUD : UIScreen
                 _player?.UseAbility(slot);
             });
 
+            // Icon behind the text. Dimmed so the name stays the readable element —
+            // the icon is for recognising a slot at a glance, not for reading.
+            var iconSprite = GameManager.Content?.GetAbilityIcon(ability);
+            if (iconSprite != null)
+            {
+                var iconImg = UIFactory.Icon(slotGo.transform, iconSprite, 0f, "AbilityIcon");
+                UIFactory.At(iconImg, 0.12f, 0.12f, 0.88f, 0.88f);
+                iconImg.color         = new Color(1f, 1f, 1f, activatable ? 0.55f : 0.22f);
+                iconImg.raycastTarget = false;
+                iconImg.transform.SetAsFirstSibling();
+            }
+
             // Ability name, wrapped small so it fits the slot
             var nameLabel = UIFactory.Label(slotGo.transform, ability?.name ?? "—",
                                              theme.fontSizeLabel,

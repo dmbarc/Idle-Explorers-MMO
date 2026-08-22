@@ -23,11 +23,13 @@ public class IconLibrary : ScriptableObject
         public Sprite sprite;
     }
 
-    public List<Entry> itemIcons  = new();
-    public List<Entry> skillIcons = new();
+    public List<Entry> itemIcons    = new();
+    public List<Entry> skillIcons   = new();
+    public List<Entry> abilityIcons = new();
 
     private Dictionary<string, Sprite> _itemLookup;
     private Dictionary<string, Sprite> _skillLookup;
+    private Dictionary<string, Sprite> _abilityLookup;
 
     public Sprite GetItemIcon(string itemId)
     {
@@ -39,6 +41,12 @@ public class IconLibrary : ScriptableObject
     {
         _skillLookup ??= Build(skillIcons);
         return skillId != null && _skillLookup.TryGetValue(skillId, out var s) ? s : null;
+    }
+
+    public Sprite GetAbilityIcon(string abilityId)
+    {
+        _abilityLookup ??= Build(abilityIcons);
+        return abilityId != null && _abilityLookup.TryGetValue(abilityId, out var s) ? s : null;
     }
 
     private static Dictionary<string, Sprite> Build(List<Entry> entries)
@@ -56,7 +64,8 @@ public class IconLibrary : ScriptableObject
     /// <summary>Drops cached lookups so an editor rebuild takes effect without a restart.</summary>
     public void InvalidateCache()
     {
-        _itemLookup  = null;
-        _skillLookup = null;
+        _itemLookup    = null;
+        _skillLookup   = null;
+        _abilityLookup = null;
     }
 }

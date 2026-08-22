@@ -438,6 +438,7 @@ public class PlayerController : MonoBehaviour
     public void TakeDamage(double damageAmount)
     {
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
+        DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerTook, "-");
         GameEvents.OnPlayerDamageTaken?.Invoke(damageAmount);
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
 
@@ -529,7 +530,12 @@ public class PlayerController : MonoBehaviour
         if (!alive || amount <= 0) return false;
         if (currentHealthPoints >= maxHealthPoints) return false;
 
+        // Report what was actually restored, not what was offered — healing for 25 at
+        // 3 HP from full should not claim 25.
+        double before = currentHealthPoints;
         currentHealthPoints = System.Math.Min(maxHealthPoints, currentHealthPoints + amount);
+
+        DamageNumber.Spawn(transform.position, currentHealthPoints - before, DamageNumber.Healed, "+");
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
         return true;
     }

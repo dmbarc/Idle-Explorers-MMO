@@ -165,6 +165,7 @@ public class MonsterController : MonoBehaviour
     public void TakeDamage(double damageAmount)
     {
         ShowHealthUI();
+        DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerDealt);
 
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
 

@@ -172,6 +172,24 @@ public class ContentManager : MonoBehaviour
         return UIFactory.PlaceholderIcon(skillId);
     }
 
+    /// <summary>
+    /// Icon for an ability. Unlike items and skills this returns null when unmapped
+    /// rather than a placeholder — the action bar already shows the ability's name,
+    /// and a coloured square behind the text would only make it harder to read.
+    /// </summary>
+    public Sprite GetAbilityIcon(AbilityData ability)
+    {
+        if (ability == null) return null;
+
+        if (!string.IsNullOrEmpty(ability.iconAddress))
+        {
+            var direct = Resources.Load<Sprite>(ability.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        return Icons?.GetAbilityIcon(ability.id);
+    }
+
     // ── Lookup helpers ────────────────────────────────────────────────────────
     public ItemData    GetItem(string id)    => Items.TryGetValue(id,    out var v) ? v : null;
     public MonsterData GetMonster(string id) => Monsters.TryGetValue(id, out var v) ? v : null;
