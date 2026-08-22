@@ -14,6 +14,7 @@
   { "id": "raw_trout",    "name": "Raw Trout",       "description": "Put up a fight. Lost.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "fishing" },
   { "id": "raw_lobster",  "name": "Raw Lobster",     "description": "Technically still defending itself.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "fishing" },
   { "id": "shrimp",       "name": "Cooked Shrimp",   "description": "Heals 3 HP. Still furious, but compliant.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "cooking" },
+  { "id": "gritty_shrimp","name": "Gritty Shrimps",  "description": "Cooked over a tin-ore fire, which turned out to be exactly as advisable as it sounds. Deals 10 damage.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "cooking" },
   { "id": "trout",        "name": "Cooked Trout",    "description": "Heals 10 HP.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "cooking" },
   { "id": "lobster",      "name": "Cooked Lobster",  "description": "Heals 25 HP. The lobster has given up.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "cooking" },
   { "id": "bronze_bar",   "name": "Bronze Bar",      "description": "Copper + tin, melted together in their shared grief.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "smithing" },

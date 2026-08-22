@@ -29,6 +29,12 @@ public class SkillNodeController : MonoBehaviour
     public SkillNodeEntry Entry => _entry;
     public bool IsGathering => _isGathering;
 
+    /// <summary>
+    /// True for an interactive station (bank, campfire, forge) rather than a plain
+    /// gathering node. Stations open a panel on arrival instead of producing items.
+    /// </summary>
+    public bool IsStation => _entry != null && !string.IsNullOrEmpty(_entry.stationType);
+
     // ── Setup ─────────────────────────────────────────────────────────────────
 
     void Start()
@@ -84,6 +90,16 @@ public class SkillNodeController : MonoBehaviour
     {
         if (_isGathering || !CanGather()) return;
 
+        // A station is an arrival, not an activity. _isGathering is still set so the
+        // player controller does not reopen the panel on the very next frame; walking
+        // away calls StopGathering and re-arms it.
+        if (IsStation)
+        {
+            _isGathering = true;
+            OpenStation();
+            return;
+        }
+
         _isGathering = true;
         _actionTimer = 0f;
 
@@ -93,23 +109,130 @@ public class SkillNodeController : MonoBehaviour
         // Registering the activity is what makes this node survive logout: the
         // snapshot is what AFK accrual reads on next login.
         GameManager.Activity?.SetActivity(
-            skillId:       _entry.skillId,
-            targetId:      _entry.targetItemId,
-            targetName:    label,
-            mapId:         GameManager.Zone?.CurrentMapId,
-            activeRate:    _entry.activeRateMulti,
-            afkRate:       _entry.afkRateMulti,
-            specialChance: _entry.specialChance,
-            specialLabel:  _entry.specialLabel,
-            xpPerHour:     XpPerHour());
+            skillId:          _entry.skillId,
+            targetId:         _entry.targetItemId,
+            targetName:       label,
+            mapId:            GameManager.Zone?.CurrentMapId,
+            activeRate:       _entry.activeRateMulti,
+            afkRate:          _entry.afkRateMulti,
+            specialChance:    _entry.specialChance,
+            specialLabel:     _entry.specialLabel,
+            xpPerHour:        XpPerHour(),
+            secondsPerAction: baseSecondsPerAction);
 
         GameEvents.OnSkillNodeInteracted?.Invoke(nodeId);
+    }
+
+    // ── Crafting ──────────────────────────────────────────────────────────────
+
+    private CraftRecipe _recipe;
+
+    /// <summary>The recipe selected at this station, if any.</summary>
+    public CraftRecipe Recipe => _recipe;
+
+    /// <summary>True while a station is actively working a recipe.</summary>
+    public bool IsCrafting => _recipe != null && _isGathering;
+
+    /// <summary>
+    /// Starts producing a recipe here and registers it as the current activity, so it
+    /// keeps running while logged out.
+    /// </summary>
+    public void BeginCrafting(CraftRecipe recipe)
+    {
+        if (recipe == null || _entry == null) return;
+
+        int level = GameManager.Skills?.GetSkillLevel(recipe.skillId) ?? 1;
+        if (level < recipe.reqSkillLevel)
+        {
+            string skillName = GameManager.Content?.GetSkill(recipe.skillId)?.DisplayName ?? recipe.skillId;
+            GameEvents.FireToast($"Requires {skillName} level {recipe.reqSkillLevel} (you are {level}).");
+            return;
+        }
+
+        _recipe      = recipe;
+        _isGathering = true;
+        _actionTimer = 0f;
+
+        float secondsPerCraft = recipe.SecondsPerCraft(level);
+        float craftsPerHour   = ActivityManager.ActionsPerHour(secondsPerCraft, _entry.activeRateMulti);
+
+        GameManager.Activity?.SetActivity(
+            skillId:          recipe.skillId,
+            targetId:         recipe.outputItemId,
+            targetName:       recipe.DisplayName,
+            mapId:            GameManager.Zone?.CurrentMapId,
+            activeRate:       _entry.activeRateMulti,
+            afkRate:          _entry.afkRateMulti,
+            specialChance:    0f,
+            specialLabel:     "",
+            xpPerHour:        craftsPerHour * recipe.xpPerCraft,
+            recipeId:         recipe.id,
+            secondsPerAction: secondsPerCraft);
+
+        // Persist immediately: a crash between choosing a recipe and the first craft
+        // would otherwise resume the previous activity on next login.
+        GameManager.Save?.Save();
+
+        GameEvents.OnSkillNodeInteracted?.Invoke(nodeId);
+    }
+
+    /// <summary>
+    /// One craft: consume every input, produce the output, grant XP.
+    /// Returns false when an input ran out, which stops the loop.
+    /// </summary>
+    private bool PerformCraft()
+    {
+        if (_recipe?.inputs == null) return false;
+
+        // Check everything before consuming anything — a partial consume on a
+        // multi-input recipe would destroy material and produce nothing.
+        foreach (var input in _recipe.inputs)
+        {
+            if (CraftingSupply.Available(input.itemId) < input.quantity)
+            {
+                var item = GameManager.Content?.GetItem(input.itemId);
+                GameEvents.FireToast($"Out of {item?.DisplayName ?? input.itemId}.");
+                return false;
+            }
+        }
+
+        if (GameManager.Inventory?.CanAddItem(_recipe.outputItemId) != true)
+        {
+            GameEvents.FireToast("Inventory full.");
+            return false;
+        }
+
+        foreach (var input in _recipe.inputs)
+            CraftingSupply.Consume(input.itemId, input.quantity);
+
+        GameManager.Inventory.AddItem(_recipe.outputItemId, _recipe.outputQuantity);
+        GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
+        return true;
     }
 
     public void StopGathering()
     {
         _isGathering = false;
         _actionTimer = 0f;
+        _recipe      = null;
+    }
+
+    /// <summary>Opens whatever UI this station fronts.</summary>
+    private void OpenStation()
+    {
+        switch (_entry.stationType)
+        {
+            case "bank":
+                GameManager.UI?.Push<BankPanel>();
+                break;
+
+            default:
+                // Crafting stations (campfire, forge) resolve their recipe list from
+                // stationType, so one panel serves all of them.
+                CraftingPanel.Station = this;
+                GameManager.UI?.Push<CraftingPanel>();
+                break;
+        }
     }
 
     /// <summary>Called each frame by PlayerController while it is parked at this node.</summary>
@@ -117,13 +240,32 @@ public class SkillNodeController : MonoBehaviour
     {
         if (!_isGathering || _entry == null) return;
 
-        float secondsPerAction = baseSecondsPerAction / Mathf.Max(0.01f, _entry.activeRateMulti);
+        float perAction = _recipe != null
+            ? _recipe.SecondsPerCraft(GameManager.Skills?.GetSkillLevel(_recipe.skillId) ?? 1)
+            : baseSecondsPerAction;
+
+        float secondsPerAction = perAction / Mathf.Max(0.01f, _entry.activeRateMulti);
         _actionTimer += deltaTime;
 
         while (_actionTimer >= secondsPerAction)
         {
             _actionTimer -= secondsPerAction;
-            PerformAction();
+
+            if (_recipe != null)
+            {
+                // Running dry stops the station and clears the activity, so the
+                // character card reads Idle rather than claiming to still be cooking.
+                if (!PerformCraft())
+                {
+                    StopGathering();
+                    GameManager.Activity?.ClearActivity();
+                    return;
+                }
+            }
+            else
+            {
+                PerformAction();
+            }
         }
     }
 

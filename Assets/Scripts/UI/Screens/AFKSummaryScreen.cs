@@ -46,16 +46,19 @@ public class AFKSummaryScreen : UIScreen
 
     private void BuildHeader(Transform parent, UITheme theme, AFKRewardSummary summary)
     {
+        bool truncated = summary != null && summary.WasTruncated;
+
         var header   = UIFactory.Panel(parent, "Header", theme.headerBg, false);
         var headerRt = header.GetComponent<RectTransform>();
-        headerRt.anchorMin = new Vector2(0f, 0.84f);
+        // A truncation line needs a third row, so the header grows to fit it.
+        headerRt.anchorMin = new Vector2(0f, truncated ? 0.80f : 0.84f);
         headerRt.anchorMax = new Vector2(1f, 1f);
         headerRt.offsetMin = headerRt.offsetMax = Vector2.zero;
 
         var title = UIFactory.Label(header.transform, "WHILE YOU WERE AWAY",
                                      theme.fontSizeTitle, theme.accentGold, TextAlignmentOptions.Center);
         var titleRt = title.GetComponent<RectTransform>();
-        titleRt.anchorMin = new Vector2(0f, 0.45f);
+        titleRt.anchorMin = new Vector2(0f, truncated ? 0.58f : 0.45f);
         titleRt.anchorMax = new Vector2(1f, 1f);
         titleRt.offsetMin = titleRt.offsetMax = Vector2.zero;
 
@@ -84,9 +87,27 @@ public class AFKSummaryScreen : UIScreen
         var sub = UIFactory.Label(header.transform, subtitle,
                                    theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
         var subRt = sub.GetComponent<RectTransform>();
-        subRt.anchorMin = new Vector2(0f, 0f);
-        subRt.anchorMax = new Vector2(1f, 0.45f);
+        subRt.anchorMin = new Vector2(0f, truncated ? 0.30f : 0f);
+        subRt.anchorMax = new Vector2(1f, truncated ? 0.58f : 0.45f);
         subRt.offsetMin = subRt.offsetMax = Vector2.zero;
+
+        if (!truncated) return;
+
+        // The whole point of the crafting AFK loop is that it can stop early. Saying
+        // so plainly is the difference between "the game shorted me" and "I should
+        // bank more shrimp next time".
+        string itemName = GameManager.Content?.GetItem(summary.ranOutOfItemId)?.DisplayName
+                          ?? summary.ranOutOfItemId;
+        string earned   = NumberFormatter.FormatAFKTime(summary.effectiveSeconds).Replace(" AFK", "");
+        string away     = NumberFormatter.FormatAFKTime(summary.elapsedSeconds).Replace(" AFK", "");
+
+        var warning = UIFactory.Label(header.transform,
+                                       $"You only earned {earned} of your {away} away — you ran out of {itemName}.",
+                                       theme.fontSizeSmall, theme.accentRed, TextAlignmentOptions.Center);
+        var warnRt = warning.GetComponent<RectTransform>();
+        warnRt.anchorMin = new Vector2(0.02f, 0f);
+        warnRt.anchorMax = new Vector2(0.98f, 0.30f);
+        warnRt.offsetMin = warnRt.offsetMax = Vector2.zero;
     }
 
     // ── Body ──────────────────────────────────────────────────────────────────

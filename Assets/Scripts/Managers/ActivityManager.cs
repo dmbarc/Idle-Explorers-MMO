@@ -15,7 +15,8 @@ public class ActivityManager : MonoBehaviour
 
     public void SetActivity(string skillId, string targetId, string targetName, string mapId,
                             float activeRate, float afkRate, float specialChance,
-                            string specialLabel, float xpPerHour)
+                            string specialLabel, float xpPerHour,
+                            string recipeId = null, float secondsPerAction = 0f)
     {
         CurrentActivity = new SkillActivityData
         {
@@ -28,6 +29,8 @@ public class ActivityManager : MonoBehaviour
             specialChance         = specialChance,
             specialChanceLabel    = specialLabel,
             xpPerHour             = xpPerHour,
+            recipeId              = recipeId ?? "",
+            secondsPerAction      = secondsPerAction,
             activityStartUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds()
         };
 
@@ -35,8 +38,22 @@ public class ActivityManager : MonoBehaviour
             CharacterManager.Current.currentActivity = CurrentActivity;
 
         GameEvents.FireActivityChanged(CurrentActivity);
-        GameEvents.FireToast($"Now: {skillId} — {targetName}");
+
+        // The display name, not the raw id — every other message in the game reads
+        // "Cooking", not "cooking".
+        string skillName = GameManager.Content?.GetSkill(skillId)?.DisplayName ?? skillId;
+        GameEvents.FireToast($"Now: {skillName} — {targetName}");
         Debug.Log($"[ActivityManager] Activity set: {skillId} on {targetName}");
+    }
+
+    /// <summary>
+    /// Actions completed per hour. The single definition used by live ticking and by
+    /// offline accrual, so the two can no longer drift apart.
+    /// </summary>
+    public static float ActionsPerHour(float secondsPerAction, float rateMulti)
+    {
+        float effective = Mathf.Max(0.01f, secondsPerAction) / Mathf.Max(0.01f, rateMulti);
+        return 3600f / Mathf.Max(0.01f, effective);
     }
 
     /// <summary>
@@ -154,21 +171,14 @@ public class ActivityManager : MonoBehaviour
         Debug.Log($"[ActivityManager] Processing {NumberFormatter.FormatAFKTime(elapsedSeconds)} of AFK for " +
                   $"{character.characterName}: {activity.skillId} ({activity.activityTargetName})");
 
-        // XP reward. Combat XP is granted per-kill inside ProcessCombatAFKRewards
-        // instead, so it is not double-counted here.
-        if (activity.skillId != "combat")
-        {
-            long xpGained = (long)(activity.xpPerHour * hours * activity.afkRateMulti);
-            if (xpGained > 0)
-            {
-                GameManager.Skills?.AddSkillXP(activity.skillId, xpGained);
-                summary.AddXP(activity.skillId, xpGained);
-            }
-        }
-
-        // Loot reward (combat or gathering)
+        // Each branch grants its own XP, derived from the same action count that
+        // produces its items. XP used to be computed here from xpPerHour while items
+        // came from an unrelated formula below, so a single session paid out two
+        // numbers that could not both be true.
         if (activity.skillId == "combat")
             ProcessCombatAFKRewards(activity, hours, character, summary);
+        else if (!string.IsNullOrEmpty(activity.recipeId))
+            ProcessCraftingAFKRewards(activity, hours, summary);
         else
             ProcessGatheringAFKRewards(activity, hours, summary);
 
@@ -230,23 +240,112 @@ public class ActivityManager : MonoBehaviour
 
     private void ProcessGatheringAFKRewards(SkillActivityData activity, float hours, AFKRewardSummary summary)
     {
-        // Resources gathered at AFK rate
-        // Base yield: 1 item per action, scaled by level
-        int skillLevel = GameManager.Skills?.GetSkillLevel(activity.skillId) ?? 1;
-        float actionsPerHour = skillLevel * 20f; // scales with skill level
-        long totalActions = (long)(actionsPerHour * hours * activity.afkRateMulti);
+        // Same rate the live tick uses, scaled by the AFK multiplier — which is what
+        // "AFK earns 60% of active" was always supposed to mean. The old formula
+        // (skillLevel * 20 per hour) produced ~20/hr at level 1 against the live
+        // rate of 1200/hr, so going AFK was ~60x worse than the multiplier claimed.
+        float secondsPerAction = ActionSeconds(activity);
+        long  totalActions     = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
+                                        * hours * activity.afkRateMulti);
+        if (totalActions <= 0) return;
 
-        if (totalActions > 0 && !string.IsNullOrEmpty(activity.activityTargetId))
+        if (!string.IsNullOrEmpty(activity.activityTargetId))
         {
-            long qty = totalActions;
             // Special chance rolls (e.g. bird's nest). Expected value rather than a
             // per-action loop — see RollBulkDrops for why.
             double jitter   = UnityEngine.Random.Range(0.9f, 1.1f);
             long   bonusQty = (long)System.Math.Max(0d, totalActions * activity.specialChance * jitter);
 
-            GameManager.Inventory?.AddItem(activity.activityTargetId, qty + bonusQty);
-            summary?.AddItem(activity.activityTargetId, qty + bonusQty);
+            GameManager.Inventory?.AddItem(activity.activityTargetId, totalActions + bonusQty);
+            summary?.AddItem(activity.activityTargetId, totalActions + bonusQty);
         }
+
+        GrantSkillXP(activity, totalActions, summary);
+    }
+
+    /// <summary>
+    /// Crafting differs from gathering in one way that changes everything: it
+    /// CONSUMES inputs, so the session can end early. When it does, the summary has
+    /// to say so — otherwise a player who banked 20 shrimp and left for nine hours
+    /// is quietly told they were productive the whole time.
+    /// </summary>
+    private void ProcessCraftingAFKRewards(SkillActivityData activity, float hours, AFKRewardSummary summary)
+    {
+        var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
+        if (recipe == null) return;
+
+        float secondsPerAction = ActionSeconds(activity);
+        long  possibleCrafts   = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
+                                        * hours * activity.afkRateMulti);
+        if (possibleCrafts <= 0) return;
+
+        long maxByInputs  = CraftingSupply.MaxCrafts(recipe, out string limitingItemId);
+        long actualCrafts = System.Math.Min(possibleCrafts, maxByInputs);
+
+        if (actualCrafts < possibleCrafts && summary != null)
+        {
+            summary.ranOutOfItemId = limitingItemId;
+            summary.effectiveSeconds = (long)(summary.elapsedSeconds *
+                                              (actualCrafts / (double)possibleCrafts));
+        }
+
+        if (actualCrafts <= 0)
+        {
+            // Nothing to work with at all. Stop claiming to be busy.
+            ClearActivity();
+            return;
+        }
+
+        // Consume in bulk rather than per craft: after a 24h gap this can be tens of
+        // thousands of iterations, and the login would visibly hang.
+        foreach (var input in recipe.inputs)
+        {
+            if (input == null || input.quantity <= 0) continue;
+            CraftingSupply.Consume(input.itemId, input.quantity * actualCrafts);
+        }
+
+        long produced = recipe.outputQuantity * actualCrafts;
+        GameManager.Inventory?.AddItem(recipe.outputItemId, produced);
+        summary?.AddItem(recipe.outputItemId, produced);
+
+        long xp = (long)(recipe.xpPerCraft * actualCrafts);
+        if (xp > 0)
+        {
+            GameManager.Skills?.AddSkillXP(recipe.skillId, xp);
+            summary?.AddXP(recipe.skillId, xp);
+        }
+
+        // Ran dry: the character is no longer doing anything, and their card should
+        // say Idle rather than claiming to still be at the campfire.
+        if (actualCrafts >= maxByInputs) ClearActivity();
+    }
+
+    /// <summary>
+    /// Seconds per action for an activity, falling back for snapshots written before
+    /// the field existed. Without the fallback, every save from an earlier build
+    /// would divide by zero and grant an absurd number of actions.
+    /// </summary>
+    private static float ActionSeconds(SkillActivityData activity)
+    {
+        const float LegacyDefault = 3f;   // SkillNodeController.baseSecondsPerAction
+        return activity.secondsPerAction > 0.01f ? activity.secondsPerAction : LegacyDefault;
+    }
+
+    /// <summary>Grants XP proportional to the actions actually completed.</summary>
+    private static void GrantSkillXP(SkillActivityData activity, long actions, AFKRewardSummary summary)
+    {
+        if (actions <= 0 || string.IsNullOrEmpty(activity.skillId)) return;
+
+        // xpPerHour was derived from the live action rate when the activity started,
+        // so dividing it back out recovers xp-per-action without needing the node.
+        float actionsPerHourLive = ActionsPerHour(ActionSeconds(activity), activity.activeRateMulti);
+        if (actionsPerHourLive <= 0f) return;
+
+        long xp = (long)(activity.xpPerHour / actionsPerHourLive * actions);
+        if (xp <= 0) return;
+
+        GameManager.Skills?.AddSkillXP(activity.skillId, xp);
+        summary?.AddXP(activity.skillId, xp);
     }
 }
 
@@ -264,6 +363,15 @@ public class AFKRewardSummary
     public string activityName;
     public string characterName;
     public long   kills;
+
+    /// <summary>
+    /// Set when a crafting session ran out of an input before the offline window
+    /// closed. effectiveSeconds is how much of that window was actually productive.
+    /// </summary>
+    public string ranOutOfItemId;
+    public long   effectiveSeconds;
+
+    public bool WasTruncated => !string.IsNullOrEmpty(ranOutOfItemId);
 
     public readonly List<InventoryEntry> itemsGained = new();
     public readonly List<InventoryEntry> xpGained    = new();   // itemId field holds skillId

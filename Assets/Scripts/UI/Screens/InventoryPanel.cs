@@ -11,7 +11,7 @@ using UnityEngine.UI;
 /// OnEndDrag never ran and the drag ghost was orphaned on screen. The ghost is
 /// owned by this panel for the same reason.
 /// </summary>
-public class InventoryPanel : UIScreen
+public class InventoryPanel : UIScreen, ISlotPanel
 {
     private const int Columns = 6;
 
@@ -122,7 +122,7 @@ public class InventoryPanel : UIScreen
             var qty    = slotGo.transform.Find("Quantity")?.GetComponent<TMP_Text>();
 
             var view = slotGo.AddComponent<InventorySlotView>();
-            view.Bind(i, this, icon, qty);
+            view.Bind(SlotContainerKind.Inventory, i, this, icon, qty);
             _slots.Add(view);
         }
     }
@@ -163,8 +163,8 @@ public class InventoryPanel : UIScreen
         _tooltip.SetActive(false);
     }
 
-    /// <summary>Called by a cell on hover.</summary>
-    public void ShowTooltipForSlot(int slotIndex, Vector2 screenPos)
+    /// <summary>Called by a cell on hover. This panel only ever shows inventory cells.</summary>
+    public void ShowSlotTooltip(SlotContainerKind container, int slotIndex, Vector2 screenPos)
     {
         var items = GameManager.Inventory?.Items;
         if (items == null || slotIndex < 0 || slotIndex >= items.Count) return;

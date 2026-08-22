@@ -36,6 +36,7 @@ public static class BootstrapSetup
         managersGo.AddComponent<AccountManager>();
         managersGo.AddComponent<CharacterManager>();
         managersGo.AddComponent<InventoryManager>();
+        managersGo.AddComponent<BankManager>();
         managersGo.AddComponent<SkillManager>();
         managersGo.AddComponent<ActivityManager>();
         managersGo.AddComponent<MergeManager>();

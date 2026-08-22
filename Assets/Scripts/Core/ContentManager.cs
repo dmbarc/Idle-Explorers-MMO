@@ -26,6 +26,7 @@ public class ContentManager : MonoBehaviour
     public Dictionary<string, ClassData>   Classes     { get; } = new Dictionary<string, ClassData>();
     public List<MergeRecipe>               MergeRecipes { get; } = new List<MergeRecipe>();
     public List<SlotUnlockRequirement>     SlotUnlocks  { get; } = new List<SlotUnlockRequirement>();
+    public List<CraftRecipe>               CraftRecipes { get; } = new List<CraftRecipe>();
 
     public bool IsLoaded { get; private set; }
 
@@ -40,12 +41,13 @@ public class ContentManager : MonoBehaviour
     [Serializable] private class ClassList   { public ClassData[]            classes;  }
     [Serializable] private class MergeList   { public MergeRecipe[]          recipes;  }
     [Serializable] private class SlotList    { public SlotUnlockRequirement[] slots;   }
+    [Serializable] private class CraftList   { public CraftRecipe[]          recipes;  }
 
     // ── Public API ────────────────────────────────────────────────────────────
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 7;
+        _pendingLoads = 8;
 
         LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
         LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
@@ -64,6 +66,29 @@ public class ContentManager : MonoBehaviour
         LoadJson<ClassList>  ("class_data",    "classes",  j => { foreach (var x in j.classes) Classes[x.id] = x; });
         LoadJson<MergeList>  ("merge_recipes", "recipes",  j => MergeRecipes.AddRange(j.recipes));
         LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
+        LoadJson<CraftList>  ("recipe_data",   "recipes",  j => CraftRecipes.AddRange(j.recipes));
+    }
+
+    // ── Crafting recipes ──────────────────────────────────────────────────────
+
+    public CraftRecipe GetRecipe(string recipeId)
+    {
+        if (string.IsNullOrEmpty(recipeId)) return null;
+
+        foreach (var r in CraftRecipes)
+            if (r.id == recipeId) return r;
+        return null;
+    }
+
+    /// <summary>Every recipe a given station offers, in file order.</summary>
+    public List<CraftRecipe> GetRecipesForStation(string stationType)
+    {
+        var results = new List<CraftRecipe>();
+        if (string.IsNullOrEmpty(stationType)) return results;
+
+        foreach (var r in CraftRecipes)
+            if (r.stationType == stationType) results.Add(r);
+        return results;
     }
 
     // ── Sprite loading ────────────────────────────────────────────────────────

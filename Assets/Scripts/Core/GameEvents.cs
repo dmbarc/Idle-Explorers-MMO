@@ -32,6 +32,7 @@ public static class GameEvents
     public static Action<string, long>    OnItemPickedUp;         // itemId, quantity
     public static Action<int>             OnInventorySlotChanged; // slotIndex
     public static Action                  OnInventoryChanged;     // full refresh
+    public static Action                  OnBankChanged;          // account bank, full refresh
 
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex
@@ -106,6 +107,7 @@ public static class GameEvents
         OnItemPickedUp           = null;
         OnInventorySlotChanged   = null;
         OnInventoryChanged       = null;
+        OnBankChanged            = null;
 
         OnMergeSlotChanged       = null;
         OnMergeCompleted         = null;

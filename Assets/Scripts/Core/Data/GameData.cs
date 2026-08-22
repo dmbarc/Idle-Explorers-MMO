@@ -62,6 +62,16 @@ public class SkillNodeEntry
     public string   nodeId;
     public string   skillId;
     public string   targetItemId;       // itemId produced by this node
+
+    /// <summary>
+    /// Empty for a gathering node, which yields targetItemId from nothing.
+    /// Non-empty marks an interactive station that opens a panel instead:
+    /// "bank" opens the vault, "campfire"/"forge" open the recipe list.
+    ///
+    /// Stations must NOT set targetItemId — that field is what made the campfire
+    /// and both forges conjure cooked food and metal bars out of thin air.
+    /// </summary>
+    public string   stationType;
     public int      reqSkillLevel;
     public float    activeRateMulti;    // active play rate multiplier
     public float    afkRateMulti;       // AFK rate multiplier
@@ -175,6 +185,46 @@ public class ClassData
 }
 
 [Serializable]
+public class CraftIngredient
+{
+    public string itemId;
+    public long   quantity = 1;
+}
+
+/// <summary>
+/// A recipe at a crafting station. Unlike a gathering node, this CONSUMES its
+/// inputs — which is the whole difference between cooking and conjuring.
+/// </summary>
+[Serializable]
+public class CraftRecipe
+{
+    public string id;
+    public string name;
+    public string skillId;
+    public string stationType;          // which station offers it: "campfire", "forge"
+    public int    reqSkillLevel = 1;
+
+    public CraftIngredient[] inputs;
+    public string outputItemId;
+    public long   outputQuantity = 1;
+
+    public float  xpPerCraft;
+    public float  baseSecondsPerCraft = 3f;
+
+    public string DisplayName => string.IsNullOrEmpty(name) ? id : name;
+
+    /// <summary>
+    /// Seconds per craft at a given skill level. Higher level, faster work:
+    /// level 1 is the base rate, level 99 roughly doubles it.
+    /// </summary>
+    public float SecondsPerCraft(int skillLevel)
+    {
+        float scaled = baseSecondsPerCraft / (1f + UnityEngine.Mathf.Max(0, skillLevel - 1) * 0.01f);
+        return UnityEngine.Mathf.Max(0.1f, scaled);
+    }
+}
+
+[Serializable]
 public class MergeRecipe
 {
     public string   id;
@@ -209,9 +259,16 @@ public class AccountData
     public bool                 ghostsVisible;      // global ghost privacy toggle
     public List<CharacterData>  characters;
 
+    // ── Account-wide bank ─────────────────────────────────────────────────────
+    // Shared across every character on the account: what one character banks,
+    // another can withdraw, and crafting stations can consume directly.
+    public List<InventoryEntry> bank;
+    public long                 bankCoins;
+
     public AccountData()
     {
         characters = new List<CharacterData>();
+        bank = new List<InventoryEntry>();
         ghostsVisible = true;
     }
 }
@@ -319,6 +376,23 @@ public class SkillActivityData
     public string   specialChanceLabel;
     public float    xpPerHour;
     public long     activityStartUnixTime;
+
+    /// <summary>
+    /// Set when the activity is crafting at a station. Empty for gathering and combat.
+    /// AFK accrual branches on this to consume inputs rather than conjure output.
+    /// </summary>
+    public string   recipeId;
+
+    /// <summary>
+    /// Seconds per action at 1.0x rate, captured when the activity started.
+    ///
+    /// AFK accrual used to invent its own action rate (skillLevel * 20 per hour)
+    /// which disagreed with the live rate by ~60x at level 1, while AFK *XP* was
+    /// derived from a third figure — so one offline session paid out XP and items
+    /// that were mutually inconsistent. Carrying the real rate here is what lets
+    /// both sides compute from the same number.
+    /// </summary>
+    public float    secondsPerAction;
 }
 
 // ── Ghost system ───────────────────────────────────────────────────────────────

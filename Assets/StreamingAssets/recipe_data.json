@@ -1,0 +1,74 @@
+[
+  {
+    "id": "cooked_shrimp",
+    "name": "Cooked Shrimp",
+    "skillId": "cooking",
+    "stationType": "campfire",
+    "reqSkillLevel": 1,
+    "inputs": [ { "itemId": "raw_shrimp", "quantity": 1 } ],
+    "outputItemId": "shrimp",
+    "outputQuantity": 1,
+    "xpPerCraft": 30,
+    "baseSecondsPerCraft": 3.0
+  },
+  {
+    "id": "gritty_shrimp",
+    "name": "Gritty Shrimps",
+    "skillId": "cooking",
+    "stationType": "campfire",
+    "reqSkillLevel": 5,
+    "inputs": [ { "itemId": "raw_shrimp", "quantity": 1 }, { "itemId": "tin_ore", "quantity": 1 } ],
+    "outputItemId": "gritty_shrimp",
+    "outputQuantity": 1,
+    "xpPerCraft": 75,
+    "baseSecondsPerCraft": 4.0
+  },
+  {
+    "id": "cooked_trout",
+    "name": "Cooked Trout",
+    "skillId": "cooking",
+    "stationType": "campfire",
+    "reqSkillLevel": 20,
+    "inputs": [ { "itemId": "raw_trout", "quantity": 1 } ],
+    "outputItemId": "trout",
+    "outputQuantity": 1,
+    "xpPerCraft": 70,
+    "baseSecondsPerCraft": 3.5
+  },
+  {
+    "id": "cooked_lobster",
+    "name": "Cooked Lobster",
+    "skillId": "cooking",
+    "stationType": "campfire",
+    "reqSkillLevel": 40,
+    "inputs": [ { "itemId": "raw_lobster", "quantity": 1 } ],
+    "outputItemId": "lobster",
+    "outputQuantity": 1,
+    "xpPerCraft": 120,
+    "baseSecondsPerCraft": 4.0
+  },
+  {
+    "id": "smelt_bronze_bar",
+    "name": "Bronze Bar",
+    "skillId": "smithing",
+    "stationType": "forge",
+    "reqSkillLevel": 1,
+    "inputs": [ { "itemId": "copper_ore", "quantity": 2 }, { "itemId": "tin_ore", "quantity": 1 } ],
+    "outputItemId": "bronze_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 13,
+    "baseSecondsPerCraft": 5.0
+  },
+  {
+    "id": "smelt_iron_bar",
+    "name": "Iron Bar",
+    "skillId": "smithing",
+    "stationType": "forge",
+    "reqSkillLevel": 15,
+    "inputs": [ { "itemId": "iron_ore", "quantity": 2 }, { "itemId": "coal", "quantity": 1 } ],
+    "outputItemId": "iron_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 25,
+    "baseSecondsPerCraft": 6.0
+  }
+]

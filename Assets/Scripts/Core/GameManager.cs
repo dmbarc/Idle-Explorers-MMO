@@ -26,6 +26,7 @@ public class GameManager : MonoBehaviour
     public static AccountManager    Account     { get; private set; }
     public static CharacterManager  Character   { get; private set; }
     public static InventoryManager  Inventory   { get; private set; }
+    public static BankManager       Bank        { get; private set; }
     public static SkillManager      Skills      { get; private set; }
     public static ActivityManager   Activity    { get; private set; }
     public static MergeManager      Merge       { get; private set; }
@@ -53,6 +54,7 @@ public class GameManager : MonoBehaviour
         Account    = GetComponent<AccountManager>();
         Character  = GetComponent<CharacterManager>();
         Inventory  = GetComponent<InventoryManager>();
+        Bank       = GetComponent<BankManager>();
         Skills     = GetComponent<SkillManager>();
         Activity   = GetComponent<ActivityManager>();
         Merge      = GetComponent<MergeManager>();

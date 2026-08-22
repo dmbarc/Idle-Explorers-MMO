@@ -216,10 +216,19 @@ public class PlayerController : MonoBehaviour
             if (!currentNodeTarget.IsGathering)
                 currentNodeTarget.BeginGathering();
 
-            // Reuse the attack animation for the swing of a pickaxe or an axe;
-            // dedicated gathering clips arrive with the real art pass.
-            anim.SetBool("2_Attack", true);
-            currentNodeTarget.TickGather(Time.deltaTime);
+            if (currentNodeTarget.IsStation && !currentNodeTarget.IsCrafting)
+            {
+                // A bank chest, or a crafting station with no recipe chosen yet.
+                // Standing at it should not look like swinging a pickaxe at it.
+                anim.SetBool("2_Attack", false);
+            }
+            else
+            {
+                // Reuse the attack animation for the swing of a pickaxe or an axe;
+                // dedicated gathering clips arrive with the real art pass.
+                anim.SetBool("2_Attack", true);
+                currentNodeTarget.TickGather(Time.deltaTime);
+            }
         }
         else
         {

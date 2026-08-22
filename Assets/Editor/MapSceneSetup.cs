@@ -50,6 +50,8 @@ public static class MapSceneSetup
                             Label = "Shrimp Pool",  Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
         new NodePlacement { NodeId = "campfire_1",    Position = PlayerSpawn + new Vector3( 0f, 0f, -6f),
                             Label = "Campfire",     Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
+        new NodePlacement { NodeId = "bank_chest_1",  Position = PlayerSpawn + new Vector3( 0f, 0f,  6f),
+                            Label = "Bank Chest",   Color = new Color(0.85f, 0.75f, 0.30f), Shape = PrimitiveType.Cube },
     };
 
     [MenuItem("Idle Explorers/Prepare Map Scene")]

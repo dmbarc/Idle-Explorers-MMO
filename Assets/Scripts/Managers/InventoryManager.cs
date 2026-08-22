@@ -2,14 +2,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Manages the active character's inventory.
+/// The active character's inventory: 30 fixed slots.
 ///
-/// The backing list is a FIXED 30 entries, with empty slots represented
-/// explicitly rather than being absent. A compact list cannot express "item in
-/// slot 7, slots 0-6 empty", so dragging an item onto an empty cell had no
-/// possible representation and silently did nothing.
+/// The slot mechanics live in SlotContainer, shared with the account bank — the two
+/// are the same model at different capacities, and keeping two copies is how they
+/// would drift apart. This class binds that logic to the active character and owns
+/// the coin wallet and change events.
 ///
-/// All quantities are long (up to 9.2Qa).
 /// Phase 1: local. Phase 8: server SyncList.
 /// </summary>
 public class InventoryManager : MonoBehaviour
@@ -31,42 +30,18 @@ public class InventoryManager : MonoBehaviour
         {
             var inv = CharacterManager.Current?.inventory;
             if (inv == null) return null;
-            Normalize(inv);
+            SlotContainer.Normalize(inv, MaxSlots);
             return inv;
         }
     }
 
     /// <summary>Number of occupied slots.</summary>
-    public int UsedSlots
-    {
-        get
-        {
-            var inv = Items;
-            if (inv == null) return 0;
-
-            int used = 0;
-            foreach (var e in inv) if (!IsEmpty(e)) used++;
-            return used;
-        }
-    }
+    public int UsedSlots => SlotContainer.UsedSlots(Items);
 
     public long Coins => CharacterManager.Current?.coins ?? 0;
 
-    public static bool IsEmpty(InventoryEntry e) =>
-        e == null || string.IsNullOrEmpty(e.itemId) || e.quantity <= 0;
-
-    /// <summary>
-    /// Pads or trims a character's inventory to exactly MaxSlots. Runs on access so
-    /// saves written under the old compact model are upgraded transparently.
-    /// </summary>
-    private static void Normalize(List<InventoryEntry> inv)
-    {
-        for (int i = 0; i < inv.Count; i++)
-            inv[i] ??= new InventoryEntry();
-
-        while (inv.Count < MaxSlots) inv.Add(new InventoryEntry());
-        if (inv.Count > MaxSlots) inv.RemoveRange(MaxSlots, inv.Count - MaxSlots);
-    }
+    /// <summary>Kept as a passthrough so existing call sites do not all have to move.</summary>
+    public static bool IsEmpty(InventoryEntry e) => SlotContainer.IsEmpty(e);
 
     // ── Currency ──────────────────────────────────────────────────────────────
 
@@ -97,73 +72,58 @@ public class InventoryManager : MonoBehaviour
         var inv = Items;
         if (inv == null) return;
 
-        // Top up an existing stack first
-        foreach (var entry in inv)
-        {
-            if (!IsEmpty(entry) && entry.itemId == itemId)
-            {
-                entry.quantity += quantity;
-                GameEvents.FireInventoryChanged();
-                return;
-            }
-        }
-
-        // Otherwise take the first free slot
-        for (int i = 0; i < inv.Count; i++)
-        {
-            if (!IsEmpty(inv[i])) continue;
-
-            inv[i].itemId   = itemId;
-            inv[i].quantity = quantity;
+        if (SlotContainer.AddItem(inv, itemId, quantity))
             GameEvents.FireInventoryChanged();
-            return;
-        }
-
-        Debug.LogWarning($"[InventoryManager] Inventory full — could not add {quantity}x {itemId}");
+        else
+            Debug.LogWarning($"[InventoryManager] Inventory full — could not add {quantity}x {itemId}");
     }
 
     public bool CanAddItem(string itemId)
     {
         if (itemId == CoinsItemId) return true;   // wallet, not a slot
-
-        var inv = Items;
-        if (inv == null) return false;
-
-        foreach (var e in inv)
-        {
-            if (IsEmpty(e)) return true;                     // free slot
-            if (e.itemId == itemId) return true;             // existing stack
-        }
-        return false;
+        return SlotContainer.CanAddItem(Items, itemId);
     }
 
     public long GetQuantity(string itemId)
     {
-        var inv = Items;
-        if (inv == null) return 0;
-
-        foreach (var e in inv)
-            if (!IsEmpty(e) && e.itemId == itemId) return e.quantity;
-        return 0;
+        if (itemId == CoinsItemId) return Coins;
+        return SlotContainer.GetQuantity(Items, itemId);
     }
 
     public bool RemoveItem(string itemId, long quantity)
     {
+        if (itemId == CoinsItemId) return TrySpendCoins(quantity);
+
+        if (!SlotContainer.RemoveItem(Items, itemId, quantity)) return false;
+
+        GameEvents.FireInventoryChanged();
+        return true;
+    }
+
+    /// <summary>Empties one slot outright — used when an item is dropped or consumed whole.</summary>
+    public void ClearSlot(int slotIndex)
+    {
         var inv = Items;
-        if (inv == null || quantity <= 0) return false;
+        if (inv == null || slotIndex < 0 || slotIndex >= inv.Count) return;
 
-        foreach (var e in inv)
-        {
-            if (IsEmpty(e) || e.itemId != itemId) continue;
-            if (e.quantity < quantity) return false;
+        SlotContainer.Clear(inv[slotIndex]);
+        GameEvents.FireInventoryChanged();
+    }
 
-            e.quantity -= quantity;
-            if (e.quantity <= 0) Clear(e);
+    /// <summary>Removes a quantity from one specific slot rather than searching by id.</summary>
+    public bool RemoveFromSlot(int slotIndex, long quantity)
+    {
+        var inv = Items;
+        if (inv == null || slotIndex < 0 || slotIndex >= inv.Count || quantity <= 0) return false;
 
-            GameEvents.FireInventoryChanged();
-            return true;
-        }
-        return false;
+        var entry = inv[slotIndex];
+        if (SlotContainer.IsEmpty(entry) || entry.quantity < quantity) return false;
+
+        entry.quantity -= quantity;
+        if (entry.quantity <= 0) SlotContainer.Clear(entry);
+
+        GameEvents.FireInventoryChanged();
+        return true;
     }
 
     // ── Slot manipulation (drag and drop) ─────────────────────────────────────
@@ -174,41 +134,7 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public void SwapOrStackSlots(int fromIndex, int toIndex)
     {
-        var inv = Items;
-        if (inv == null) return;
-        if (fromIndex < 0 || toIndex < 0 || fromIndex >= inv.Count || toIndex >= inv.Count) return;
-        if (fromIndex == toIndex) return;
-
-        var from = inv[fromIndex];
-        var to   = inv[toIndex];
-
-        if (IsEmpty(from)) return;   // nothing to move
-
-        if (!IsEmpty(to) && from.itemId == to.itemId)
-        {
-            // Merge stacks
-            to.quantity += from.quantity;
-            Clear(from);
-        }
-        else
-        {
-            // Swap contents in place. The entries themselves stay put so no other
-            // slot index shifts underneath the UI.
-            string itemId   = to.itemId;
-            long   quantity = to.quantity;
-
-            to.itemId     = from.itemId;
-            to.quantity   = from.quantity;
-            from.itemId   = itemId;
-            from.quantity = quantity;
-        }
-
+        SlotContainer.SwapOrStackSlots(Items, fromIndex, toIndex);
         GameEvents.FireInventoryChanged();
-    }
-
-    private static void Clear(InventoryEntry e)
-    {
-        e.itemId   = null;
-        e.quantity = 0;
     }
 }

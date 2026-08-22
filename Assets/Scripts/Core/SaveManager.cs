@@ -61,8 +61,10 @@ public class SaveManager : MonoBehaviour
             }
 
             // JsonUtility writes null collections as null, not empty — rehydrate so
-            // callers never have to null-check the lists.
+            // callers never have to null-check the lists. The bank is also absent
+            // entirely from saves written before it existed.
             account.characters ??= new System.Collections.Generic.List<CharacterData>();
+            account.bank       ??= new System.Collections.Generic.List<InventoryEntry>();
             foreach (var ch in account.characters)
             {
                 ch.skills    ??= new System.Collections.Generic.List<SkillProgress>();
