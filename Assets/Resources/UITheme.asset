@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a194978eaf3ba2f478a48a4b41c34bb2, type: 3}
+  m_Name: UITheme
+  m_EditorClassIdentifier: Assembly-CSharp::UITheme
+  panelBg: {r: 0.1, g: 0.08, b: 0.12, a: 0.95}
+  cardBg: {r: 0.15, g: 0.12, b: 0.18, a: 1}
+  headerBg: {r: 0.08, g: 0.06, b: 0.1, a: 1}
+  overlayBg: {r: 0, g: 0, b: 0, a: 0.75}
+  accentGold: {r: 1, g: 0.78, b: 0.2, a: 1}
+  accentBlue: {r: 0.25, g: 0.6, b: 1, a: 1}
+  accentGreen: {r: 0.2, g: 0.85, b: 0.4, a: 1}
+  accentRed: {r: 0.9, g: 0.25, b: 0.25, a: 1}
+  accentPurple: {r: 0.65, g: 0.3, b: 1, a: 1}
+  textPrimary: {r: 0.95, g: 0.9, b: 0.8, a: 1}
+  textSecondary: {r: 0.65, g: 0.6, b: 0.55, a: 1}
+  textDisabled: {r: 0.4, g: 0.38, b: 0.35, a: 1}
+  buttonNormal: {r: 0.22, g: 0.18, b: 0.28, a: 1}
+  buttonHover: {r: 0.3, g: 0.25, b: 0.38, a: 1}
+  buttonPressed: {r: 0.15, g: 0.12, b: 0.2, a: 1}
+  hpFill: {r: 0.85, g: 0.2, b: 0.2, a: 1}
+  mpFill: {r: 0.2, g: 0.45, b: 0.9, a: 1}
+  xpFill: {r: 1, g: 0.78, b: 0.2, a: 1}
+  barBg: {r: 0.08, g: 0.08, b: 0.1, a: 1}
+  slotBg: {r: 0.12, g: 0.1, b: 0.15, a: 1}
+  slotBorder: {r: 0.35, g: 0.3, b: 0.4, a: 1}
+  slotHighlight: {r: 1, g: 0.78, b: 0.2, a: 1}
+  font: {fileID: 0}
+  fontSizeTitle: 32
+  fontSizeBody: 18
+  fontSizeSmall: 14
+  fontSizeLabel: 12
+  buttonHeight: 52
+  slotSize: 64
+  iconSize: 48
+  cornerRadius: 8
+  padding: 12
+  spacing: 8

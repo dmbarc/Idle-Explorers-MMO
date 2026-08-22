@@ -164,9 +164,15 @@ public class CharacterSelectScreen : UIScreen
         // Play button
         UIFactory.Button(card, "▶  PLAY", () =>
         {
+            // SelectCharacter runs AFK accrual internally — calling ProcessAFKRewards
+            // here as well would grant every reward twice.
             GameManager.Character?.SelectCharacter(data);
-            GameManager.Activity?.ProcessAFKRewards(data);
-            GameManager.Instance?.GoToGame();
+
+            var summary = GameManager.Activity?.PendingSummary;
+            if (summary != null && summary.HasAnything)
+                GameManager.UI?.Push<AFKSummaryScreen>();   // COLLECT continues into the game
+            else
+                GameManager.Instance?.GoToGame();
         }, width: 180f);
     }
 

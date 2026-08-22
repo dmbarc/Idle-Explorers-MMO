@@ -40,6 +40,7 @@ public class GameManager : MonoBehaviour
     public static GuildManager      Guild       { get; private set; }
     public static QuestManager      Quests      { get; private set; }
     public static SlayerManager     Slayer      { get; private set; }
+    public static SaveManager       Save        { get; private set; }
 
     void Awake()
     {
@@ -64,6 +65,7 @@ public class GameManager : MonoBehaviour
         Guild      = GetComponent<GuildManager>();
         Quests     = GetComponent<QuestManager>();
         Slayer     = GetComponent<SlayerManager>();
+        Save       = GetComponent<SaveManager>();
 
         // Validate — warn if a manager is missing (easy to catch in Editor)
         if (Content   == null) Debug.LogError("GameManager: ContentManager component missing!");
@@ -73,6 +75,12 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        // CurrentState is initialized to Splash but nothing had ever transitioned
+        // *to* it, so UIManager never pushed SplashScreen and the first frame was
+        // blank. Transition explicitly so the splash is actually shown while
+        // content loads.
+        TransitionTo(GameState.Splash);
+
         // Content loads first (async), then transitions to Login when ready
         if (Content != null)
             Content.LoadAll(OnContentReady);
@@ -82,7 +90,10 @@ public class GameManager : MonoBehaviour
 
     void OnContentReady()
     {
-        TransitionTo(GameState.Login);
+        // Deliberately does not transition. SplashScreen polls Content.IsLoaded and
+        // moves to Login itself once its loading bar has played — transitioning here
+        // as well would race it and skip the splash entirely.
+        Debug.Log("[GameManager] Content ready.");
     }
 
     /// <summary>Transition to a new game state. UIManager reacts to show the right screen.</summary>
@@ -96,12 +107,29 @@ public class GameManager : MonoBehaviour
 
     // ── Convenience transition methods ────────────────────────────────────────
 
+    /// <summary>Map a character spawns into when they have never played before.</summary>
+    public const string StartingMapId = "goblin_camp";
+
     public void GoToCharacterSelect()       => TransitionTo(GameState.CharacterSelect);
     public void GoToCharacterCreate()       => TransitionTo(GameState.CharacterCreate);
-    public void GoToGame()                  => TransitionTo(GameState.InGame);
+
+    /// <summary>
+    /// Enters the world. Loads the character's last map (or the starting map) and
+    /// shows the HUD — without the map load, InGame would show a HUD over nothing.
+    /// </summary>
+    public void GoToGame()
+    {
+        var character = CharacterManager.Current;
+        string mapId  = !string.IsNullOrEmpty(character?.lastMapId) ? character.lastMapId : StartingMapId;
+
+        TransitionTo(GameState.InGame);
+        Zone?.EnterMap(mapId);
+
+        if (character != null) character.lastMapId = mapId;
+    }
     public void ReturnToMainMenu()
     {
-        Character?.SaveAndDisconnect();
+        Character?.SaveAndDisconnect();   // stamps lastLogoutUnixTime and persists
         Zone?.UnloadCurrentZone();
         TransitionTo(GameState.CharacterSelect);
         GameEvents.OnReturnToMainMenu?.Invoke();

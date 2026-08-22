@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -55,7 +56,7 @@ public class ActivityManager : MonoBehaviour
         SetActivity(
             skillId:       "combat",
             targetId:      map.defaultMonsterId,
-            targetName:    monster.displayName,
+            targetName:    monster.DisplayName,
             mapId:         mapId,
             activeRate:    1.0f,
             afkRate:       afkRate,
@@ -68,36 +69,72 @@ public class ActivityManager : MonoBehaviour
     // ── AFK reward calculation (called on login) ──────────────────────────────
 
     /// <summary>
+    /// Maximum offline time credited in one session. Uncapped accrual is the design
+    /// goal, but until the numbers are balanced a multi-week gap would hand out
+    /// quantities that make the rest of the game meaningless.
+    /// </summary>
+    public const long MaxAFKSeconds = 24 * 60 * 60;
+
+    /// <summary>The most recently calculated summary, consumed by AFKSummaryScreen.</summary>
+    public AFKRewardSummary PendingSummary { get; private set; }
+
+    /// <summary>Clears the pending summary once a screen has displayed it.</summary>
+    public void ConsumePendingSummary() => PendingSummary = null;
+
+    /// <summary>
     /// Calculates and grants AFK rewards earned since lastLogoutUnixTime.
     /// Called by CharacterManager when a character is selected after being offline.
+    /// Returns the summary (also stored as PendingSummary), or null if nothing accrued.
     /// </summary>
-    public void ProcessAFKRewards(CharacterData character)
+    public AFKRewardSummary ProcessAFKRewards(CharacterData character)
     {
-        if (character?.currentActivity == null) return;
+        if (character?.currentActivity == null) return null;
         var activity = character.currentActivity;
-        if (activity.activityStartUnixTime <= 0) return;
+        if (activity.activityStartUnixTime <= 0) return null;
 
-        long elapsedSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - character.lastLogoutUnixTime;
-        if (elapsedSeconds <= 0) return;
+        long realElapsed = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - character.lastLogoutUnixTime;
+        if (realElapsed <= 0) return null;
 
-        float hours = elapsedSeconds / 3600f;
-        Debug.Log($"[ActivityManager] Processing {NumberFormatter.FormatAFKTime(elapsedSeconds)} of AFK for {character.characterName}: {activity.skillId} ({activity.activityTargetName})");
+        long elapsedSeconds = System.Math.Min(realElapsed, MaxAFKSeconds);
+        float hours         = elapsedSeconds / 3600f;
 
-        // XP reward
-        long xpGained = (long)(activity.xpPerHour * hours * activity.afkRateMulti);
-        if (xpGained > 0 && activity.skillId != "combat")
-            GameManager.Skills?.AddSkillXP(activity.skillId, xpGained);
+        var summary = new AFKRewardSummary
+        {
+            elapsedSeconds = elapsedSeconds,
+            realElapsed    = realElapsed,
+            wasCapped      = realElapsed > MaxAFKSeconds,
+            skillId        = activity.skillId,
+            activityName   = activity.activityTargetName,
+        };
+
+        Debug.Log($"[ActivityManager] Processing {NumberFormatter.FormatAFKTime(elapsedSeconds)} of AFK for " +
+                  $"{character.characterName}: {activity.skillId} ({activity.activityTargetName})");
+
+        // XP reward. Combat XP is granted per-kill inside ProcessCombatAFKRewards
+        // instead, so it is not double-counted here.
+        if (activity.skillId != "combat")
+        {
+            long xpGained = (long)(activity.xpPerHour * hours * activity.afkRateMulti);
+            if (xpGained > 0)
+            {
+                GameManager.Skills?.AddSkillXP(activity.skillId, xpGained);
+                summary.AddXP(activity.skillId, xpGained);
+            }
+        }
 
         // Loot reward (combat or gathering)
         if (activity.skillId == "combat")
-            ProcessCombatAFKRewards(activity, hours, character);
+            ProcessCombatAFKRewards(activity, hours, character, summary);
         else
-            ProcessGatheringAFKRewards(activity, hours);
+            ProcessGatheringAFKRewards(activity, hours, summary);
 
+        PendingSummary = summary;
         GameEvents.OnAFKRewardsCollected?.Invoke(elapsedSeconds);
+        return summary;
     }
 
-    private void ProcessCombatAFKRewards(SkillActivityData activity, float hours, CharacterData character)
+    private void ProcessCombatAFKRewards(SkillActivityData activity, float hours,
+                                          CharacterData character, AFKRewardSummary summary)
     {
         var monster = GameManager.Content?.GetMonster(activity.activityTargetId);
         if (monster?.lootTable == null) return;
@@ -109,25 +146,41 @@ public class ActivityManager : MonoBehaviour
 
         foreach (var loot in monster.lootTable)
         {
-            long drops = 0;
-            for (long k = 0; k < totalKills; k++)
-                if (UnityEngine.Random.value <= loot.dropChance)
-                    drops += UnityEngine.Random.Range((int)loot.minQuantity, (int)loot.maxQuantity + 1);
-
+            long drops = RollBulkDrops(totalKills, loot);
             if (drops > 0)
             {
                 GameManager.Inventory?.AddItem(loot.itemId, drops);
-                GameEvents.FireItemPickedUp(loot.itemId, drops);
+                summary?.AddItem(loot.itemId, drops);
             }
         }
 
         // Combat XP (from kills)
         long combatXP = monster.xpReward * totalKills;
         GameManager.Skills?.AddSkillXP("combat", combatXP);
-        CharacterManager.Instance?.AddXP(combatXP / 4); // character level XP = 1/4 of combat XP
+        GameManager.Character?.AddXP(combatXP / 4); // character level XP = 1/4 of combat XP
+
+        summary?.AddXP("combat", combatXP);
+        if (summary != null) summary.kills = totalKills;
     }
 
-    private void ProcessGatheringAFKRewards(SkillActivityData activity, float hours)
+    /// <summary>
+    /// Total quantity dropped across many kills, computed in constant time.
+    /// Rolling each kill individually would loop millions of times after a long
+    /// AFK session and hang the game on login, so this uses the expected value
+    /// with ±10% jitter — statistically equivalent, instant to evaluate.
+    /// </summary>
+    private static long RollBulkDrops(long kills, LootEntry loot)
+    {
+        if (kills <= 0 || loot == null || loot.DropChance <= 0f) return 0;
+
+        double avgQty  = (loot.minQty + loot.maxQty) / 2.0;
+        double expected = kills * loot.DropChance * avgQty;
+        double jitter   = UnityEngine.Random.Range(0.9f, 1.1f);
+
+        return (long)System.Math.Max(0d, expected * jitter);
+    }
+
+    private void ProcessGatheringAFKRewards(SkillActivityData activity, float hours, AFKRewardSummary summary)
     {
         // Resources gathered at AFK rate
         // Base yield: 1 item per action, scaled by level
@@ -138,14 +191,47 @@ public class ActivityManager : MonoBehaviour
         if (totalActions > 0 && !string.IsNullOrEmpty(activity.activityTargetId))
         {
             long qty = totalActions;
-            // Special chance rolls (e.g. double ore chance)
-            long bonusQty = 0;
-            for (long a = 0; a < totalActions; a++)
-                if (UnityEngine.Random.value <= activity.specialChance)
-                    bonusQty++;
+            // Special chance rolls (e.g. bird's nest). Expected value rather than a
+            // per-action loop — see RollBulkDrops for why.
+            double jitter   = UnityEngine.Random.Range(0.9f, 1.1f);
+            long   bonusQty = (long)System.Math.Max(0d, totalActions * activity.specialChance * jitter);
 
             GameManager.Inventory?.AddItem(activity.activityTargetId, qty + bonusQty);
-            GameEvents.FireItemPickedUp(activity.activityTargetId, qty + bonusQty);
+            summary?.AddItem(activity.activityTargetId, qty + bonusQty);
         }
+    }
+}
+
+/// <summary>
+/// What a character earned while logged out. Built by ActivityManager and rendered
+/// by AFKSummaryScreen — this is the screen that makes the game's central promise
+/// legible, so the numbers are kept intact rather than folded into toasts.
+/// </summary>
+public class AFKRewardSummary
+{
+    public long   elapsedSeconds;      // credited time (may be capped)
+    public long   realElapsed;         // actual wall-clock time offline
+    public bool   wasCapped;
+    public string skillId;
+    public string activityName;
+    public long   kills;
+
+    public readonly List<InventoryEntry> itemsGained = new();
+    public readonly List<InventoryEntry> xpGained    = new();   // itemId field holds skillId
+
+    public bool HasAnything => itemsGained.Count > 0 || xpGained.Count > 0;
+
+    public void AddItem(string itemId, long qty) => Accumulate(itemsGained, itemId, qty);
+    public void AddXP(string skillId, long xp)   => Accumulate(xpGained,    skillId, xp);
+
+    private static void Accumulate(List<InventoryEntry> list, string id, long amount)
+    {
+        if (string.IsNullOrEmpty(id) || amount <= 0) return;
+
+        foreach (var entry in list)
+        {
+            if (entry.itemId == id) { entry.quantity += amount; return; }
+        }
+        list.Add(new InventoryEntry { itemId = id, quantity = amount });
     }
 }

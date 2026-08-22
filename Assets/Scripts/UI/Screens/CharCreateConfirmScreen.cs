@@ -95,6 +95,13 @@ public class CharCreateConfirmScreen : UIScreen
         };
 
         GameManager.Character?.CreateCharacter(newChar);
+
+        // Creating does not make it the active character — without this,
+        // CharacterManager.Current stays null and the world spawns with no player
+        // stats, no inventory target and no save.
+        GameManager.Character?.SelectCharacter(newChar);
+        GameManager.Save?.Save();
+
         GameEvents.FireToast($"Welcome, {newChar.characterName}!");
 
         // Clear creation state

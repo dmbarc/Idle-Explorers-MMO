@@ -16,6 +16,11 @@ public class CharacterManager : MonoBehaviour
         Current.isOnline = true;
         GameEvents.OnCharacterSelected?.Invoke(character);
         Debug.Log($"[CharacterManager] Selected: {character.characterName} ({character.classId})");
+
+        // Grant everything earned while this character was logged out. Must run
+        // after Current is set — the reward path writes into the active character.
+        if (character.lastLogoutUnixTime > 0)
+            GameManager.Activity?.ProcessAFKRewards(character);
     }
 
     public void CreateCharacter(CharacterData character)
@@ -38,8 +43,17 @@ public class CharacterManager : MonoBehaviour
         if (Current == null) return;
         Current.isOnline = false;
         Current.lastLogoutUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        // ActivityManager writes currentActivity before this is called
+
+        // Snapshot whatever the character was doing so AFK accrual has something
+        // to work from on next login.
+        if (GameManager.Activity?.CurrentActivity != null)
+            Current.currentActivity = GameManager.Activity.CurrentActivity;
+
         Debug.Log($"[CharacterManager] Saved and disconnected: {Current.characterName}");
+
+        // Write to disk — the logout timestamp is worthless if it dies with the process.
+        GameManager.Save?.Save();
+
         // TODO Phase 8: push to server
         Current = null;
     }

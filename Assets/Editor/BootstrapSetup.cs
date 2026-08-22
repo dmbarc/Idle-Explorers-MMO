@@ -17,7 +17,10 @@ public static class BootstrapSetup
     private const string BOOTSTRAP_SCENE_PATH = "Assets/Scenes/Bootstrap.unity";
 
     [MenuItem("Idle Explorers/Setup Bootstrap Scene")]
-    public static void CreateBootstrapScene()
+    public static void CreateBootstrapScene() => CreateBootstrapScene(showDialog: true);
+
+    /// <summary>Dialog-free variant so this can run headlessly via -executeMethod.</summary>
+    public static void CreateBootstrapScene(bool showDialog)
     {
         // Ensure Scenes folder exists
         if (!Directory.Exists("Assets/Scenes"))
@@ -29,6 +32,7 @@ public static class BootstrapSetup
         var managersGo = new GameObject("Managers");
         managersGo.AddComponent<GameManager>();
         managersGo.AddComponent<ContentManager>();
+        managersGo.AddComponent<SaveManager>();      // before AccountManager, which loads from it
         managersGo.AddComponent<AccountManager>();
         managersGo.AddComponent<CharacterManager>();
         managersGo.AddComponent<InventoryManager>();
@@ -45,9 +49,8 @@ public static class BootstrapSetup
         managersGo.AddComponent<AudioManager>();
         managersGo.AddComponent<UIManager>();
 
-        // AudioManager needs two AudioSource components (music + SFX)
-        managersGo.AddComponent<AudioSource>();
-        managersGo.AddComponent<AudioSource>();
+        // Note: AudioManager.Awake adds its own music + SFX AudioSources, so none
+        // are added here — doing both would leave four sources on the object.
 
         // ── Save scene ────────────────────────────────────────────────────────
         EditorSceneManager.SaveScene(scene, BOOTSTRAP_SCENE_PATH);
@@ -58,13 +61,50 @@ public static class BootstrapSetup
 
         Debug.Log($"[Bootstrap] Scene saved: {BOOTSTRAP_SCENE_PATH}");
 
-        EditorUtility.DisplayDialog("Bootstrap Setup Complete",
-            $"Bootstrap scene created at:\n{BOOTSTRAP_SCENE_PATH}\n\n" +
-            "Next steps:\n" +
-            "1. Run: Idle Explorers → Create UITheme Asset\n" +
-            "2. In the Bootstrap scene Inspector, assign AudioManager clip references\n" +
-            "3. Press Play — the Splash screen should appear",
-            "OK");
+        if (showDialog)
+            EditorUtility.DisplayDialog("Bootstrap Setup Complete",
+                $"Bootstrap scene created at:\n{BOOTSTRAP_SCENE_PATH}\n\n" +
+                "Next steps:\n" +
+                "1. Run: Idle Explorers → Create UITheme Asset\n" +
+                "2. In the Bootstrap scene Inspector, assign AudioManager clip references\n" +
+                "3. Press Play — the Splash screen should appear",
+                "OK");
+    }
+
+    /// <summary>
+    /// Runs every setup step in the right order: theme asset, Bootstrap scene,
+    /// then the map scene. Safe to re-run.
+    ///
+    /// Also the entry point for headless setup:
+    ///   Unity -batchmode -quit -projectPath . -executeMethod BootstrapSetup.SetupAll
+    /// </summary>
+    [MenuItem("Idle Explorers/Setup Everything")]
+    public static void SetupAll()
+    {
+        Debug.Log("[Setup] ── Idle Explorers full setup ──");
+        CreateUIThemeAsset();
+        CreateBootstrapScene(showDialog: false);
+        MapSceneSetup.Execute(showDialog: false);
+
+        // Bootstrap must be index 0 — it is the scene that owns the Managers object
+        // and every other scene loads additively on top of it.
+        EnsureBootstrapIsFirstScene();
+
+        AssetDatabase.SaveAssets();
+        Debug.Log("[Setup] ── Complete. Open Assets/Scenes/Bootstrap.unity and press Play. ──");
+    }
+
+    private static void EnsureBootstrapIsFirstScene()
+    {
+        var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+        int index = scenes.FindIndex(s => s.path == BOOTSTRAP_SCENE_PATH);
+        if (index <= 0) return;
+
+        var bootstrap = scenes[index];
+        scenes.RemoveAt(index);
+        scenes.Insert(0, bootstrap);
+        EditorBuildSettings.scenes = scenes.ToArray();
+        Debug.Log("[Setup] Moved Bootstrap to build index 0.");
     }
 
     [MenuItem("Idle Explorers/Create UITheme Asset")]

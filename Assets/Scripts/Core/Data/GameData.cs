@@ -29,7 +29,14 @@ public class LootEntry
     public string   itemId;
     public long     minQty;             // JSON field: "minQty"
     public long     maxQty;             // JSON field: "maxQty"
-    public int      weight;             // relative drop weight
+    public int      weight;             // JSON field: "weight" — drop chance out of 100
+
+    /// <summary>
+    /// Drop chance as a 0–1 probability. The JSON stores it out of 100 (bones: 100
+    /// always drops, skull: 20 drops one kill in five), so each entry is rolled
+    /// independently rather than being selected from a weighted table.
+    /// </summary>
+    public float DropChance => UnityEngine.Mathf.Clamp01(weight / 100f);
 }
 
 [Serializable]
@@ -207,8 +214,10 @@ public class CharacterData
     public SpumSaveData             spumConfig;
     public SkillActivityData        currentActivity;
 
-    public Dictionary<string, int>  skillLevels;    // skillId → level (1–999)
-    public Dictionary<string, long> skillXP;        // skillId → total XP
+    // Skill progress. Deliberately a List, not a Dictionary: JsonUtility cannot
+    // serialize dictionaries — it writes them as empty without warning, so every
+    // save would silently wipe all skill levels. Use GetSkill/GetOrCreateSkill.
+    public List<SkillProgress>      skills;
 
     public List<InventoryEntry>     inventory;
     public List<InventoryEntry>     mergeBoard;
@@ -227,8 +236,7 @@ public class CharacterData
 
     public CharacterData()
     {
-        skillLevels         = new Dictionary<string, int>();
-        skillXP             = new Dictionary<string, long>();
+        skills              = new List<SkillProgress>();
         inventory           = new List<InventoryEntry>();
         mergeBoard          = new List<InventoryEntry>();
         equippedSpiritIds   = new string[0];
@@ -239,6 +247,35 @@ public class CharacterData
         talentChoices       = new int[0];
         allowGhostDisplay   = true;
     }
+
+    /// <summary>Returns the skill's progress, or null if this character has never trained it.</summary>
+    public SkillProgress GetSkill(string skillId)
+    {
+        if (skills == null) return null;
+        foreach (var s in skills)
+            if (s.skillId == skillId) return s;
+        return null;
+    }
+
+    /// <summary>Returns the skill's progress, creating it at level 1 / 0 xp on first use.</summary>
+    public SkillProgress GetOrCreateSkill(string skillId)
+    {
+        skills ??= new List<SkillProgress>();
+        var existing = GetSkill(skillId);
+        if (existing != null) return existing;
+
+        var created = new SkillProgress { skillId = skillId, level = 1, xp = 0 };
+        skills.Add(created);
+        return created;
+    }
+}
+
+[Serializable]
+public class SkillProgress
+{
+    public string   skillId;
+    public int      level = 1;
+    public long     xp;
 }
 
 [Serializable]

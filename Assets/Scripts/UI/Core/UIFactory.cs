@@ -125,6 +125,60 @@ public static class UIFactory
         return (root, fillImg);
     }
 
+    // ── Placeholder icons ─────────────────────────────────────────────────────
+
+    private static readonly System.Collections.Generic.Dictionary<string, Sprite> _placeholderCache = new();
+
+    /// <summary>
+    /// A deterministic coloured icon derived from an item id, used until real art
+    /// is wired up (every iconAddress in item_data.json is currently empty).
+    /// The same id always produces the same colour, so items stay visually
+    /// distinguishable in the inventory and players can learn them by sight.
+    /// Filling in iconAddress later replaces these with no code change.
+    /// </summary>
+    public static Sprite PlaceholderIcon(string itemId)
+    {
+        if (string.IsNullOrEmpty(itemId)) itemId = "unknown";
+        if (_placeholderCache.TryGetValue(itemId, out var cached) && cached != null)
+            return cached;
+
+        // Stable hash → hue. Avoids string.GetHashCode, which is not guaranteed
+        // stable across runtimes and would reshuffle colours between platforms.
+        unchecked
+        {
+            int hash = 17;
+            foreach (char c in itemId) hash = hash * 31 + c;
+
+            float hue        = (Mathf.Abs(hash) % 360) / 360f;
+            float saturation = 0.45f + ((Mathf.Abs(hash / 360) % 30) / 100f); // 0.45–0.75
+            var   fillColor  = Color.HSVToRGB(hue, saturation, 0.85f);
+
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                filterMode = FilterMode.Point,
+                name       = $"placeholder_{itemId}"
+            };
+
+            var border = Color.Lerp(fillColor, Color.black, 0.45f);
+            var pixels = new Color[size * size];
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    bool isEdge = x < 3 || y < 3 || x >= size - 3 || y >= size - 3;
+                    pixels[y * size + x] = isEdge ? border : fillColor;
+                }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+
+            var sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+            sprite.name = $"placeholder_{itemId}";
+            _placeholderCache[itemId] = sprite;
+            return sprite;
+        }
+    }
+
     // ── Icon ──────────────────────────────────────────────────────────────────
 
     public static Image Icon(Transform parent, Sprite sprite, float size = 0f, string name = "Icon")

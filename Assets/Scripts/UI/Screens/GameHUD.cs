@@ -29,15 +29,19 @@ public class GameHUD : UIScreen
     public override void OnShow()
     {
         RefreshCharInfo();
-        GameEvents.OnCharacterLevelUp += OnLevelUp; // Action<int>
-        GameEvents.OnActivityChanged  += OnActivityChanged;
+        GameEvents.OnCharacterLevelUp  += OnLevelUp; // Action<int>
+        GameEvents.OnActivityChanged   += OnActivityChanged;
+        GameEvents.OnPlayerHealthChanged += OnHealthChanged;
     }
 
     public override void OnHide()
     {
-        GameEvents.OnCharacterLevelUp -= OnLevelUp;
-        GameEvents.OnActivityChanged  -= OnActivityChanged;
+        GameEvents.OnCharacterLevelUp  -= OnLevelUp;
+        GameEvents.OnActivityChanged   -= OnActivityChanged;
+        GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
     }
+
+    public override void OnResume() => OnShow();
 
     // ── Top bar: HP/MP + char info + Menu button ─────────────────────────────
 
@@ -50,7 +54,7 @@ public class GameHUD : UIScreen
         rt.offsetMin = rt.offsetMax = Vector2.zero;
 
         // Character name + level (left side)
-        var charData = GameManager.Character?.ActiveCharacter;
+        var charData = CharacterManager.Current;
         string name  = charData?.characterName ?? "Explorer";
         int    level = charData?.level ?? 1;
         string cls   = charData?.classId ?? "";
@@ -141,21 +145,53 @@ public class GameHUD : UIScreen
         }
 
         // Right side nav buttons: INV, SKL, MRG, MAP
-        string[] navLabels = { "INV", "SKL", "MRG", "MAP" };
         var navStack = UIFactory.HStack(bar.transform, UIManager.Theme.spacing, "NavButtons");
         var navRt = navStack.GetComponent<RectTransform>();
         navRt.anchorMin = new Vector2(0.72f, 0.05f);
         navRt.anchorMax = new Vector2(0.99f, 0.95f);
         navRt.offsetMin = navRt.offsetMax = Vector2.zero;
 
-        foreach (var lbl in navLabels)
+        BuildAutoToggle(navStack.transform);
+
+        UIFactory.Button(navStack.transform, "INV", () => GameManager.UI?.Push<InventoryPanel>(), width: 60f);
+        UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 60f);
+
+        // Merge board and zone travel arrive in Phases 5 and 6
+        UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 60f);
+        UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 60f);
+    }
+
+    /// <summary>
+    /// Auto-attack toggle. Lived on the map scene's hand-built canvas before that
+    /// canvas was stripped — it belongs in the code-generated HUD like everything else.
+    /// </summary>
+    private void BuildAutoToggle(Transform parent)
+    {
+        var btn = UIFactory.Button(parent, "AUTO", null, width: 70f);
+
+        // The listener needs the button itself to recolour it, so it is added after
+        // construction rather than passed into the factory.
+        btn.onClick.AddListener(() =>
         {
-            UIFactory.Button(navStack.transform, lbl, () =>
+            var player = FindAnyObjectByType<PlayerController>();
+            if (player == null)
             {
-                // Phase 4: wire to InventoryPanel, SkillsPanel, MergeBoardPanel, ZoneMapPanel
-                GameEvents.FireToast($"{lbl} — coming in Phase 4");
-            }, width: 60f);
-        }
+                GameEvents.FireToast("No character in the world yet.");
+                return;
+            }
+
+            bool enabled = !player.autoAttack;
+            player.SetAutoAttack(enabled);
+
+            // Recolour via the Selectable's colour block, not the Image directly —
+            // Selectable rewrites the Image tint on every state change and would
+            // immediately undo a direct assignment.
+            var colors = btn.colors;
+            colors.normalColor = enabled ? UIManager.Theme.accentGreen : UIManager.Theme.buttonNormal;
+            btn.colors = colors;
+
+            GameEvents.FireToast(enabled ? "Auto-mode on" : "Auto-mode off");
+        });
     }
 
     // ── Current activity panel (mid-right) ──────────────────────────────────
@@ -171,7 +207,7 @@ public class GameHUD : UIScreen
         UIFactory.Label(panel.transform, "CURRENT ACTIVITY", UIManager.Theme.fontSizeLabel,
                          UIManager.Theme.accentGold, TextAlignmentOptions.Center);
 
-        var activity = GameManager.Character?.ActiveCharacter?.currentActivity;
+        var activity = CharacterManager.Current?.currentActivity;
         string actText = (activity != null && !string.IsNullOrEmpty(activity.skillId))
             ? $"{activity.skillId}\n{activity.activityTargetId}\n{activity.xpPerHour:N0} xp/hr"
             : "Idle";
@@ -184,7 +220,7 @@ public class GameHUD : UIScreen
 
     private void RefreshCharInfo()
     {
-        var charData = GameManager.Character?.ActiveCharacter;
+        var charData = CharacterManager.Current;
         if (charData == null) return;
         if (_charNameLabel != null)
             _charNameLabel.text = $"{charData.characterName}  •  {charData.classId}";
@@ -196,6 +232,14 @@ public class GameHUD : UIScreen
     {
         if (_charLevelLabel != null)
             _charLevelLabel.text = $"Lv. {newLevel}";
+        GameEvents.FireToast($"⬆ Level {newLevel}!");
+        GameManager.Audio?.PlayLevelUp();
+    }
+
+    private void OnHealthChanged(double current, double max)
+    {
+        if (_hpFill == null || max <= 0) return;
+        _hpFill.fillAmount = Mathf.Clamp01((float)(current / max));
     }
 
     private void OnActivityChanged(SkillActivityData activity)

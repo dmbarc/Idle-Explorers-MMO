@@ -16,17 +16,15 @@ public class SkillManager : MonoBehaviour
         var ch = CharacterManager.Current;
         if (ch == null) return;
 
-        if (!ch.skillXP.ContainsKey(skillId))    ch.skillXP[skillId]    = 0;
-        if (!ch.skillLevels.ContainsKey(skillId)) ch.skillLevels[skillId] = 1;
-
-        ch.skillXP[skillId] += amount;
+        var progress = ch.GetOrCreateSkill(skillId);
+        progress.xp += amount;
         GameEvents.OnSkillXPGained?.Invoke(skillId, amount);
 
-        int newLevel = XPToSkillLevel(ch.skillXP[skillId]);
-        if (newLevel > ch.skillLevels[skillId])
+        int newLevel = XPToSkillLevel(progress.xp);
+        if (newLevel > progress.level)
         {
-            int old = ch.skillLevels[skillId];
-            ch.skillLevels[skillId] = newLevel;
+            int old = progress.level;
+            progress.level = newLevel;
             GameEvents.OnSkillLevelUp?.Invoke(skillId, newLevel);
             GameEvents.FireToast($"⬆ {SkillDisplayName(skillId)}: {old} → {newLevel}");
             CheckMilestones(skillId, old, newLevel);
@@ -35,16 +33,14 @@ public class SkillManager : MonoBehaviour
 
     public int GetSkillLevel(string skillId)
     {
-        var ch = CharacterManager.Current;
-        if (ch == null) return 1;
-        return ch.skillLevels.TryGetValue(skillId, out int lvl) ? lvl : 1;
+        var progress = CharacterManager.Current?.GetSkill(skillId);
+        return progress?.level ?? 1;
     }
 
     public long GetSkillXP(string skillId)
     {
-        var ch = CharacterManager.Current;
-        if (ch == null) return 0;
-        return ch.skillXP.TryGetValue(skillId, out long xp) ? xp : 0;
+        var progress = CharacterManager.Current?.GetSkill(skillId);
+        return progress?.xp ?? 0;
     }
 
     public long XPToNextSkillLevel(string skillId)
@@ -94,6 +90,6 @@ public class SkillManager : MonoBehaviour
     private string SkillDisplayName(string skillId)
     {
         var data = GameManager.Content?.GetSkill(skillId);
-        return data?.displayName ?? skillId;
+        return data?.DisplayName ?? skillId;
     }
 }

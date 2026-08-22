@@ -53,6 +53,9 @@ public class InventoryManager : MonoBehaviour
         var inv = Items;
         if (inv == null) return;
         if (fromIndex < 0 || toIndex < 0 || fromIndex >= inv.Count || toIndex >= inv.Count) return;
+        // Dropping a stack onto itself would otherwise double its quantity and then
+        // delete the entry.
+        if (fromIndex == toIndex) return;
 
         var a = inv[fromIndex];
         var b = inv[toIndex];

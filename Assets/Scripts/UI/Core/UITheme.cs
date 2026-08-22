@@ -35,13 +35,13 @@ public class UITheme : ScriptableObject
     [Header("HP / MP Bars")]
     public Color hpFill         = new Color(0.85f, 0.20f, 0.20f, 1.00f);
     public Color mpFill         = new Color(0.20f, 0.45f, 0.90f, 1.00f);
-    public Color xpFill         = accentGold;
+    public Color xpFill         = new Color(1.00f, 0.78f, 0.20f, 1.00f);  // matches accentGold
     public Color barBg          = new Color(0.08f, 0.08f, 0.10f, 1.00f);
 
     [Header("Slot")]
     public Color slotBg         = new Color(0.12f, 0.10f, 0.15f, 1.00f);
     public Color slotBorder     = new Color(0.35f, 0.30f, 0.40f, 1.00f);
-    public Color slotHighlight  = accentGold;
+    public Color slotHighlight  = new Color(1.00f, 0.78f, 0.20f, 1.00f);  // matches accentGold
 
     [Header("Typography")]
     public TMP_FontAsset font;      // assign LiberationSans SDF or custom font in Inspector

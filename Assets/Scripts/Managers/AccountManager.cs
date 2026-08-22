@@ -11,7 +11,21 @@ public class AccountManager : MonoBehaviour
 
     void Awake()
     {
-        // Stub: create a local account for testing until server auth is implemented (Phase 8)
+        // Load the local save first — a fresh stub every launch would mean no time
+        // ever elapses between sessions, which makes AFK rewards impossible.
+        // Runs in Awake via GetComponent rather than GameManager.Save, because
+        // Awake order between sibling components on Managers is undefined.
+        var save = GetComponent<SaveManager>();
+        Current = save != null ? save.Load() : null;
+
+        if (Current != null)
+        {
+            Debug.Log($"[AccountManager] Restored account '{Current.accountName}' (level {Current.accountLevel}).");
+            GameEvents.OnAccountLoaded?.Invoke(Current);
+            return;
+        }
+
+        // No save yet: create a local account until server auth exists (Phase 8)
         Current = new AccountData
         {
             accountId      = "local_player",
@@ -20,6 +34,7 @@ public class AccountManager : MonoBehaviour
             accountXP      = 0,
             ghostsVisible  = true
         };
+        Debug.Log("[AccountManager] No save found — created a new local account.");
     }
 
     public void LoadAccount(AccountData data)

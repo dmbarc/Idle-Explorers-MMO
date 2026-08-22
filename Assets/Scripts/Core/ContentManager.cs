@@ -66,13 +66,34 @@ public class ContentManager : MonoBehaviour
         LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
     }
 
-    // ── Sprite loading (stub — wire to Resources or Addressables in Phase 2) ─
-    public void LoadSprite(string address, Action<Sprite> callback)
+    // ── Sprite loading ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves a sprite by address, falling back to a generated placeholder so a
+    /// slot is never blank. Phase 1 loads from Resources; swap for Addressables
+    /// once the package is installed.
+    /// </summary>
+    public void LoadSprite(string address, Action<Sprite> callback, string fallbackId = null)
     {
-        // Phase 1: load from Resources folder by address string
-        if (string.IsNullOrEmpty(address)) { callback?.Invoke(null); return; }
-        var sprite = Resources.Load<Sprite>(address);
-        callback?.Invoke(sprite); // null is acceptable — icon will be blank
+        callback?.Invoke(GetSprite(address, fallbackId));
+    }
+
+    /// <summary>Synchronous sprite lookup with placeholder fallback.</summary>
+    public Sprite GetSprite(string address, string fallbackId = null)
+    {
+        if (!string.IsNullOrEmpty(address))
+        {
+            var sprite = Resources.Load<Sprite>(address);
+            if (sprite != null) return sprite;
+        }
+        return UIFactory.PlaceholderIcon(fallbackId ?? address);
+    }
+
+    /// <summary>Icon for an item id, honouring its iconAddress when one is set.</summary>
+    public Sprite GetItemIcon(string itemId)
+    {
+        var item = GetItem(itemId);
+        return GetSprite(item?.iconAddress, itemId);
     }
 
     // ── Lookup helpers ────────────────────────────────────────────────────────

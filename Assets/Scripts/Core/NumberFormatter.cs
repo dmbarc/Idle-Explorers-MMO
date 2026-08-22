@@ -6,6 +6,9 @@ public static class NumberFormatter
 {
     public static string Format(long n)
     {
+        // long.MinValue has no positive counterpart — negating it overflows back to
+        // itself and recurses forever, so it is handled before the general case.
+        if (n == long.MinValue)  return "-9.22Qa";
         if (n < 0)               return "-" + Format(-n);
         if (n < 1_000)           return n.ToString("N0");
         if (n < 1_000_000L)      return $"{n / 1_000.0:0.##}K";

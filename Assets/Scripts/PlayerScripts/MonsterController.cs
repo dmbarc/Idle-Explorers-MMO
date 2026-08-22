@@ -4,15 +4,6 @@ using UnityEngine.AI;
 
 public class MonsterController : MonoBehaviour
 {
-    [System.Serializable]
-    public class DropEntry
-    {
-        public ItemDrop item;
-        public float baseChance = 0.1f;
-        public int minAmount = 1;
-        public int maxAmount = 1;
-    }
-
     private Transform player;
     private PlayerController playerController;  // cached — avoids GetComponent every frame
     public NavMeshAgent agent;
@@ -27,7 +18,10 @@ public class MonsterController : MonoBehaviour
     public float healthRegenSpeed = 5f;
     public float corpseDespawnTime = 10f;
 
-    public DropEntry[] dropTable;
+    // Assigned from monster_data.json at spawn — see Initialize()
+    private MonsterData _data;
+    public MonsterData Data => _data;
+
     public GameObject dropPrefab;
 
     public GameObject healthUI;
@@ -70,9 +64,13 @@ public class MonsterController : MonoBehaviour
 
     void Update()
     {
-        // Health UI
-        healthNumber.text = currentHealthPoints.ToString();
-        healthSlider.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, (float)(currentHealthPoints / maxHealthPoints * 190));
+        // Health UI — guarded, because monsters are now spawned from a Resources
+        // prefab that may not have these wired for every future monster type.
+        if (healthNumber != null)
+            healthNumber.text = NumberFormatter.Format((long)currentHealthPoints);
+        if (healthSlider != null && maxHealthPoints > 0)
+            healthSlider.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,
+                (float)(currentHealthPoints / maxHealthPoints * 190));
 
         if (healthUI != null && hideUITimer > 0f)
         {
@@ -134,6 +132,29 @@ public class MonsterController : MonoBehaviour
         spawner = spawnerRef;
     }
 
+    /// <summary>
+    /// Applies a monster definition from monster_data.json. Called by MonsterSpawner
+    /// immediately after Instantiate, before Start runs, so the stats below replace
+    /// the prefab's inspector defaults rather than racing them.
+    /// </summary>
+    public void Initialize(MonsterData data)
+    {
+        if (data == null)
+        {
+            Debug.LogWarning($"[MonsterController] {name} initialized with null MonsterData — keeping prefab defaults.");
+            return;
+        }
+
+        _data               = data;
+        maxHealthPoints     = data.maxHp;
+        currentHealthPoints = data.maxHp;
+        attackSpeed         = data.attackSpeedSeconds;
+        // Damage is rolled once per monster so individuals vary within the band
+        attackDamage        = Random.Range(data.attackDamageMin, data.attackDamageMax + 1);
+
+        name = data.DisplayName;
+    }
+
     public void TakeDamage(double damageAmount)
     {
         ShowHealthUI();
@@ -144,6 +165,7 @@ public class MonsterController : MonoBehaviour
         {
             alive = false;
             DropLoot();
+            AwardKillRewards();
 
             anim.SetBool("1_Move", false);
             anim.SetBool("2_Attack", false);
@@ -218,45 +240,55 @@ public class MonsterController : MonoBehaviour
         wanderTimer = Random.Range(3f, 6f);
     }
 
+    /// <summary>
+    /// Rolls this monster's loot table from monster_data.json and spawns one
+    /// DropPickup per successful entry. Each entry rolls independently against its
+    /// own DropChance (weight out of 100), so bones at 100 always drop and a
+    /// magic staff at 5 is genuinely rare.
+    /// </summary>
     private void DropLoot()
     {
-        if (dropPrefab == null || dropTable == null || dropTable.Length == 0) return;
+        if (dropPrefab == null || _data?.lootTable == null) return;
 
-        // Read drop multiplier from the player's controller stat
-        float multiplier = (playerController != null) ? (float)playerController.dropMultiplier : 1f;
+        // Drop multiplier is a player stat — it scales quantity, not drop chance,
+        // so rare items stay rare no matter how high it goes.
+        double multiplier = (playerController != null) ? playerController.dropMultiplier : 1d;
+        Vector3 basePos   = transform.position + Vector3.up * 0.6f;
 
-        foreach (var entry in dropTable)
+        foreach (var entry in _data.lootTable)
         {
-            if (entry.item == null) continue;
+            if (entry == null || string.IsNullOrEmpty(entry.itemId)) continue;
+            if (Random.value > entry.DropChance) continue;
 
-            // Roll qty in [minAmount, maxAmount], then scale by multiplier
-            int rolledQty = Random.Range(entry.minAmount, entry.maxAmount + 1);
-            float finalChance = entry.baseChance * multiplier;
-            if (finalChance <= 0) continue;
+            long rolled = RandomRangeLong(entry.minQty, entry.maxQty);
+            long qty    = (long)System.Math.Max(1d, rolled * multiplier);
 
-            // Guaranteed drops = floor(chance), plus probabilistic extra
-            int guaranteed = Mathf.FloorToInt(finalChance);
-            float extraChance = finalChance - guaranteed;
-            int dropCount = guaranteed + (Random.value <= extraChance ? 1 : 0);
-            if (dropCount <= 0) continue;
-
-            // Total quantity = rolled amount × number of successful drops
-            int totalQty = rolledQty * dropCount;
-
-            // Spawn the minimum number of DropPickup objects (one per maxStack batch)
-            Vector3 basePos = transform.position + Vector3.up * 0.6f;
-            int fullStacks = totalQty / entry.item.maxStack;
-            int remainder = totalQty % entry.item.maxStack;
-
-            for (int i = 0; i < fullStacks; i++)
-                SpawnDrop(entry.item, entry.item.maxStack, basePos);
-
-            if (remainder > 0)
-                SpawnDrop(entry.item, remainder, basePos);
+            // One pickup per entry regardless of size — quantities reach the
+            // billions and a pickup per stack would spawn thousands of objects.
+            SpawnDrop(entry.itemId, qty, basePos);
         }
     }
 
-    private void SpawnDrop(ItemDrop item, int qty, Vector3 basePos)
+    /// <summary>Inclusive random in [min, max] for long quantities.</summary>
+    private static long RandomRangeLong(long min, long max)
+    {
+        if (max <= min) return min;
+        double t = Random.value;
+        return min + (long)(t * (max - min + 1));
+    }
+
+    /// <summary>Grants combat XP and fires the kill event for quest/slayer tracking.</summary>
+    private void AwardKillRewards()
+    {
+        if (_data == null) return;
+
+        GameEvents.FireMonsterKilled(_data.id);
+        GameManager.Skills?.AddSkillXP("combat", _data.xpReward);
+        GameManager.Character?.AddXP(_data.xpReward / 4);   // character XP = 1/4 of combat XP
+        GameManager.Audio?.PlayDeath();
+    }
+
+    private void SpawnDrop(string itemId, long qty, Vector3 basePos)
     {
         Vector3 offset = Random.insideUnitSphere * 1.8f;
         offset.y = Mathf.Abs(offset.y) + 0.8f;
@@ -264,6 +296,6 @@ public class MonsterController : MonoBehaviour
         GameObject dropObj = Instantiate(dropPrefab, basePos + offset, Quaternion.identity);
         DropPickup pickup = dropObj.GetComponent<DropPickup>();
         if (pickup != null)
-            pickup.Setup(item, qty);
+            pickup.Setup(itemId, qty);
     }
 }

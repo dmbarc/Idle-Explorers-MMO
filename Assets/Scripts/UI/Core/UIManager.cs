@@ -13,8 +13,9 @@ using UnityEngine.UI;
 /// </summary>
 public class UIManager : MonoBehaviour
 {
-    public static Canvas MainCanvas  { get; private set; }
-    public static Canvas DragCanvas  { get; private set; }
+    public static Canvas     MainCanvas { get; private set; }
+    public static Canvas     DragCanvas { get; private set; }
+    public static ToastLayer Toasts     { get; private set; }
 
     private readonly Stack<UIScreen> _screenStack = new();
     private readonly Dictionary<Type, UIScreen> _activeScreens = new();
@@ -31,12 +32,19 @@ public class UIManager : MonoBehaviour
         MainCanvas = CreateCanvas("MainCanvas", 0);
         DragCanvas = CreateCanvas("DragCanvas", 999);
 
+        // Toast overlay sits above both and listens for OnToastRequested
+        Toasts = ToastLayer.Create();
+
         // Ensure EventSystem exists
         if (FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
         {
             var es = new GameObject("EventSystem");
             es.AddComponent<UnityEngine.EventSystems.EventSystem>();
-            es.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+            // InputSystemUIInputModule, not StandaloneInputModule: the Input System
+            // package drives gameplay input already (PlayerController reads
+            // Mouse.current), and the legacy module throws outright if the project
+            // is ever switched off the old backend.
+            es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
             DontDestroyOnLoad(es);
         }
     }
@@ -51,6 +59,16 @@ public class UIManager : MonoBehaviour
             case GameManager.GameState.CharacterSelect: Push<CharacterSelectScreen>(); break;
             case GameManager.GameState.CharacterCreate: Push<CharCreateNameScreen>();  break;
             case GameManager.GameState.InGame:          Push<GameHUD>();               break;
+
+            case GameManager.GameState.Disconnected:    Push<LoginScreen>();           break;
+
+            // LoadingIntoGame is currently unused — maps load additively while the
+            // HUD is already up. Note it does NOT push SplashScreen: that screen
+            // transitions itself to Login once content is loaded, which would
+            // bounce the player out of the game.
+            case GameManager.GameState.LoadingIntoGame:
+                Debug.Log("[UIManager] LoadingIntoGame — keeping current screen.");
+                break;
         }
     }
 
@@ -58,9 +76,15 @@ public class UIManager : MonoBehaviour
 
     public T Push<T>() where T : UIScreen, new()
     {
-        // Hide the current top without destroying it
+        // Hide the current top without destroying it. OnHide() must be called here
+        // to mirror Pop() — screens unsubscribe from GameEvents in OnHide, and
+        // skipping it leaks a duplicate subscription every time they are re-shown.
         if (_screenStack.Count > 0)
-            _screenStack.Peek().gameObject.SetActive(false);
+        {
+            var previous = _screenStack.Peek();
+            previous.OnHide();
+            previous.gameObject.SetActive(false);
+        }
 
         var screen = GetOrCreate<T>();
         screen.gameObject.SetActive(true);
@@ -92,7 +116,16 @@ public class UIManager : MonoBehaviour
 
     public void ClearAll()
     {
-        while (_screenStack.Count > 0) Pop();
+        // Deliberately not a loop of Pop(): Pop resumes the screen underneath,
+        // which would fire OnResume (and its event subscriptions) on every screen
+        // in the stack a moment before it too gets torn down.
+        while (_screenStack.Count > 0)
+        {
+            var screen = _screenStack.Pop();
+            if (screen == null) continue;
+            screen.OnHide();
+            screen.gameObject.SetActive(false);
+        }
     }
 
     // ── Factory ───────────────────────────────────────────────────────────────
