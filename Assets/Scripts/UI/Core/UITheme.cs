@@ -43,6 +43,24 @@ public class UITheme : ScriptableObject
     public Color slotBorder     = new Color(0.35f, 0.30f, 0.40f, 1.00f);
     public Color slotHighlight  = new Color(1.00f, 0.78f, 0.20f, 1.00f);  // matches accentGold
 
+    [Header("Sprites (optional 9-sliced art)")]
+    // Every one of these is optional. UIFactory applies a sprite only when the theme
+    // supplies one and otherwise keeps the flat colour above, so the art pass can
+    // never break a layout — an unassigned field simply looks like it did before.
+    //
+    // Assign via: Idle Explorers → Apply UI Sprite Theme
+    public Sprite panelSprite;
+    public Sprite cardSprite;
+    public Sprite headerSprite;
+    // No buttonPressedSprite: the packs ship no pressed variants for these buttons,
+    // so hover and press are shading on the colour block rather than a sprite swap.
+    public Sprite buttonSprite;
+    public Sprite slotSprite;
+    public Sprite barBgSprite;
+    public Sprite barFillSprite;
+    public Sprite dividerSprite;
+    public Sprite inputSprite;
+
     [Header("Typography")]
     public TMP_FontAsset font;      // assign LiberationSans SDF or custom font in Inspector
     public float fontSizeTitle  = 32f;

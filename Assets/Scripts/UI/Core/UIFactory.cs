@@ -32,6 +32,33 @@ public static class UIFactory
         rt.sizeDelta       = size;
     }
 
+    // ── Sprite skinning ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Applies a themed 9-sliced sprite to an Image, if the theme supplies one.
+    ///
+    /// Doing nothing when the sprite is null is the whole safety property of the art
+    /// pass: an unassigned theme field leaves the element exactly as it was, so
+    /// swapping in art can never break a layout that already worked.
+    ///
+    /// The colour is reset to white when a sprite is applied, because a flat tint
+    /// chosen to BE the background would otherwise dye the artwork that replaced it.
+    /// </summary>
+    private static void Skin(Image img, Sprite sprite, bool keepTint = false)
+    {
+        if (img == null || sprite == null) return;
+
+        img.sprite = sprite;
+        img.type   = Image.Type.Sliced;
+
+        // Sliced silently degrades to a stretched quad when the sprite has no border,
+        // which looks like nothing happened rather than like a bug — worth saying so.
+        if (sprite.border == Vector4.zero)
+            img.type = Image.Type.Simple;
+
+        if (!keepTint) img.color = Color.white;
+    }
+
     // ── Panel ─────────────────────────────────────────────────────────────────
 
     public static GameObject Panel(Transform parent, string name = "Panel",
@@ -42,6 +69,13 @@ public static class UIFactory
         go.transform.SetParent(parent, false);
         var img = go.GetComponent<Image>();
         img.color = color ?? T.panelBg;
+
+        // Panels are drawn in three weights, and which sprite a caller gets is
+        // decided by the colour it asked for — that is already how the code
+        // distinguishes a window from a card from a header bar.
+        if (color == null || color.Value == T.panelBg)      Skin(img, T.panelSprite);
+        else if (color.Value == T.cardBg)                   Skin(img, T.cardSprite);
+        else if (color.Value == T.headerBg)                 Skin(img, T.headerSprite);
 
         // A fully transparent panel is a spacer or a HUD root, never a click target.
         // Leaving raycastTarget on made GameHUD's invisible full-screen background
@@ -100,11 +134,30 @@ public static class UIFactory
         var img = go.GetComponent<Image>();
         img.color = T.buttonNormal;
 
+        bool skinned = T.buttonSprite != null;
+        Skin(img, T.buttonSprite, keepTint: true);
+
         var btn = go.GetComponent<Button>();
         var colors = btn.colors;
-        colors.normalColor      = T.buttonNormal;
-        colors.highlightedColor = T.buttonHover;
-        colors.pressedColor     = T.buttonPressed;
+
+        if (skinned)
+        {
+            // Selectable drives every state through the colour block, so a skinned
+            // button needs near-white tints or the flat palette colour dyes the
+            // artwork. Shading rather than recolouring keeps the states readable.
+            colors.normalColor      = Color.white;
+            colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
+            colors.pressedColor     = new Color(0.80f, 0.80f, 0.80f, 1f);
+            colors.disabledColor    = new Color(0.55f, 0.55f, 0.55f, 0.65f);
+            img.color               = Color.white;
+        }
+        else
+        {
+            colors.normalColor      = T.buttonNormal;
+            colors.highlightedColor = T.buttonHover;
+            colors.pressedColor     = T.buttonPressed;
+        }
+
         btn.colors = colors;
         btn.onClick.AddListener(() =>
         {
@@ -129,7 +182,10 @@ public static class UIFactory
         root.transform.SetParent(parent, false);
         var rootRt  = root.GetComponent<RectTransform>();
         rootRt.sizeDelta = new Vector2(width, height);
-        root.GetComponent<Image>().color = T.barBg;
+
+        var rootImg = root.GetComponent<Image>();
+        rootImg.color = T.barBg;
+        Skin(rootImg, T.barBgSprite);
 
         var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
         fillGo.transform.SetParent(root.transform, false);
@@ -141,7 +197,11 @@ public static class UIFactory
 
         var fillImg = fillGo.GetComponent<Image>();
         fillImg.color         = fillColor ?? T.xpFill;
-        fillImg.sprite        = WhiteSprite;   // without a sprite, fillAmount is ignored
+        // Filled REQUIRES a sprite — with none, Image.OnPopulateMesh returns a plain
+        // quad and fillAmount is silently ignored, which is what left the HP bar
+        // permanently full. A themed bar sprite is tinted rather than bleached so
+        // hp/mp/xp stay visually distinct.
+        fillImg.sprite        = T.barFillSprite != null ? T.barFillSprite : WhiteSprite;
         fillImg.type          = Image.Type.Filled;
         fillImg.fillMethod    = Image.FillMethod.Horizontal;
         fillImg.fillOrigin    = (int)Image.OriginHorizontal.Left;
@@ -320,7 +380,10 @@ public static class UIFactory
         var go = new GameObject("InputField", typeof(RectTransform), typeof(Image), typeof(TMP_InputField));
         go.transform.SetParent(parent, false);
         go.GetComponent<RectTransform>().sizeDelta = new Vector2(width, h);
-        go.GetComponent<Image>().color = T.slotBg;
+
+        var fieldImg = go.GetComponent<Image>();
+        fieldImg.color = T.slotBg;
+        Skin(fieldImg, T.inputSprite);
 
         // Text area
         var textAreaGo = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D));
@@ -365,7 +428,14 @@ public static class UIFactory
         go.transform.SetParent(parent, false);
         var rt = go.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(T.slotSize, T.slotSize);
-        go.GetComponent<Image>().color = T.slotBorder;
+
+        var borderImg = go.GetComponent<Image>();
+        borderImg.color = T.slotBorder;
+
+        // A slot sprite already draws its own frame and interior, so the hand-drawn
+        // two-layer border is only used when there is no art.
+        bool skinnedSlot = T.slotSprite != null;
+        Skin(borderImg, T.slotSprite);
 
         // Interior, inset by 2px on every side to leave the border visible
         var inner = new GameObject("Background", typeof(RectTransform), typeof(Image));
@@ -378,6 +448,7 @@ public static class UIFactory
         var innerImg = inner.GetComponent<Image>();
         innerImg.color         = T.slotBg;
         innerImg.raycastTarget = false;
+        innerImg.enabled       = !skinnedSlot;
 
         // Icon
         var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image));
@@ -422,8 +493,23 @@ public static class UIFactory
         var rt = go.GetComponent<RectTransform>();
         rt.anchorMin = new Vector2(0, 0.5f);
         rt.anchorMax = new Vector2(1, 0.5f);
-        rt.sizeDelta = new Vector2(0, height);
-        go.GetComponent<Image>().color = T.slotBorder;
+        // A divider sprite is usually decorative and taller than a hairline, so the
+        // element grows to fit it rather than squashing the art into 1px.
+        var dividerImg = go.GetComponent<Image>();
+        dividerImg.color         = T.slotBorder;
+        dividerImg.raycastTarget = false;
+
+        if (T.dividerSprite != null)
+        {
+            Skin(dividerImg, T.dividerSprite);
+            dividerImg.preserveAspect = true;
+            rt.sizeDelta = new Vector2(0, Mathf.Max(height, 8f));
+        }
+        else
+        {
+            rt.sizeDelta = new Vector2(0, height);
+        }
+
         return go;
     }
 
