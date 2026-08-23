@@ -45,6 +45,12 @@ public class MenuModal : UIScreen
         UIFactory.At(stack.transform, 0.08f, 0.06f, 0.92f, 0.53f);
 
         AddOption(stack.transform, "RESUME",   () => GameManager.UI?.Pop());
+
+        int talentPoints = TalentManager.AvailablePoints(CharacterManager.Current);
+        AddOption(stack.transform,
+                  talentPoints > 0 ? $"TALENTS  ({talentPoints})" : "TALENTS",
+                  () => GameManager.UI?.Push<TalentPanel>());
+
         AddOption(stack.transform, "SETTINGS", () => GameManager.UI?.Push<SettingsPanel>());
         AddOption(stack.transform, "CHARACTER SELECT", () =>
         {

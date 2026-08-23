@@ -23,6 +23,7 @@ public class GameHUD : UIScreen
     private readonly List<TMP_Text> _abilityLabels           = new();
     private Transform        _abilityBarRoot;
     private PlayerController _player;
+    private TMP_Text         _talentBadge;
 
     public override void Build()
     {
@@ -42,11 +43,14 @@ public class GameHUD : UIScreen
         RefreshCharInfo();
         RefreshCoins(GameManager.Inventory?.Coins ?? 0);
         RebuildAbilityBar();
+        RefreshTalentBadge();
 
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
         GameEvents.OnCoinsChanged        += RefreshCoins;
         GameEvents.OnPlayerDied          += OnPlayerDied;
+        GameEvents.OnTalentsChanged      += RefreshTalentBadge;
+        GameEvents.OnClassChanged        += OnClassChanged;
     }
 
     public override void OnHide()
@@ -55,6 +59,19 @@ public class GameHUD : UIScreen
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
         GameEvents.OnCoinsChanged        -= RefreshCoins;
         GameEvents.OnPlayerDied          -= OnPlayerDied;
+        GameEvents.OnTalentsChanged      -= RefreshTalentBadge;
+        GameEvents.OnClassChanged        -= OnClassChanged;
+    }
+
+    /// <summary>
+    /// A class change replaces the whole ability set and empties the talent tree, so
+    /// the action bar and the badge both have to be rebuilt from the new class.
+    /// </summary>
+    private void OnClassChanged(string classId)
+    {
+        RefreshCharInfo();
+        RebuildAbilityBar();
+        RefreshTalentBadge();
     }
 
     public override void OnResume() => OnShow();
@@ -136,6 +153,7 @@ public class GameHUD : UIScreen
         UIFactory.Button(navStack.transform, "INV", () => GameManager.UI?.Push<InventoryPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "EQP", () => GameManager.UI?.Push<EquipmentPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 54f);
+        BuildTalentButton(navStack.transform);
         UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 54f);
         UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 54f);
     }
@@ -235,6 +253,31 @@ public class GameHUD : UIScreen
         }
     }
 
+    /// <summary>
+    /// Talents, with the unspent-point count on the button.
+    ///
+    /// Unspent points are the one piece of progression a player can hold indefinitely
+    /// without noticing — a badge on the button is the whole reason they open it.
+    /// </summary>
+    private void BuildTalentButton(Transform parent)
+    {
+        var btn = UIFactory.Button(parent, "TAL", () => GameManager.UI?.Push<TalentPanel>(), width: 54f);
+
+        _talentBadge = UIFactory.Label(btn.transform, "", UIManager.Theme.fontSizeLabel,
+                                        UIManager.Theme.accentGreen, TextAlignmentOptions.TopRight);
+        UIFactory.At(_talentBadge, 0.35f, 0.55f, 0.95f, 0.98f);
+
+        RefreshTalentBadge();
+    }
+
+    private void RefreshTalentBadge()
+    {
+        if (_talentBadge == null) return;
+
+        int available = TalentManager.AvailablePoints(CharacterManager.Current);
+        _talentBadge.text = available > 0 ? $"+{available}" : "";
+    }
+
     private void BuildAutoToggle(Transform parent)
     {
         var btn = UIFactory.Button(parent, "AUTO", null, width: 70f);
@@ -286,8 +329,11 @@ public class GameHUD : UIScreen
                 continue;
             }
 
+            // Divide by the cooldown AFTER talent reduction, or the sweep on a
+            // shortened cooldown starts part-filled and never reads as full.
+            float length    = _player.GetAbilityCooldownLength(ability);
             float remaining = _player.GetAbilityCooldownRemaining(i);
-            overlay.fillAmount = Mathf.Clamp01(remaining / ability.cooldownSeconds);
+            overlay.fillAmount = length > 0f ? Mathf.Clamp01(remaining / length) : 0f;
         }
     }
 
@@ -311,6 +357,9 @@ public class GameHUD : UIScreen
         if (_charLevelLabel != null) _charLevelLabel.text = $"Lv. {newLevel}";
         GameEvents.FireToast($"⬆ Level {newLevel}!");
         GameManager.Audio?.PlayLevelUp();
+
+        // Every level is a talent point, so the badge changes on every level-up.
+        RefreshTalentBadge();
     }
 
     private void OnHealthChanged(double current, double max)

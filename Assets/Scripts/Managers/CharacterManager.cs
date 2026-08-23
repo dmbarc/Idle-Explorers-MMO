@@ -113,6 +113,60 @@ public class CharacterManager : MonoBehaviour
         return true;
     }
 
+    // ── Class change ──────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Moves the active character to a different class.
+    ///
+    /// Levels, XP, skills, inventory and equipment all survive — only the class and
+    /// its talent tree change, because talent node ids are scoped to a class and mean
+    /// nothing in another one. Points are not lost: they are derived from character
+    /// level, so emptying the tree hands every one of them back.
+    /// </summary>
+    public static bool ChangeClass(string newClassId)
+    {
+        var character = Current;
+        if (character == null)
+        {
+            GameEvents.FireToast("No character selected.");
+            return false;
+        }
+
+        var newClass = GameManager.Content?.GetClass(newClassId);
+        if (newClass == null)
+        {
+            Debug.LogWarning($"[CharacterManager] No class '{newClassId}' — class change refused.");
+            GameEvents.FireToast("That class does not exist.");
+            return false;
+        }
+
+        if (character.classId == newClassId)
+        {
+            GameEvents.FireToast($"You are already a {newClass.DisplayName}.");
+            return false;
+        }
+
+        string previous = GameManager.Content?.GetClass(character.classId)?.DisplayName
+                          ?? character.classId;
+
+        character.classId = newClassId;
+        character.classChangeCount++;
+
+        TalentManager.ClearForClassChange(character);
+
+        GameManager.Save?.Save();
+
+        // The HUD rebuilds its action bar from this, and PlayerController recomputes
+        // its stats — the new class has different health, damage and swing speed.
+        GameEvents.OnClassChanged?.Invoke(newClassId);
+        GameEvents.OnEquipmentChanged?.Invoke();
+        GameEvents.OnCharacterRosterChanged?.Invoke();
+
+        GameEvents.FireToast($"{previous} → {newClass.DisplayName}. Talents refunded.");
+        Debug.Log($"[CharacterManager] {character.characterName}: {previous} → {newClass.DisplayName}");
+        return true;
+    }
+
     public void CreateCharacter(CharacterData character)
     {
         if (AccountManager.Current == null) return;

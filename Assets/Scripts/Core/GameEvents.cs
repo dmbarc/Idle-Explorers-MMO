@@ -41,6 +41,8 @@ public static class GameEvents
     public static Action                  OnInventoryChanged;     // full refresh
     public static Action                  OnBankChanged;          // account bank, full refresh
     public static Action                  OnEquipmentChanged;     // worn gear changed
+    public static Action                  OnTalentsChanged;       // a point was spent or refunded
+    public static Action<string>          OnClassChanged;         // new classId
 
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex

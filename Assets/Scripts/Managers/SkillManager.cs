@@ -16,6 +16,13 @@ public class SkillManager : MonoBehaviour
         var ch = CharacterManager.Current;
         if (ch == null) return;
 
+        // Talent XP bonus is applied here, at the single choke point every source of
+        // skill XP passes through — live gathering, crafting, combat and offline
+        // accrual alike. Applying it at the call sites would mean finding all of them
+        // again every time a new one appears.
+        float xpMultiplier = TalentManager.Multiplier(TalentManager.SkillXpPercent);
+        if (xpMultiplier > 1f) amount = (long)(amount * xpMultiplier);
+
         var progress = ch.GetOrCreateSkill(skillId);
         progress.xp += amount;
         GameEvents.OnSkillXPGained?.Invoke(skillId, amount);

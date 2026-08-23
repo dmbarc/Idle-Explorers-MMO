@@ -101,6 +101,11 @@ public class GameManager : MonoBehaviour
         // moves to Login itself once its loading bar has played — transitioning here
         // as well would race it and skip the splash entirely.
         Debug.Log("[GameManager] Content ready.");
+
+        // Content-driven systems get one chance to complain about their own data
+        // while the console is still readable. A talent with a misspelled effectType
+        // costs a point and does nothing, which is otherwise invisible.
+        TalentManager.ValidateContent();
     }
 
     /// <summary>Transition to a new game state. UIManager reacts to show the right screen.</summary>

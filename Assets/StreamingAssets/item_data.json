@@ -23,6 +23,8 @@
     "effects": [ { "trigger": "onConsume", "action": "heal", "chance": 1.0, "magnitude": 25 } ] },
   { "id": "mystic_gem",   "name": "Mystic Gem",      "description": "Peer deeply into the mystical gem to teleport forward in time 1 hour with your current activity.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
     "effects": [ { "trigger": "onConsume", "action": "grantAfkTime", "chance": 1.0, "magnitude": 3600 } ] },
+  { "id": "shifting_sigil", "name": "Shifting Sigil", "description": "Break the sigil to become something else entirely. Your levels, skills and belongings come with you; your talents are refunded and the tree emptied.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
+    "effects": [ { "trigger": "onConsume", "action": "changeClass", "chance": 1.0, "magnitude": 1 } ] },
   { "id": "bronze_bar",   "name": "Bronze Bar",      "description": "Copper + tin, melted together in their shared grief.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "smithing" },
   { "id": "iron_bar",     "name": "Iron Bar",        "description": "Forged. Dense. Dependable.", "iconAddress": "", "stackable": true, "levelReq": 15, "sourceSkill": "smithing" },
   { "id": "chaos_rune",   "name": "Chaos Rune",      "description": "Vibrates anxiously even when nothing is happening.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "gleaning" },

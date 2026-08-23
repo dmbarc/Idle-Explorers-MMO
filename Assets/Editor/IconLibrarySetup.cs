@@ -80,6 +80,7 @@ public static class IconLibrarySetup
         { "death_rune",    "runeBlack_slab_026" },
         { "faint_residue", "SoulFragment" },
         { "mystic_gem",    "ore_diamond" },
+        { "shifting_sigil","runeBlack_slab_017" },
 
         // Equipment. Kenney has no armour or jewellery icons in any pack, so these
         // come from the painted Imports sets.

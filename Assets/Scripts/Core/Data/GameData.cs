@@ -188,6 +188,18 @@ public class MilestoneUnlock
     public string   unlockId;           // what is unlocked
 }
 
+/// <summary>
+/// One node in a class's talent tree.
+///
+/// effectType is a string rather than an enum for the same reason AbilityData.effect
+/// is: a new talent should be a content change, not a client rebuild. Every value
+/// TalentBonuses understands is listed there, and one it does not understand is
+/// logged rather than silently ignored — a talent that costs a point and does
+/// nothing is worse than one that does not exist.
+///
+/// effectValue is PER RANK and expressed as a fraction (0.04 = 4%), except for the
+/// flat types where it is an absolute amount.
+/// </summary>
 [Serializable]
 public class TalentNode
 {
@@ -196,8 +208,38 @@ public class TalentNode
     public string   description;
     public string   effectType;
     public float    effectValue;
-    public int      talentPointCost;
+
+    /// <summary>How many points can be sunk into this node. 1 for a single toggle.</summary>
+    public int      maxRank = 1;
+
+    /// <summary>Row in the tree. Tier N needs TierPointRequirement(N) points spent below it.</summary>
+    public int      tier;
+
+    /// <summary>Position within its row, left to right.</summary>
+    public int      column;
+
+    public int      talentPointCost = 1;
+
+    /// <summary>Optional hard prerequisites, on top of the tier's point requirement.</summary>
     public string[] requiresNodeIds;
+
+    public int PointCost => UnityEngine.Mathf.Max(1, talentPointCost);
+    public int RankCap   => UnityEngine.Mathf.Max(1, maxRank);
+}
+
+/// <summary>
+/// How many points a character has put into one talent node.
+///
+/// A List of these rather than the int[] of node indices this replaces: indices
+/// break the moment a talent is inserted into the middle of a tree, silently moving
+/// every character's choices onto different talents. Ids survive content edits, and
+/// an id that no longer exists is simply skipped.
+/// </summary>
+[Serializable]
+public class TalentRank
+{
+    public string nodeId;
+    public int    rank;
 }
 
 [Serializable]
@@ -381,8 +423,18 @@ public class CharacterData
     public string[] collectedRelicIds;
 
     // Class / combat
-    public int[]    talentChoices;      // indices of chosen talent nodes in class's talent tree
+    //
+    // Replaces an int[] of indices into the class's talent tree, which nothing ever
+    // read or wrote — and which would have silently reassigned every character's
+    // talents the first time a node was inserted into the middle of a tree.
+    public List<TalentRank> talents;
     public long     coins;
+
+    /// <summary>
+    /// How many times this character has changed class. Nothing gates on it; it exists
+    /// so a future limit or price has somewhere to hook, the same way renameCount does.
+    /// </summary>
+    public int      classChangeCount;
 
     public CharacterData()
     {
@@ -395,7 +447,7 @@ public class CharacterData
         unlockedWardrobeIds = new string[0];
         collectedSpiritIds  = new string[0];
         collectedRelicIds   = new string[0];
-        talentChoices       = new int[0];
+        talents             = new List<TalentRank>();
         allowGhostDisplay   = true;
     }
 

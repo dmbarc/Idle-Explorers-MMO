@@ -51,6 +51,9 @@ public static class ItemEffectResolver
             case "grantAfkTime":
                 return ApplyGrantAfkTime(effect);
 
+            case "changeClass":
+                return ApplyChangeClass();
+
             default:
                 Debug.LogWarning($"[ItemEffect] '{item.id}' has unhandled action '{effect.action}'.");
                 return false;
@@ -125,6 +128,34 @@ public static class ItemEffectResolver
         }
 
         GameManager.UI?.Push<AFKSummaryScreen>();
+        return true;
+    }
+
+    /// <summary>
+    /// Opens the class picker. Returns true — and therefore consumes the item — as
+    /// soon as the modal is up, not when a class is chosen.
+    ///
+    /// That is a real trade-off and the modal states it: holding the item back until
+    /// a choice is made would mean an inventory slot in limbo and a modal that must
+    /// not be dismissed by any route, including a screen change or a death. Spending
+    /// it on open keeps the item flow identical to every other consumable.
+    /// </summary>
+    private static bool ApplyChangeClass()
+    {
+        if (CharacterManager.Current == null)
+        {
+            GameEvents.FireToast("No character selected.");
+            return false;
+        }
+
+        var ui = GameManager.UI;
+        if (ui == null)
+        {
+            GameEvents.FireToast("Cannot open the class picker right now.");
+            return false;
+        }
+
+        ui.Push<ClassChangeModal>();
         return true;
     }
 

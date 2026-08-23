@@ -56,6 +56,31 @@ public class ActivityManager : MonoBehaviour
         return 3600f / Mathf.Max(0.01f, effective);
     }
 
+    // ── Talent adjustments ────────────────────────────────────────────────────
+    //
+    // These exist so a talent applies identically whether the player is watching or
+    // offline. Adjusting only the live tick is the exact shape of the bug that made
+    // AFK gathering 60x worse than its own multiplier claimed: two code paths, two
+    // formulas, no way to notice they disagreed.
+
+    /// <summary>
+    /// Seconds per action after speed talents. Called by the live node tick AND by
+    /// offline accrual — the stored snapshot keeps the raw figure, and both sides
+    /// adjust it the same way at the moment of use.
+    /// </summary>
+    public static float TalentAdjustedSeconds(float secondsPerAction, bool crafting)
+    {
+        string effect = crafting ? TalentManager.CraftSpeedPercent : TalentManager.GatherRatePercent;
+        return Mathf.Max(0.05f, secondsPerAction * TalentManager.ReductionMultiplier(effect));
+    }
+
+    /// <summary>The activity's AFK multiplier after talents that improve offline rate.</summary>
+    public static float EffectiveAfkRate(SkillActivityData activity)
+    {
+        if (activity == null) return 0f;
+        return activity.afkRateMulti * TalentManager.Multiplier(TalentManager.AfkRatePercent);
+    }
+
     /// <summary>
     /// Forgets the current activity and any pending summary.
     ///
@@ -291,12 +316,16 @@ public class ActivityManager : MonoBehaviour
 
         // Estimate kills based on character level vs monster level
         float killsPerHour = Mathf.Max(1f, (character.level / (float)monster.level) * 30f);
-        long totalKills = (long)(killsPerHour * hours * activity.afkRateMulti);
+        long totalKills = (long)(killsPerHour * hours * EffectiveAfkRate(activity));
         if (totalKills <= 0) return;
+
+        // Drop-quantity talents apply offline too. Expected value rather than a roll,
+        // for the same reason RollBulkDrops uses one.
+        float quantityMultiplier = TalentManager.Multiplier(TalentManager.DropQuantityPercent);
 
         foreach (var loot in monster.lootTable)
         {
-            long drops = RollBulkDrops(totalKills, loot);
+            long drops = (long)(RollBulkDrops(totalKills, loot) * quantityMultiplier);
             if (drops > 0)
             {
                 GameManager.Inventory?.AddItem(loot.itemId, drops);
@@ -336,9 +365,9 @@ public class ActivityManager : MonoBehaviour
         // "AFK earns 60% of active" was always supposed to mean. The old formula
         // (skillLevel * 20 per hour) produced ~20/hr at level 1 against the live
         // rate of 1200/hr, so going AFK was ~60x worse than the multiplier claimed.
-        float secondsPerAction = ActionSeconds(activity);
+        float secondsPerAction = TalentAdjustedSeconds(ActionSeconds(activity), crafting: false);
         long  totalActions     = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
-                                        * hours * activity.afkRateMulti);
+                                        * hours * EffectiveAfkRate(activity));
         if (totalActions <= 0) return;
 
         if (!string.IsNullOrEmpty(activity.activityTargetId))
@@ -366,15 +395,17 @@ public class ActivityManager : MonoBehaviour
         var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
         if (recipe == null) return;
 
-        float secondsPerAction = ActionSeconds(activity);
+        float secondsPerAction = TalentAdjustedSeconds(ActionSeconds(activity), crafting: true);
         long  possibleCrafts   = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
-                                        * hours * activity.afkRateMulti);
+                                        * hours * EffectiveAfkRate(activity));
         if (possibleCrafts <= 0) return;
 
         // Worn procs have to apply offline too, or an item that doubles campfire
         // output is worthless in an idle game. Expected value rather than per-craft
-        // rolls, for the same reason the consumption below is bulk.
-        float outputMultiplier = ItemEffectResolver.AggregateMultiplier("onCraft", "doubleOutput", recipe.skillId);
+        // rolls, for the same reason the consumption below is bulk. Talent
+        // double-output stacks additively on top, by the same expected-value rule.
+        float outputMultiplier = ItemEffectResolver.AggregateMultiplier("onCraft", "doubleOutput", recipe.skillId)
+                                 + TalentManager.Bonus(TalentManager.CraftDoubleChance);
 
         long maxByInputs  = CraftingSupply.MaxCrafts(recipe, out string limitingItemId);
         long actualCrafts = System.Math.Min(possibleCrafts, maxByInputs);

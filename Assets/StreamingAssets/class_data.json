@@ -12,7 +12,21 @@
       { "id": "reckless_strike","name": "Reckless Strike","description": "Massive damage. You will feel it too.",                "isPassive": false, "effect": "damage",  "power": 3.5, "cooldownSeconds": 12 },
       { "id": "endure",         "name": "Endure",         "description": "Passive: you simply refuse to go down.",               "isPassive": true,  "effect": "passive" }
     ],
-    "talentTree": []
+    "talentTree": [
+      { "id": "bulwark",      "name": "Bulwark",       "description": "+4% maximum health per rank.",                         "effectType": "maxHpPercent",        "effectValue": 0.04, "maxRank": 5, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "heavy_swings", "name": "Heavy Swings",  "description": "+3% attack damage per rank.",                          "effectType": "attackDamagePercent", "effectValue": 0.03, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "second_wind",  "name": "Second Wind",   "description": "+0.5 health regenerated per second, per rank.",        "effectType": "healthRegenFlat",     "effectValue": 0.5,  "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "blood_scent",  "name": "Blood Scent",   "description": "Ordinary swings return 2% of their damage as health, per rank.", "effectType": "lifestealPercent", "effectValue": 0.02, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "war_drums",    "name": "War Drums",     "description": "Attack 4% faster per rank.",                           "effectType": "attackSpeedPercent",  "effectValue": 0.04, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "scavenger",    "name": "Scavenger",     "description": "+8% quantity from every drop, per rank. Works offline too.", "effectType": "dropQuantityPercent", "effectValue": 0.08, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "iron_hide",    "name": "Iron Hide",     "description": "+7% maximum health per rank.",                         "effectType": "maxHpPercent",        "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": ["bulwark"] },
+      { "id": "momentum",     "name": "Momentum",      "description": "Ability cooldowns are 6% shorter per rank.",           "effectType": "cooldownPercent",     "effectValue": 0.06, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "tireless",     "name": "Tireless",      "description": "+5% offline progress per rank.",                       "effectType": "afkRatePercent",      "effectValue": 0.05, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "unbreakable",  "name": "Unbreakable",   "description": "+30% maximum health. You do not fall.",                "effectType": "maxHpPercent",        "effectValue": 0.30, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["iron_hide"] }
+    ]
   },
   {
     "id": "ranger",
@@ -27,7 +41,21 @@
       { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Roll clear and catch your breath.",                      "isPassive": false, "effect": "heal",    "power": 0.2, "cooldownSeconds": 18 },
       { "id": "eagle_eye",     "name": "Eagle Eye",     "description": "Passive: you see the gaps in everything.",               "isPassive": true,  "effect": "passive" }
     ],
-    "talentTree": []
+    "talentTree": [
+      { "id": "quickdraw",    "name": "Quickdraw",     "description": "Attack 3.5% faster per rank.",                          "effectType": "attackSpeedPercent",  "effectValue": 0.035, "maxRank": 5, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "keen_edge",    "name": "Keen Edge",     "description": "+3% attack damage per rank.",                           "effectType": "attackDamagePercent", "effectValue": 0.03,  "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "fieldcraft",   "name": "Fieldcraft",    "description": "Gather 4% faster per rank, awake or away.",              "effectType": "gatherRatePercent",   "effectValue": 0.04,  "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "hunters_take", "name": "Hunter's Take", "description": "+10% quantity from every drop, per rank.",              "effectType": "dropQuantityPercent", "effectValue": 0.10,  "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "focus",        "name": "Focus",         "description": "Abilities do 6% more per rank.",                        "effectType": "abilityPowerPercent", "effectValue": 0.06,  "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "light_step",   "name": "Light Step",    "description": "Ability cooldowns are 5% shorter per rank.",            "effectType": "cooldownPercent",     "effectValue": 0.05,  "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "deadeye",      "name": "Deadeye",       "description": "+7% attack damage per rank.",                           "effectType": "attackDamagePercent", "effectValue": 0.07,  "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": ["keen_edge"] },
+      { "id": "endurance",    "name": "Endurance",     "description": "+6% maximum health per rank.",                          "effectType": "maxHpPercent",        "effectValue": 0.06,  "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "long_watch",   "name": "Long Watch",    "description": "+6% offline progress per rank.",                        "effectType": "afkRatePercent",      "effectValue": 0.06,  "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "volley",       "name": "Volley",        "description": "Attack 20% faster. Nothing gets a turn.",               "effectType": "attackSpeedPercent",  "effectValue": 0.20,  "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["quickdraw"] }
+    ]
   },
   {
     "id": "sorcerer",
@@ -42,7 +70,21 @@
       { "id": "blink",         "name": "Blink",          "description": "Be somewhere else. Recover slightly.",                      "isPassive": false, "effect": "blink",  "power": 0.15, "cooldownSeconds": 15, "aoeRadius": 8.0 },
       { "id": "mana_eff",      "name": "Mana Efficiency","description": "Passive: the magic costs you less than it should.",         "isPassive": true,  "effect": "passive" }
     ],
-    "talentTree": []
+    "talentTree": [
+      { "id": "arcane_might", "name": "Arcane Might",  "description": "Abilities do 5% more per rank.",                        "effectType": "abilityPowerPercent", "effectValue": 0.05, "maxRank": 5, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "spellweave",   "name": "Spellweave",    "description": "Ability cooldowns are 4% shorter per rank.",            "effectType": "cooldownPercent",     "effectValue": 0.04, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "ley_sense",    "name": "Ley Sense",     "description": "+4% skill XP from everything, per rank.",               "effectType": "skillXpPercent",      "effectValue": 0.04, "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "frail_form",   "name": "Frail Form",    "description": "+8% attack damage per rank. Nothing defends you.",      "effectType": "attackDamagePercent", "effectValue": 0.08, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "mana_font",    "name": "Mana Font",     "description": "+5% maximum health per rank.",                          "effectType": "maxHpPercent",        "effectValue": 0.05, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "transmute",    "name": "Transmute",     "description": "4% chance per rank that a craft yields double.",        "effectType": "craftDoubleChance",   "effectValue": 0.04, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "overchannel",  "name": "Overchannel",   "description": "Abilities do 9% more per rank.",                        "effectType": "abilityPowerPercent", "effectValue": 0.09, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": ["arcane_might"] },
+      { "id": "siphon",       "name": "Siphon",        "description": "Ordinary swings return 3% of their damage as health, per rank.", "effectType": "lifestealPercent", "effectValue": 0.03, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "astral_drift", "name": "Astral Drift",  "description": "+6% offline progress per rank.",                        "effectType": "afkRatePercent",      "effectValue": 0.06, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "cataclysm",    "name": "Cataclysm",     "description": "Abilities do 30% more. The room does not survive it.",  "effectType": "abilityPowerPercent", "effectValue": 0.30, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["overchannel"] }
+    ]
   },
   {
     "id": "tinkerer",
@@ -57,7 +99,21 @@
       { "id": "salvage_strike", "name": "Salvage Strike", "description": "Hit it hard, take the useful parts.",                   "isPassive": false, "effect": "damage", "power": 2.4, "cooldownSeconds": 7 },
       { "id": "jury_rig",       "name": "Jury-Rig",       "description": "Passive: an improvised solution to being nearly dead.",  "isPassive": true,  "effect": "passive" }
     ],
-    "talentTree": []
+    "talentTree": [
+      { "id": "precision_tools","name": "Precision Tools","description": "Craft 5% faster per rank, at the bench or away.",       "effectType": "craftSpeedPercent",   "effectValue": 0.05, "maxRank": 5, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "salvager",       "name": "Salvager",       "description": "+6% quantity from every drop, per rank.",               "effectType": "dropQuantityPercent", "effectValue": 0.06, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "field_repairs",  "name": "Field Repairs",  "description": "+0.6 health regenerated per second, per rank.",         "effectType": "healthRegenFlat",     "effectValue": 0.6,  "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "mass_production","name": "Mass Production","description": "5% chance per rank that a craft yields double.",        "effectType": "craftDoubleChance",   "effectValue": 0.05, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": ["precision_tools"] },
+      { "id": "efficient_gears","name": "Efficient Gears","description": "Ability cooldowns are 6% shorter per rank.",            "effectType": "cooldownPercent",     "effectValue": 0.06, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "reinforced",     "name": "Reinforced",     "description": "+6% maximum health per rank.",                          "effectType": "maxHpPercent",        "effectValue": 0.06, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "automation",     "name": "Automation",     "description": "+8% offline progress per rank.",                        "effectType": "afkRatePercent",      "effectValue": 0.08, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "apprentice",     "name": "Apprentice",     "description": "+7% skill XP from everything, per rank.",               "effectType": "skillXpPercent",      "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "weapon_mods",    "name": "Weapon Mods",    "description": "+6% attack damage per rank.",                           "effectType": "attackDamagePercent", "effectValue": 0.06, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "assembly_line",  "name": "Assembly Line",  "description": "A further 25% chance that a craft yields double.",      "effectType": "craftDoubleChance",   "effectValue": 0.25, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["mass_production"] }
+    ]
   },
   {
     "id": "specter",
@@ -72,6 +128,20 @@
       { "id": "soul_drain",     "name": "Soul Drain",     "description": "What it loses, you gain.",                                        "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 9, "lifestealFraction": 0.5 },
       { "id": "liminal",        "name": "Liminal",        "description": "Passive: the first blow against anything new lands hardest.",     "isPassive": true,  "effect": "passive" }
     ],
-    "talentTree": []
+    "talentTree": [
+      { "id": "spectral_edge", "name": "Spectral Edge",  "description": "+3.5% attack damage per rank.",                         "effectType": "attackDamagePercent", "effectValue": 0.035, "maxRank": 5, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "hollow_form",   "name": "Hollow Form",    "description": "Ordinary swings return 2% of their damage as health, per rank.", "effectType": "lifestealPercent", "effectValue": 0.02, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "dim_sight",     "name": "Dim Sight",      "description": "+4% skill XP from everything, per rank.",               "effectType": "skillXpPercent",      "effectValue": 0.04,  "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "phase_speed",   "name": "Phase Speed",    "description": "Attack 5% faster per rank.",                            "effectType": "attackSpeedPercent",  "effectValue": 0.05,  "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "dread",         "name": "Dread",          "description": "Abilities do 6% more per rank.",                        "effectType": "abilityPowerPercent", "effectValue": 0.06,  "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "grave_take",    "name": "Grave Take",     "description": "+9% quantity from every drop, per rank.",               "effectType": "dropQuantityPercent", "effectValue": 0.09,  "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "unliving",      "name": "Unliving",       "description": "+7% maximum health per rank.",                          "effectType": "maxHpPercent",        "effectValue": 0.07,  "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "restless",      "name": "Restless",       "description": "+7% offline progress per rank.",                        "effectType": "afkRatePercent",      "effectValue": 0.07,  "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
+      { "id": "echo",          "name": "Echo",           "description": "Ability cooldowns are 6% shorter per rank.",            "effectType": "cooldownPercent",     "effectValue": 0.06,  "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
+
+      { "id": "wraithform",    "name": "Wraithform",     "description": "Ordinary swings return a further 20% as health.",       "effectType": "lifestealPercent",    "effectValue": 0.20,  "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["hollow_form"] }
+    ]
   }
 ]

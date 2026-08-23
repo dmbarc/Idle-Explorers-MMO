@@ -207,9 +207,13 @@ public class SkillNodeController : MonoBehaviour
         if (!CraftingSupply.ConsumeFor(_recipe, 1)) return false;
 
         // Procs multiply the output, never the inputs — doubling a craft must not
-        // also double what it cost.
+        // also double what it cost. Talent double-output is a genuine chance here
+        // rather than expected value: a live craft produces a whole item or it does
+        // not, and the offline path uses the average of exactly this.
         float multiplier = ItemEffectResolver.AggregateMultiplier("onCraft", "doubleOutput", _recipe.skillId);
-        long  produced   = (long)Mathf.Max(1f, _recipe.outputQuantity * multiplier);
+        if (Random.value < TalentManager.Bonus(TalentManager.CraftDoubleChance)) multiplier += 1f;
+
+        long produced = (long)Mathf.Max(1f, _recipe.outputQuantity * multiplier);
 
         GameManager.Inventory.AddItem(_recipe.outputItemId, produced);
         GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
@@ -251,6 +255,10 @@ public class SkillNodeController : MonoBehaviour
         float perAction = _recipe != null
             ? _recipe.SecondsPerCraft(GameManager.Skills?.GetSkillLevel(_recipe.skillId) ?? 1)
             : baseSecondsPerAction;
+
+        // Speed talents are applied through the same helper offline accrual uses, so
+        // a talent cannot make active play faster than the AFK figure it advertises.
+        perAction = ActivityManager.TalentAdjustedSeconds(perAction, crafting: _recipe != null);
 
         float secondsPerAction = perAction / Mathf.Max(0.01f, _entry.activeRateMulti);
         _actionTimer += deltaTime;

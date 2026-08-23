@@ -86,10 +86,54 @@ public class PlayerController : MonoBehaviour
         }
 
         ApplyEquipmentBonuses();
+        ApplyTalentBonuses();
 
         currentHealthPoints = maxHealthPoints;
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
     }
+
+    /// <summary>
+    /// Layers talents on top of the class baseline and worn gear.
+    ///
+    /// Applied last and multiplicatively, so a talent that reads "+12% damage" is 12%
+    /// of what the character actually hits for rather than 12% of a naked class stat
+    /// they stopped having twenty levels ago.
+    /// </summary>
+    private void ApplyTalentBonuses()
+    {
+        maxHealthPoints *= TalentManager.Multiplier(TalentManager.MaxHpPercent);
+        attackDamage    *= TalentManager.Multiplier(TalentManager.AttackDamagePercent);
+
+        // Attack speed is an interval: faster means a smaller number.
+        attackSpeed = Mathf.Max(0.2f,
+            attackSpeed * TalentManager.ReductionMultiplier(TalentManager.AttackSpeedPercent));
+
+        healthRegenAmount = BaseHealthRegen + TalentManager.Bonus(TalentManager.HealthRegenFlat);
+
+        // MonsterController reads this off the player when it rolls its loot table.
+        dropMultiplier = TalentManager.Multiplier(TalentManager.DropQuantityPercent);
+    }
+
+    /// <summary>
+    /// Regeneration before talents. Captured once, because ApplyTalentBonuses runs
+    /// again on every equipment and talent change — reading the current value would
+    /// compound the bonus into itself each time.
+    /// </summary>
+    private double BaseHealthRegen
+    {
+        get
+        {
+            if (!_baseRegenCaptured)
+            {
+                _baseHealthRegen   = healthRegenAmount;
+                _baseRegenCaptured = true;
+            }
+            return _baseHealthRegen;
+        }
+    }
+
+    private double _baseHealthRegen;
+    private bool   _baseRegenCaptured;
 
     /// <summary>
     /// Layers worn gear on top of the class baseline. Re-runs whenever equipment
@@ -482,6 +526,13 @@ public class PlayerController : MonoBehaviour
                 anim.SetBool("1_Move", false);
                 anim.SetBool("2_Attack", true);
                 attackTimer = 0f;
+
+                // Talent lifesteal applies to ordinary swings. Ability lifesteal is
+                // separate and lives on AbilityData.lifestealFraction — Soul Drain
+                // should still be Soul Drain on a character who has taken none.
+                float lifesteal = TalentManager.Bonus(TalentManager.LifestealPercent);
+                if (lifesteal > 0f) Heal(attackDamage * lifesteal);
+
                 ItemEffectResolver.Fire("onHit", null);
             }
             return;
@@ -736,6 +787,18 @@ public class PlayerController : MonoBehaviour
         return Mathf.Max(0f, _abilityReadyAt[slot] - Time.time);
     }
 
+    /// <summary>
+    /// An ability's cooldown after talent reduction — what the HUD sweep must divide
+    /// by. Dividing by the raw cooldownSeconds would make the sweep start part-filled
+    /// and never quite reach the top for anyone who took a cooldown talent.
+    /// </summary>
+    public float GetAbilityCooldownLength(AbilityData ability)
+    {
+        if (ability == null) return 0f;
+        return ability.cooldownSeconds *
+               TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
+    }
+
     public AbilityData GetAbility(int slot)
     {
         var cls = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
@@ -775,7 +838,8 @@ public class PlayerController : MonoBehaviour
 
         if (!ApplyAbilityEffect(ability, announce)) return false;
 
-        _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds;
+        _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds *
+            TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
         if (announce) GameEvents.FireToast($"✦ {ability.name}");
         anim.SetBool("2_Attack", true);
 
@@ -864,6 +928,12 @@ public class PlayerController : MonoBehaviour
         // deliberate keypress deserves an explanation for would be a wall of toasts.
         void Explain(string reason) { if (announce) GameEvents.FireToast(reason); }
 
+        // Talent ability power scales what an ability produces — damage dealt, health
+        // restored, turret output. Deliberately NOT applied to "haste", whose power is
+        // an attack-rate multiplier rather than an amount: scaling 1.5x up to 1.8x
+        // reads as the same +20% and is worth several times as much.
+        float power = ability.power * TalentManager.Multiplier(TalentManager.AbilityPowerPercent);
+
         switch (ability.effect)
         {
             case "damage":
@@ -880,7 +950,7 @@ public class PlayerController : MonoBehaviour
 
                 for (int i = 0; i < strikes && currentTarget != null && currentTarget.IsAlive(); i++)
                 {
-                    double blow = attackDamage * ability.power;
+                    double blow = attackDamage * power;
                     currentTarget.TakeDamage(blow);
                     dealt += blow;
                 }
@@ -899,7 +969,7 @@ public class PlayerController : MonoBehaviour
                 {
                     if (!m.IsAlive()) continue;
                     if (Vector3.Distance(transform.position, m.transform.position) > ability.aoeRadius) continue;
-                    m.TakeDamage(attackDamage * ability.power);
+                    m.TakeDamage(attackDamage * power);
                     hits++;
                 }
                 if (hits == 0) { Explain("Nothing in range."); return false; }
@@ -913,7 +983,7 @@ public class PlayerController : MonoBehaviour
                     Explain("Already at full health.");
                     return false;
                 }
-                double amount = maxHealthPoints * ability.power;
+                double amount = maxHealthPoints * power;
                 currentHealthPoints = System.Math.Min(maxHealthPoints, currentHealthPoints + amount);
                 GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
                 return true;
@@ -934,7 +1004,7 @@ public class PlayerController : MonoBehaviour
                 int slowed = 0;
                 foreach (var m in InRange(ability.aoeRadius))
                 {
-                    m.TakeDamage(attackDamage * ability.power);
+                    m.TakeDamage(attackDamage * power);
                     m.ApplySlow(0.4f, ability.durationSeconds);
                     slowed++;
                 }
@@ -965,13 +1035,13 @@ public class PlayerController : MonoBehaviour
                     Explain("Nowhere to blink to.");
                     return false;
                 }
-                if (ability.power > 0f) Heal(maxHealthPoints * ability.power);
+                if (power > 0f) Heal(maxHealthPoints * power);
                 return true;
             }
 
             case "summon":
             {
-                TurretController.Deploy(transform.position, attackDamage * ability.power,
+                TurretController.Deploy(transform.position, attackDamage * power,
                                          ability.aoeRadius, ability.durationSeconds);
                 return true;
             }
