@@ -61,9 +61,11 @@ public static class UIThemeSetup
         // Bars are authored as 3-slice strips; the mid tile is the piece that stretches.
         new SkinEntry { Field = "barBgSprite",   SpriteName = "barBack_horizontalMid", Border = new Vector4(6, 0, 6, 0) },
 
-        // A Filled image is masked by fillAmount rather than sliced, so a border here
-        // would distort as the bar drains.
-        new SkinEntry { Field = "barFillSprite", SpriteName = "barGreen_horizontalMid", NoSlice = true },
+        // barFillSprite is deliberately left unset. Every fill Kenney ships is already
+        // coloured, and UIFactory tints the fill per bar — so hp red over green art
+        // comes out muddy, and all three bars stop being distinguishable at a glance.
+        // The generated white sprite tints cleanly, which is what a fill needs.
+
         new SkinEntry { Field = "dividerSprite", SpriteName = "divider-000",            NoSlice = true },
     };
 
