@@ -159,6 +159,18 @@ public static class UIFactory
         }
 
         btn.colors = colors;
+
+        // A real pressed sprite beats tinting the normal one, when the pack ships it.
+        // Only the pressed state is swapped — leaving highlighted and disabled null
+        // makes Unity fall back to the button's own sprite, which is what we want.
+        if (skinned && T.buttonPressedSprite != null)
+        {
+            btn.transition = Selectable.Transition.SpriteSwap;
+            var sprites = btn.spriteState;
+            sprites.pressedSprite  = T.buttonPressedSprite;
+            sprites.selectedSprite = T.buttonSprite;
+            btn.spriteState = sprites;
+        }
         btn.onClick.AddListener(() =>
         {
             GameManager.Audio?.PlayClick();

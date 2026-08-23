@@ -41,18 +41,30 @@ public static class UIThemeSetup
     /// </summary>
     private static readonly SkinEntry[] Skins =
     {
-        new SkinEntry { Field = "panelSprite",         SpriteName = "panel_brown",         Border = new Vector4(16, 16, 16, 16) },
-        new SkinEntry { Field = "cardSprite",          SpriteName = "panel_brown_dark",    Border = new Vector4(16, 16, 16, 16) },
-        new SkinEntry { Field = "headerSprite",        SpriteName = "panel_border_brown",  Border = new Vector4(16, 16, 16, 16) },
-        new SkinEntry { Field = "buttonSprite",        SpriteName = "button_brown",        Border = new Vector4(8,  8,  8,  8)  },
-        new SkinEntry { Field = "slotSprite",          SpriteName = "panel_grey",          Border = new Vector4(12, 12, 12, 12) },
-        new SkinEntry { Field = "inputSprite",         SpriteName = "panel_grey_bolts",    Border = new Vector4(12, 12, 12, 12) },
-        new SkinEntry { Field = "barBgSprite",         SpriteName = "panel_brown_dark",    Border = new Vector4(8,  8,  8,  8)  },
+        // Windows: Kenney's UI Adventure Pack panels are 100x100 painted RPG frames
+        // with generous corners — they carry a full-screen modal far better than the
+        // 64x64 tiles, which visibly repeat when stretched that wide.
+        new SkinEntry { Field = "panelSprite",   SpriteName = "panel_brown",        Border = new Vector4(32, 32, 32, 32) },
+        new SkinEntry { Field = "cardSprite",    SpriteName = "panel_beige",        Border = new Vector4(32, 32, 32, 32) },
+        new SkinEntry { Field = "headerSprite",  SpriteName = "panel_blue",         Border = new Vector4(32, 32, 32, 32) },
 
-        // The fill of a Filled image is not sliced — it is masked by fillAmount — so
-        // a bordered sprite here would distort as the bar drains.
-        new SkinEntry { Field = "barFillSprite",       SpriteName = "Hp_line",             NoSlice = true },
-        new SkinEntry { Field = "dividerSprite",       SpriteName = "divider-000",         NoSlice = true },
+        // Inset panels are drawn as recesses, which is exactly what an inventory cell
+        // should look like.
+        new SkinEntry { Field = "slotSprite",    SpriteName = "panelInset_beige",   Border = new Vector4(30, 30, 30, 30) },
+        new SkinEntry { Field = "inputSprite",   SpriteName = "panelInset_brown",   Border = new Vector4(30, 30, 30, 30) },
+
+        // The ONLY Kenney UI pack shipping pressed variants, which is why buttons come
+        // from here rather than UI Pack - Adventure.
+        new SkinEntry { Field = "buttonSprite",        SpriteName = "buttonLong_brown",         Border = new Vector4(16, 16, 16, 16) },
+        new SkinEntry { Field = "buttonPressedSprite", SpriteName = "buttonLong_brown_pressed", Border = new Vector4(16, 16, 16, 16) },
+
+        // Bars are authored as 3-slice strips; the mid tile is the piece that stretches.
+        new SkinEntry { Field = "barBgSprite",   SpriteName = "barBack_horizontalMid", Border = new Vector4(6, 0, 6, 0) },
+
+        // A Filled image is masked by fillAmount rather than sliced, so a border here
+        // would distort as the bar drains.
+        new SkinEntry { Field = "barFillSprite", SpriteName = "barGreen_horizontalMid", NoSlice = true },
+        new SkinEntry { Field = "dividerSprite", SpriteName = "divider-000",            NoSlice = true },
     };
 
     [MenuItem("Idle Explorers/Apply UI Sprite Theme")]

@@ -18,18 +18,31 @@ public static class IconLibrarySetup
     private const string ASSET_PATH = "Assets/Resources/IconLibrary.asset";
 
     /// <summary>itemId → sprite file name (no extension), best available match.</summary>
+    /// <summary>
+    /// itemId → sprite file name. EVERY id maps to a DISTINCT sprite; the rebuild
+    /// fails loudly if two ever collide.
+    ///
+    /// Kenney's Voxel Pack leads for resources and weapons — it is the only pack with
+    /// real ore chunks, and its blocky look matches the Kenney low-poly models used
+    /// for the world. Painted packs under Assets/Imports fill what it lacks (ingots,
+    /// jewellery, cooked dishes), since Kenney has no art for those at all.
+    /// </summary>
     private static readonly Dictionary<string, string> ItemIconNames = new()
     {
         // Currency
         { "coins",         "gold_coins_many" },
 
-        // Ores and bars. The RGP pack has actual rock and ingot art, which reads far
-        // better than the single generic metal icon these all used to share.
-        { "copper_ore",    "stone_basic_grey" },
-        { "tin_ore",       "stone_blocks_grey" },
-        { "iron_ore",      "UI_Graphic_Resource_Iron" },
-        { "mithril_ore",   "gem_diamond_red" },
-        { "gold_ore",      "UI_Graphic_Resource_Gems" },
+        // Ores — rough mineral chunks, NOT ingots. Every ore used to share one iron
+        // ingot graphic, which made them indistinguishable and, worse, made raw ore
+        // look like the smelted bar it is supposed to become.
+        { "copper_ore",    "ore_ruby" },
+        { "tin_ore",       "ore_silver" },
+        { "iron_ore",      "ore_iron" },
+        { "coal",          "ore_coal" },
+        { "mithril_ore",   "ore_emerald" },
+        { "gold_ore",      "ore_gold" },
+
+        // Bars — these ARE ingots, which is the whole point of smelting.
         { "bronze_bar",    "gold_bars_three" },
         { "iron_bar",      "silver_bars" },
 
@@ -38,53 +51,52 @@ public static class IconLibrarySetup
         { "oak_logs",      "wood_logs_three" },
         { "willow_logs",   "wood_log_single_birch" },
 
-        // Raw fish
-        { "raw_shrimp",    "fish_green" },
-        { "raw_trout",     "Pike_1" },
-        { "raw_lobster",   "Pike_1" },
+        // Raw fish. All three previously shared "Pike_1" — a pike POLEARM from the
+        // weapons folder, which is why shrimp looked like a spear.
+        { "raw_shrimp",    "fish_orange" },
+        { "raw_trout",     "fish_green" },
+        { "raw_lobster",   "fish_red" },
 
         // Cooked food
-        { "shrimp",        "Potato_Fish_Bowl" },
-        { "gritty_shrimp", "Chili_Bowl" },
-        { "trout",         "Meat_1" },
+        { "shrimp",        "fish_cooked" },
+        { "gritty_shrimp", "fish_orange_skeleton" },   // cooked over tin ore; it did not survive
+        { "trout",         "Potato_Fish_Bowl" },
         { "lobster",       "Wine_and_Meat" },
 
-        // Combat drops. These five had no mapping at all and fell through to
-        // generated placeholders despite matching art sitting in the RGP pack.
+        // Combat drops. Five of these had no mapping at all and fell through to
+        // generated placeholders.
         { "bones",         "bone_white" },
         { "skull",         "bone_skull" },
-        { "troll_hide",    "Helmet_1" },
-        { "dragon_bones",  "bone_white" },
-        { "dragon_scale",  "gem_diamond_red" },
+        { "troll_hide",    "Wool" },
+        { "dragon_bones",  "Skull" },
+        { "dragon_scale",  "Diamond" },
 
-        // Equipment
-        { "iron_sword",    "sword_basic_blue" },
-        { "magic_staff",   "Talisman_1" },
+        // Weapons
+        { "iron_sword",    "sword_iron" },
+        { "magic_staff",   "weapon_staff" },
 
         // Arcane
-        { "chaos_rune",    "Oil_lamp" },
-        { "death_rune",    "Talisman_1" },
-        { "faint_residue", "mushroom_big_red" },
+        { "chaos_rune",    "runeBlack_slab_012" },
+        { "death_rune",    "runeBlack_slab_026" },
+        { "faint_residue", "SoulFragment" },
+        { "mystic_gem",    "ore_diamond" },
 
-        // Misc
-        { "coal",          "Grain_Barrel" },
-        { "mystic_gem",    "gem_diamond_red" },
-
-        // Starter equipment catalogue
-        { "iron_helm",           "Helmet_2" },
+        // Equipment. Kenney has no armour or jewellery icons in any pack, so these
+        // come from the painted Imports sets.
+        { "iron_helm",           "Helmet_1" },
         { "travelers_cape",      "cape_hood_darkyellow" },
         { "bronze_platebody",    "Weapon_Armor" },
-        { "linen_shirt",         "Wool" },
+        { "linen_shirt",         "Hat" },
         { "leather_gloves",      "pouch_leather_small" },
-        { "guild_tabard",        "scroll_map2" },
-        { "emberlight_aura",     "bg_swhirl_yellow" },
+        { "guild_tabard",        "shield_basic_metal" },   // heraldry
+        { "emberlight_aura",     "Fire" },
         { "ring_of_the_glutton", "ring_gold_magic" },
-        { "stormcallers_band",   "ring_gold_magic" },
+        { "stormcallers_band",   "TheRing" },
         { "miners_charm",        "necklace_silver_red" },
-        { "pendant_of_vigor",    "necklace_silver_red" },
-        { "whetstone_trinket",   "stone_basic_grey" },
-        { "swiftness_trinket",   "key_silver" },
-        { "campfire_sprite",     "Candle 1-0" },
+        { "pendant_of_vigor",    "Heart" },
+        { "whetstone_trinket",   "Tools_Misc" },
+        { "swiftness_trinket",   "Feathers" },
+        { "campfire_sprite",     "animal-fox" },           // Kenney Cube Pets preview
     };
 
     /// <summary>skillId → sprite file name. All 13 skills, not just the 8 that had icons.</summary>
@@ -180,18 +192,38 @@ public static class IconLibrarySetup
     {
         int found = 0;
 
+        // Two ids resolving to the same sprite is how "a unique icon per item" quietly
+        // decays back into shared art as content grows. Surface it rather than
+        // discovering it in a playtest.
+        var usedSprites = new Dictionary<Sprite, string>();
+        var missing     = new List<string>();
+
         foreach (var pair in source)
         {
             var sprite = FindSprite(pair.Value);
             if (sprite == null)
             {
-                // Not an error: the id simply keeps its generated placeholder.
-                Debug.Log($"[IconLibrary] No sprite named '{pair.Value}' for {kind} '{pair.Key}' — using placeholder.");
+                missing.Add($"{pair.Key} → '{pair.Value}'");
                 continue;
             }
 
+            if (usedSprites.TryGetValue(sprite, out string owner))
+                Debug.LogWarning($"[IconLibrary] {kind} '{pair.Key}' shares sprite '{pair.Value}' with '{owner}'.");
+            else
+                usedSprites[sprite] = pair.Key;
+
             target.Add(new IconLibrary.Entry { id = pair.Key, sprite = sprite });
             found++;
+        }
+
+        if (missing.Count > 0)
+        {
+            // Loud, because a silent fallback to placeholders is exactly what made the
+            // first art pass look like it had done nothing.
+            Debug.LogWarning($"[IconLibrary] {missing.Count} {kind} icon(s) unmatched, falling back to " +
+                             $"placeholders: {string.Join(", ", missing)}\n" +
+                             "If these are Kenney sprites, run 'Idle Explorers → Import Art As Sprites' first — " +
+                             "Kenney PNGs import as plain textures and are invisible to a t:Sprite search.");
         }
 
         return found;
@@ -200,7 +232,9 @@ public static class IconLibrarySetup
     /// <summary>Finds a Sprite asset by file name anywhere under Assets.</summary>
     private static Sprite FindSprite(string fileName)
     {
-        foreach (var guid in AssetDatabase.FindAssets($"{fileName} t:Sprite"))
+        // Quoted: several names contain spaces ("Magic Egg"), and unquoted they would
+        // be searched as separate terms.
+        foreach (var guid in AssetDatabase.FindAssets($"\"{fileName}\" t:Sprite"))
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             if (!string.Equals(Path.GetFileNameWithoutExtension(path), fileName,

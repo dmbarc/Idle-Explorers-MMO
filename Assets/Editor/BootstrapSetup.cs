@@ -92,12 +92,17 @@ public static class BootstrapSetup
         // and were never called from here — so anyone running "Setup Everything" got
         // a flat UI and no ability effects, with nothing reporting that two steps had
         // simply not happened. Every step now announces itself below.
-        Debug.Log("[Setup] 1/6 UITheme asset");        CreateUIThemeAsset();
-        Debug.Log("[Setup] 2/6 Icon library");         IconLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 3/6 VFX library");          VFXLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 4/6 UI sprite theme");      UIThemeSetup.Apply(showDialog: false);
-        Debug.Log("[Setup] 5/6 Bootstrap scene");      CreateBootstrapScene(showDialog: false);
-        Debug.Log("[Setup] 6/6 Map scene");            MapSceneSetup.Execute(showDialog: false);
+        // Sprite import MUST come first. Kenney's PNGs import as plain textures, and a
+        // Default texture cannot be assigned to Image.sprite and is not returned by a
+        // t:Sprite search — so every step after this would find nothing and quietly
+        // fall back to placeholders.
+        Debug.Log("[Setup] 1/7 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
+        Debug.Log("[Setup] 2/7 UITheme asset");         CreateUIThemeAsset();
+        Debug.Log("[Setup] 3/7 Icon library");          IconLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 4/7 VFX library");           VFXLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 5/7 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
+        Debug.Log("[Setup] 6/7 Bootstrap scene");       CreateBootstrapScene(showDialog: false);
+        Debug.Log("[Setup] 7/7 Map scene");             MapSceneSetup.Execute(showDialog: false);
 
         // Bootstrap must be index 0 — it is the scene that owns the Managers object
         // and every other scene loads additively on top of it.

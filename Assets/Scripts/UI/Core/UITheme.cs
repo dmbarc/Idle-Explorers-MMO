@@ -52,9 +52,9 @@ public class UITheme : ScriptableObject
     public Sprite panelSprite;
     public Sprite cardSprite;
     public Sprite headerSprite;
-    // No buttonPressedSprite: the packs ship no pressed variants for these buttons,
-    // so hover and press are shading on the colour block rather than a sprite swap.
     public Sprite buttonSprite;
+    /// <summary>Optional. When set, buttons use SpriteSwap instead of colour shading.</summary>
+    public Sprite buttonPressedSprite;
     public Sprite slotSprite;
     public Sprite barBgSprite;
     public Sprite barFillSprite;
