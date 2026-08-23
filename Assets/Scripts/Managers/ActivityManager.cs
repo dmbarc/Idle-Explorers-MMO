@@ -191,11 +191,23 @@ public class ActivityManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(activity.recipeId))
         {
-            if (content.GetRecipe(activity.recipeId) == null)
+            var recipe = content.GetRecipe(activity.recipeId);
+            if (recipe == null)
             {
                 reason = $"no recipe '{activity.recipeId}' exists";
                 return false;
             }
+
+            // Same reasoning as the gathering gate below: a recipe you can no longer
+            // make must not keep producing while you are away.
+            int craftLevel = GameManager.Skills?.GetSkillLevel(recipe.skillId) ?? 1;
+            if (craftLevel < recipe.reqSkillLevel)
+            {
+                reason = $"{recipe.skillId} level {craftLevel} is below the " +
+                         $"{recipe.reqSkillLevel} '{recipe.id}' requires";
+                return false;
+            }
+
             reason = null;
             return true;
         }
@@ -215,6 +227,19 @@ public class ActivityManager : MonoBehaviour
             if (!string.IsNullOrEmpty(node.stationType)) continue;
             if (node.skillId != activity.skillId) continue;
             if (node.targetItemId != activity.activityTargetId) continue;
+
+            // The level gate has to hold offline too. A character who can no longer
+            // mine copper standing at the rock must not keep producing it while
+            // logged out — that is the same "conjuring items you cannot make" the
+            // stale-campfire fix was about, arriving by a different route now that
+            // levels can go down (Draught of Unlearning) as well as content change.
+            int level = GameManager.Skills?.GetSkillLevel(node.skillId) ?? 1;
+            if (level < node.reqSkillLevel)
+            {
+                reason = $"{activity.skillId} level {level} is below the {node.reqSkillLevel} " +
+                         $"that '{node.nodeId}' now requires";
+                return false;
+            }
 
             reason = null;
             return true;

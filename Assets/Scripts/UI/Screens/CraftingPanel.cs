@@ -146,10 +146,11 @@ public class CraftingPanel : UIScreen
                                          TextAlignmentOptions.MidlineLeft);
         UIFactory.At(metaLabel, 0.10f, 0.05f, 0.62f, 0.23f);
 
-        // How many this stock supports — the number that makes AFK planning possible
-        string craftsText = !unlocked ? ""
-            : maxCrafts == long.MaxValue ? "unlimited"
-            : $"{NumberFormatter.Format(maxCrafts)} available";
+        // How many this stock supports — the number that makes AFK planning possible.
+        // There is no "unlimited" case any more: MaxCrafts returns 0 for an
+        // input-less recipe rather than long.MaxValue, so the branch that printed
+        // "unlimited" was dead and would have been a lie if it ever ran.
+        string craftsText = !unlocked ? "" : $"{NumberFormatter.Format(maxCrafts)} available";
 
         var craftsLabel = UIFactory.Label(row.transform, craftsText, theme.fontSizeLabel,
                                            theme.textSecondary, TextAlignmentOptions.MidlineRight);

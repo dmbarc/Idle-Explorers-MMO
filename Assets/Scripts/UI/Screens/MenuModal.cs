@@ -114,16 +114,17 @@ public class MenuModal : UIScreen
         UIFactory.At(supplyLabel, 0.04f, 0.03f, 0.96f, 0.15f);
     }
 
-    /// <summary>How long the current recipe's materials will last, in crafts and in time.</summary>
+    /// <summary>
+    /// How long the current recipe's materials will last, in crafts and in time.
+    ///
+    /// Both this and the gem confirmation ask CraftingSupply.ProjectSupply, so the
+    /// menu cannot quietly disagree with the warning shown before a gem is spent.
+    /// </summary>
     private static string CraftingSupplyText(SkillActivityData activity)
     {
-        if (activity == null || string.IsNullOrEmpty(activity.recipeId)) return "";
-
-        var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
-        if (recipe == null) return "";
-
-        long crafts = CraftingSupply.MaxCrafts(recipe, out string limitingItemId);
-        if (crafts == long.MaxValue) return "Materials: unlimited";
+        if (!CraftingSupply.ProjectSupply(activity, out long crafts, out long seconds,
+                                           out string limitingItemId))
+            return "";
 
         if (crafts <= 0)
         {
@@ -131,12 +132,10 @@ public class MenuModal : UIScreen
             return $"Out of {outOf} — nothing will accrue";
         }
 
-        float craftsPerHour = ActivityManager.ActionsPerHour(activity.secondsPerAction, activity.activeRateMulti)
-                              * activity.afkRateMulti;
-        if (craftsPerHour <= 0f) return $"Materials for {NumberFormatter.Format(crafts)} more";
+        if (seconds <= 0) return $"Materials for {NumberFormatter.Format(crafts)} more";
 
-        long seconds = (long)(crafts / craftsPerHour * 3600f);
-        return $"Materials for {NumberFormatter.Format(crafts)} more  •  ~{NumberFormatter.FormatAFKTime(seconds).Replace(" AFK", "")} AFK";
+        return $"Materials for {NumberFormatter.Format(crafts)} more  •  " +
+               $"~{NumberFormatter.FormatAFKTime(seconds).Replace(" AFK", "")} AFK";
     }
 
     private void AddOption(Transform parent, string label, System.Action onClick)

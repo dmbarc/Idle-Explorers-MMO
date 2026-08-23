@@ -75,7 +75,8 @@ public static class CraftingSupply
 
     /// <summary>
     /// How many times a recipe can run given current stock, across both stores.
-    /// long.MaxValue when the recipe consumes nothing.
+    /// Zero for a recipe with no inputs, which is a data error rather than a free
+    /// lunch — see the guard below.
     /// </summary>
     public static long MaxCrafts(CraftRecipe recipe, out string limitingItemId)
     {
