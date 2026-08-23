@@ -236,7 +236,15 @@ public class ActivityManager : MonoBehaviour
     /// Called by CharacterManager when a character is selected after being offline.
     /// Returns the summary (also stored as PendingSummary), or null if nothing accrued.
     /// </summary>
-    public AFKRewardSummary ProcessAFKRewards(CharacterData character)
+    /// <param name="capSeconds">
+    /// Most offline time credited in this pass. Defaults to MaxAFKSeconds, which
+    /// exists to stop a multi-week absence handing out quantities that trivialise the
+    /// game. PURCHASED time must raise it: a 72-hour gem routed through the default
+    /// cap would silently pay out 24 hours and the summary would helpfully explain
+    /// that it had been capped — to someone who had just paid a thousand relic coins
+    /// for the other 48.
+    /// </param>
+    public AFKRewardSummary ProcessAFKRewards(CharacterData character, long capSeconds = MaxAFKSeconds)
     {
         if (character?.currentActivity == null) return null;
         var activity = character.currentActivity;
@@ -272,14 +280,15 @@ public class ActivityManager : MonoBehaviour
         // that had already been paid out.
         character.lastLogoutUnixTime = now;
 
-        long elapsedSeconds = System.Math.Min(realElapsed, MaxAFKSeconds);
+        long cap            = System.Math.Max(1L, capSeconds);
+        long elapsedSeconds = System.Math.Min(realElapsed, cap);
         float hours         = elapsedSeconds / 3600f;
 
         var summary = new AFKRewardSummary
         {
             elapsedSeconds = elapsedSeconds,
             realElapsed    = realElapsed,
-            wasCapped      = realElapsed > MaxAFKSeconds,
+            wasCapped      = realElapsed > cap,
             skillId        = activity.skillId,
             activityName   = activity.activityTargetName,
             characterName  = character.characterName,

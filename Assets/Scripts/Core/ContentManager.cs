@@ -27,6 +27,8 @@ public class ContentManager : MonoBehaviour
     public List<MergeRecipe>               MergeRecipes { get; } = new List<MergeRecipe>();
     public List<SlotUnlockRequirement>     SlotUnlocks  { get; } = new List<SlotUnlockRequirement>();
     public List<CraftRecipe>               CraftRecipes { get; } = new List<CraftRecipe>();
+    public List<RelicCoinPack>             CoinPacks    { get; } = new List<RelicCoinPack>();
+    public List<ShopProduct>               ShopProducts { get; } = new List<ShopProduct>();
 
     public bool IsLoaded { get; private set; }
 
@@ -47,7 +49,7 @@ public class ContentManager : MonoBehaviour
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 8;
+        _pendingLoads = 9;
 
         LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
         LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
@@ -67,6 +69,32 @@ public class ContentManager : MonoBehaviour
         LoadJson<MergeList>  ("merge_recipes", "recipes",  j => MergeRecipes.AddRange(j.recipes));
         LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
         LoadJson<CraftList>  ("recipe_data",   "recipes",  j => CraftRecipes.AddRange(j.recipes));
+
+        // shop_data.json is a root OBJECT, not an array — it carries two lists, and
+        // the array wrapper below only handles one. The wrapField is unused for it.
+        LoadJson<ShopCatalog>("shop_data",     "",         j =>
+        {
+            if (j.coinPacks != null) CoinPacks.AddRange(j.coinPacks);
+            if (j.products  != null) ShopProducts.AddRange(j.products);
+        });
+    }
+
+    // ── Shop ──────────────────────────────────────────────────────────────────
+
+    public RelicCoinPack GetCoinPack(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        foreach (var pack in CoinPacks)
+            if (pack != null && pack.id == id) return pack;
+        return null;
+    }
+
+    public ShopProduct GetShopProduct(string id)
+    {
+        if (string.IsNullOrEmpty(id)) return null;
+        foreach (var product in ShopProducts)
+            if (product != null && product.id == id) return product;
+        return null;
     }
 
     // ── Crafting recipes ──────────────────────────────────────────────────────

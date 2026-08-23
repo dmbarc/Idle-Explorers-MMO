@@ -43,6 +43,7 @@ public class GameManager : MonoBehaviour
     public static QuestManager      Quests      { get; private set; }
     public static SlayerManager     Slayer      { get; private set; }
     public static SaveManager       Save        { get; private set; }
+    public static ShopManager       Shop        { get; private set; }
 
     void Awake()
     {
@@ -70,6 +71,7 @@ public class GameManager : MonoBehaviour
         Quests     = GetComponent<QuestManager>();
         Slayer     = GetComponent<SlayerManager>();
         Save       = GetComponent<SaveManager>();
+        Shop       = GetComponent<ShopManager>();
 
         // Validate — warn if a manager is missing (easy to catch in Editor)
         if (Content   == null) Debug.LogError("GameManager: ContentManager component missing!");

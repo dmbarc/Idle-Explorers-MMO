@@ -61,6 +61,7 @@ public static class GameEvents
 
     // ── Economy ──────────────────────────────────────────────────────────────
     public static Action<long>            OnCoinsChanged;         // new total
+    public static Action<long>            OnRelicCoinsChanged;    // new account-wide total
     public static Action                  OnAuctionListingPosted;
     public static Action<string>          OnAuctionListingSold;   // listingId
 

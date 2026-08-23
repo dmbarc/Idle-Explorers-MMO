@@ -359,6 +359,64 @@ public class SlotUnlockRequirement
     public int reqAnyCharLevel;
 }
 
+// ── Shop ──────────────────────────────────────────────────────────────────────
+
+/// <summary>
+/// A bundle of relic coins bought with real money.
+///
+/// priceUsd is display only. The authoritative price comes from the store at
+/// runtime once real IAP is wired — a hardcoded price shown next to a store's own
+/// localised, tax-adjusted figure is how a shop ends up lying about what it costs.
+/// </summary>
+[Serializable]
+public class RelicCoinPack
+{
+    public string id;
+    public string name;
+
+    /// <summary>Store product id (Google Play / App Store). Reserved for Phase 8.</summary>
+    public string productId;
+
+    public long   coins;
+    public float  priceUsd;
+
+    /// <summary>Optional flash such as "BEST VALUE". Empty for most rows.</summary>
+    public string badge;
+
+    public string DisplayName  => string.IsNullOrEmpty(name) ? id : name;
+    public string DisplayPrice => $"${priceUsd:0.00}";
+
+    /// <summary>Coins per dollar — the number that tells you whether a ladder is honest.</summary>
+    public float CoinsPerDollar => priceUsd > 0f ? coins / priceUsd : 0f;
+}
+
+/// <summary>Something bought with relic coins rather than money.</summary>
+[Serializable]
+public class ShopProduct
+{
+    public string id;
+    public string name;
+    public string description;
+
+    /// <summary>Item granted on purchase.</summary>
+    public string itemId;
+    public long   quantity = 1;
+    public long   relicCoinCost;
+
+    public string DisplayName => string.IsNullOrEmpty(name) ? id : name;
+}
+
+/// <summary>
+/// Root of shop_data.json. A root object rather than an array, because this file
+/// carries two lists — ContentManager's array wrapper only handles one.
+/// </summary>
+[Serializable]
+public class ShopCatalog
+{
+    public RelicCoinPack[] coinPacks;
+    public ShopProduct[]   products;
+}
+
 // ── Save data (per player, server + local cache) ──────────────────────────────
 
 [Serializable]
@@ -377,6 +435,15 @@ public class AccountData
     // another can withdraw, and crafting stations can consume directly.
     public List<InventoryEntry> bank;
     public long                 bankCoins;
+
+    /// <summary>
+    /// Premium currency, bought with money and — later — earned very rarely in game.
+    ///
+    /// On the ACCOUNT, not the character: paying for something and then finding it
+    /// stranded on a character you have stopped playing is indefensible. Same reason
+    /// the bank is account-wide.
+    /// </summary>
+    public long                 relicCoins;
 
     public AccountData()
     {

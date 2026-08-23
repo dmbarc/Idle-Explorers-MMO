@@ -168,8 +168,17 @@ public class ItemActionMenu : UIScreen
     private void Consume()
     {
         string itemId = CurrentEntry()?.itemId;
-        // The resolver toasts its own reason when nothing could be applied.
-        Act(slot => ItemEffectResolver.Consume(itemId, slot));
+
+        // A large Mystic Gem is worth real money and can be spent on an activity that
+        // runs dry in minutes, so it gets a confirmation showing what it will actually
+        // yield. Everything else — including the small gem — consumes straight away.
+        Act(slot =>
+        {
+            if (GemConfirmModal.TryIntercept(itemId, slot)) return;
+
+            // The resolver toasts its own reason when nothing could be applied.
+            ItemEffectResolver.Consume(itemId, slot);
+        });
     }
 
     private void Equip() => Act(slot => GameManager.Equipment?.Equip(slot));

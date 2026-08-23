@@ -26,6 +26,36 @@ public static class CraftingSupply
         GameManager.Bank?.GetQuantity(itemId) ?? 0;
 
     /// <summary>
+    /// How long an activity's materials will last, in crafts and in seconds.
+    ///
+    /// Crafting is the only activity that can run dry, and this is the number that
+    /// decides whether logging out — or spending a gem — is worth anything. Shared
+    /// between the menu readout and the gem confirmation so the two cannot disagree
+    /// about how long the supplies hold out.
+    /// </summary>
+    /// <returns>False when the activity is not crafting, so there is nothing to run out of.</returns>
+    public static bool ProjectSupply(SkillActivityData activity, out long crafts,
+                                      out long seconds, out string limitingItemId)
+    {
+        crafts = 0; seconds = 0; limitingItemId = null;
+
+        if (activity == null || string.IsNullOrEmpty(activity.recipeId)) return false;
+
+        var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
+        if (recipe == null) return false;
+
+        crafts = MaxCrafts(recipe, out limitingItemId);
+
+        float perHour = ActivityManager.ActionsPerHour(
+                            ActivityManager.TalentAdjustedSeconds(activity.secondsPerAction, crafting: true),
+                            activity.activeRateMulti)
+                        * ActivityManager.EffectiveAfkRate(activity);
+
+        seconds = perHour > 0f ? (long)(crafts / perHour * 3600f) : 0;
+        return true;
+    }
+
+    /// <summary>
     /// Spends a quantity, drawing from the inventory before the bank. Returns false
     /// and changes nothing when the combined total is short.
     /// </summary>

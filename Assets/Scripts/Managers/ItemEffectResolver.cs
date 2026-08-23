@@ -120,7 +120,12 @@ public static class ItemEffectResolver
         long now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         character.lastLogoutUnixTime = now - seconds;
 
-        var summary = activity.ProcessAFKRewards(character);
+        // Raise the cap to cover the gem. The 24-hour ceiling limits PASSIVE accrual;
+        // applying it to time the player bought would quietly deliver a third of a
+        // 72-hour gem, and the summary would call it "capped".
+        long cap = System.Math.Max(ActivityManager.MaxAFKSeconds, seconds);
+
+        var summary = activity.ProcessAFKRewards(character, cap);
         if (summary == null)
         {
             GameEvents.FireToast("Nothing accrued.");

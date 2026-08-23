@@ -51,6 +51,7 @@ public class MenuModal : UIScreen
                   talentPoints > 0 ? $"TALENTS  ({talentPoints})" : "TALENTS",
                   () => GameManager.UI?.Push<TalentPanel>());
 
+        AddOption(stack.transform, "SHOP",     () => GameManager.UI?.Push<ShopPanel>());
         AddOption(stack.transform, "SETTINGS", () => GameManager.UI?.Push<SettingsPanel>());
         AddOption(stack.transform, "CHARACTER SELECT", () =>
         {

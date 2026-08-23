@@ -154,6 +154,7 @@ public class GameHUD : UIScreen
         UIFactory.Button(navStack.transform, "EQP", () => GameManager.UI?.Push<EquipmentPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 54f);
         BuildTalentButton(navStack.transform);
+        UIFactory.Button(navStack.transform, "SHP", () => GameManager.UI?.Push<ShopPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 54f);
         UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 54f);
     }

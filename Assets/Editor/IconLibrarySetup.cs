@@ -79,8 +79,15 @@ public static class IconLibrarySetup
         { "chaos_rune",    "runeBlack_slab_012" },
         { "death_rune",    "runeBlack_slab_026" },
         { "faint_residue", "SoulFragment" },
-        { "mystic_gem",    "ore_diamond" },
         { "shifting_sigil","runeBlack_slab_017" },
+
+        // Mystic Gems, escalating by container so the tier reads at a glance in the
+        // shop and the bag: one stone, a bag, a bucket, a barrel, a chest.
+        { "mystic_gem",          "ore_diamond" },
+        { "mystic_gem_medium",   "Bag ColorD" },
+        { "mystic_gem_large",    "Bucket ColorD" },
+        { "mystic_gem_massive",  "Barrel ColorD" },
+        { "mystic_gem_gigantic", "Chest ColorD" },
 
         // Equipment. Kenney has no armour or jewellery icons in any pack, so these
         // come from the painted Imports sets.
