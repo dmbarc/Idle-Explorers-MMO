@@ -29,29 +29,60 @@ public static class MapSceneSetup
         public string  NodeId;
         public string  Label;
         public Vector3 Position;
+
+        /// <summary>Kenney FBX to instantiate. Falls back to the primitive when absent.</summary>
+        public string  Model;
+
+        /// <summary>Uniform scale for the model — the kits are authored at ~1 unit.</summary>
+        public float   Scale;
+
+        // Fallback appearance, used only when the model cannot be loaded so a missing
+        // asset leaves a visible coloured marker rather than an invisible node.
         public Color   Color;
         public PrimitiveType Shape;
     }
+
+    private const string KenneyModels = "Assets/Kenney Game Assets All-in-1 3.7.0/3D assets/";
 
     // The player prefab spawns at roughly (438, 432), so nodes ring that point
     // closely enough to be on screen the moment the map loads. A previous pass
     // scattered them up to 13 units away and they were off-camera.
     private static readonly Vector3 PlayerSpawn = new Vector3(438f, 0f, 432f);
 
+    // A ring around the spawn point, evenly spaced so every node — the bank chest
+    // included — is visible and reachable the moment the map loads. The chest used to
+    // sit alone behind the player.
     private static readonly NodePlacement[] GoblinCampNodes =
     {
-        new NodePlacement { NodeId = "copper_rock_1", Position = PlayerSpawn + new Vector3(-5f, 0f,  2f),
-                            Label = "Copper Rock",  Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
-        new NodePlacement { NodeId = "tin_rock_1",    Position = PlayerSpawn + new Vector3(-5f, 0f, -3f),
-                            Label = "Tin Rock",     Color = new Color(0.70f, 0.72f, 0.78f), Shape = PrimitiveType.Cube },
-        new NodePlacement { NodeId = "normal_tree_1", Position = PlayerSpawn + new Vector3( 5f, 0f,  3f),
-                            Label = "Tree",         Color = new Color(0.20f, 0.60f, 0.22f), Shape = PrimitiveType.Cylinder },
-        new NodePlacement { NodeId = "shrimp_pool_1", Position = PlayerSpawn + new Vector3( 5f, 0f, -3f),
-                            Label = "Shrimp Pool",  Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
+        new NodePlacement { NodeId = "copper_rock_1", Position = PlayerSpawn + new Vector3(-6f, 0f,  3f),
+                            Label = "Copper Rock", Scale = 2.2f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-a.fbx",
+                            Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
+
+        new NodePlacement { NodeId = "tin_rock_1",    Position = PlayerSpawn + new Vector3(-6f, 0f, -3f),
+                            Label = "Tin Rock", Scale = 2.2f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-c.fbx",
+                            Color = new Color(0.70f, 0.72f, 0.78f), Shape = PrimitiveType.Cube },
+
+        new NodePlacement { NodeId = "normal_tree_1", Position = PlayerSpawn + new Vector3( 6f, 0f,  3f),
+                            Label = "Tree", Scale = 2.0f,
+                            Model = KenneyModels + "Nature Kit/Models/FBX format/tree_oak.fbx",
+                            Color = new Color(0.20f, 0.60f, 0.22f), Shape = PrimitiveType.Cylinder },
+
+        new NodePlacement { NodeId = "shrimp_pool_1", Position = PlayerSpawn + new Vector3( 6f, 0f, -3f),
+                            Label = "Shrimp Pool", Scale = 2.0f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/campfire-fishing-stand.fbx",
+                            Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
+
         new NodePlacement { NodeId = "campfire_1",    Position = PlayerSpawn + new Vector3( 0f, 0f, -6f),
-                            Label = "Campfire",     Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
+                            Label = "Campfire", Scale = 2.0f,
+                            Model = KenneyModels + "Nature Kit/Models/FBX format/campfire_stones.fbx",
+                            Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
+
         new NodePlacement { NodeId = "bank_chest_1",  Position = PlayerSpawn + new Vector3( 0f, 0f,  6f),
-                            Label = "Bank Chest",   Color = new Color(0.85f, 0.75f, 0.30f), Shape = PrimitiveType.Cube },
+                            Label = "Bank Chest", Scale = 2.4f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/chest.fbx",
+                            Color = new Color(0.85f, 0.75f, 0.30f), Shape = PrimitiveType.Cube },
     };
 
     [MenuItem("Idle Explorers/Prepare Map Scene")]
@@ -217,26 +248,22 @@ public static class MapSceneSetup
 
         foreach (var placement in GoblinCampNodes)
         {
-            var go = GameObject.CreatePrimitive(placement.Shape);
+            bool isModel = !string.IsNullOrEmpty(placement.Model);
+
+            var go = BuildNodeVisual(placement);
             go.name = $"Node_{placement.NodeId}";
             go.transform.SetParent(parent.transform, false);
-            go.transform.position   = SnapToGround(placement.Position);
-            go.transform.localScale = Vector3.one * 2f;
 
-            // Placeholder material — distinct colours so nodes are tellable apart
-            // until real art replaces the primitives. Emission keeps them visible
-            // under the map's fairly dim lighting.
-            var renderer = go.GetComponent<Renderer>();
-            if (renderer != null)
-            {
-                var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-                var mat = new Material(shader) { color = placement.Color };
-                mat.EnableKeyword("_EMISSION");
-                mat.SetColor("_EmissionColor", placement.Color * 0.55f);
-                renderer.sharedMaterial = mat;
-            }
+            // Kenney models are authored with their pivot on the ground, so they sit
+            // flush. A primitive's pivot is its centre and needs lifting by half its
+            // height or it is buried in the terrain.
+            go.transform.position = SnapToGround(placement.Position, isModel ? 0f : 0.75f);
 
-            // The collider the primitive ships with is what PlayerController raycasts
+            // PlayerController raycasts to find nodes. Kenney's FBX models carry no
+            // collider of their own, so without this the node is invisible to
+            // targeting and clicks pass straight through it.
+            EnsureCollider(go);
+
             var node = go.AddComponent<SkillNodeController>();
             node.nodeId = placement.NodeId;
 
@@ -246,6 +273,118 @@ public static class MapSceneSetup
         }
 
         return placed;
+    }
+
+    /// <summary>
+    /// Instantiates the Kenney model for a node, falling back to the old coloured
+    /// primitive if it cannot be loaded — a missing asset should leave a visible
+    /// marker you can still click, not an invisible hole in the map.
+    /// </summary>
+    private static GameObject BuildNodeVisual(NodePlacement placement)
+    {
+        if (!string.IsNullOrEmpty(placement.Model))
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(placement.Model);
+            if (prefab != null)
+            {
+                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+
+                // Unpack so the node is a plain scene object; leaving it linked to the
+                // FBX would make every node an override of an imported asset.
+                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely,
+                                                    InteractionMode.AutomatedAction);
+
+                model.transform.localScale = Vector3.one * (placement.Scale > 0f ? placement.Scale : 1f);
+                EnsureUrpMaterials(model);
+                return model;
+            }
+
+            Debug.LogWarning($"[MapSetup] Model not found for '{placement.NodeId}': {placement.Model} — " +
+                             "using a coloured primitive instead.");
+        }
+
+        var go = GameObject.CreatePrimitive(placement.Shape);
+        go.transform.localScale = Vector3.one * 2f;
+
+        // Distinct colours so fallback nodes stay tellable apart. Emission keeps them
+        // visible under the map's fairly dim lighting.
+        var renderer = go.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+            var mat = new Material(shader) { color = placement.Color };
+            mat.EnableKeyword("_EMISSION");
+            mat.SetColor("_EmissionColor", placement.Color * 0.55f);
+            renderer.sharedMaterial = mat;
+        }
+
+        return go;
+    }
+
+    /// <summary>
+    /// Re-points any material still on a Built-in shader at URP's Lit.
+    ///
+    /// This project renders with URP, where a Built-in-shader material draws as solid
+    /// magenta. Imported FBX materials usually come in correct, but a pack imported
+    /// before the pipeline was set — or copied in from elsewhere — will not, and a
+    /// field of magenta rocks is a worse outcome than a moment of defensive code.
+    /// </summary>
+    private static void EnsureUrpMaterials(GameObject root)
+    {
+        var urpLit = Shader.Find("Universal Render Pipeline/Lit");
+        if (urpLit == null) return;   // not a URP project after all; leave well alone
+
+        foreach (var renderer in root.GetComponentsInChildren<Renderer>(includeInactive: true))
+        {
+            var materials = renderer.sharedMaterials;
+            bool changed = false;
+
+            for (int i = 0; i < materials.Length; i++)
+            {
+                var material = materials[i];
+                if (material == null) continue;
+                if (material.shader == null || material.shader.name != "Standard") continue;
+
+                // Preserve what the original described; the rest is shader defaults.
+                var replacement = new Material(urpLit)
+                {
+                    name        = material.name,
+                    color       = material.HasProperty("_Color")   ? material.color       : Color.white,
+                    mainTexture = material.HasProperty("_MainTex") ? material.mainTexture : null,
+                };
+
+                materials[i] = replacement;
+                changed = true;
+            }
+
+            if (changed) renderer.sharedMaterials = materials;
+        }
+    }
+
+    /// <summary>
+    /// Gives a node a collider sized to its rendered bounds. Primitives already have
+    /// one; imported models never do.
+    /// </summary>
+    private static void EnsureCollider(GameObject go)
+    {
+        if (go.GetComponentInChildren<Collider>() != null) return;
+
+        var box = go.AddComponent<BoxCollider>();
+
+        var renderers = go.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+
+        // Combine child bounds in world space, then express them relative to the node
+        // so the collider tracks the model however its parts are laid out.
+        var bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+
+        box.center = go.transform.InverseTransformPoint(bounds.center);
+        box.size   = go.transform.InverseTransformVector(bounds.size);
+
+        // InverseTransformVector can produce negatives on mirrored scales, and a
+        // negative extent makes a collider that cannot be hit.
+        box.size = new Vector3(Mathf.Abs(box.size.x), Mathf.Abs(box.size.y), Mathf.Abs(box.size.z));
     }
 
     /// <summary>
@@ -259,9 +398,27 @@ public static class MapSceneSetup
 
         var labelGo = new GameObject("Label");
         labelGo.transform.SetParent(parent, false);
-        // Parent is scaled 2x; counter-scale so the text renders at a sane size
-        labelGo.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-        labelGo.transform.localScale    = Vector3.one * 0.5f;
+
+        // Sit just above whatever this node actually is. Nodes are now models of very
+        // different heights — a chest is knee-high, an oak is not — so a fixed offset
+        // would bury half the labels and float the rest.
+        float localTop = 1f;
+        var renderers = parent.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            var bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++) bounds.Encapsulate(renderers[i].bounds);
+
+            float worldTop = bounds.max.y - parent.position.y;
+            float scaleY   = Mathf.Approximately(parent.lossyScale.y, 0f) ? 1f : parent.lossyScale.y;
+            localTop = worldTop / scaleY;
+        }
+
+        labelGo.transform.localPosition = new Vector3(0f, localTop + 0.25f, 0f);
+
+        // Counter-scale so text renders at a readable size whatever the parent's scale.
+        float parentScale = Mathf.Approximately(parent.lossyScale.x, 0f) ? 1f : parent.lossyScale.x;
+        labelGo.transform.localScale = Vector3.one * (1f / parentScale);
 
         var tmp = labelGo.AddComponent<TMPro.TextMeshPro>();
         tmp.text                = text;
@@ -273,12 +430,16 @@ public static class MapSceneSetup
         labelGo.AddComponent<Billboard>();
     }
 
-    /// <summary>Drops a node onto the terrain so it does not float or sink.</summary>
-    private static Vector3 SnapToGround(Vector3 position)
+    /// <summary>
+    /// Drops a node onto the terrain so it does not float or sink. lift raises it off
+    /// the surface, which centre-pivoted primitives need and ground-pivoted models
+    /// do not.
+    /// </summary>
+    private static Vector3 SnapToGround(Vector3 position, float lift)
     {
         var origin = new Vector3(position.x, 500f, position.z);
         if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1000f))
-            return hit.point + Vector3.up * 0.75f;
+            return hit.point + Vector3.up * lift;
 
         Debug.LogWarning($"[MapSetup] No ground under {position} — placing at y=1.");
         return new Vector3(position.x, 1f, position.z);
