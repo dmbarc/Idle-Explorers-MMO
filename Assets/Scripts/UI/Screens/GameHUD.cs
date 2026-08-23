@@ -156,7 +156,7 @@ public class GameHUD : UIScreen
         BuildTalentButton(navStack.transform);
         UIFactory.Button(navStack.transform, "SHP", () => GameManager.UI?.Push<ShopPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 54f);
-        UIFactory.Button(navStack.transform, "MAP", () => GameEvents.FireToast("Zone travel — coming in Phase 6"), width: 54f);
+        UIFactory.Button(navStack.transform, "MAP", () => GameManager.UI?.Push<TravelPanel>(), width: 54f);
     }
 
     /// <summary>

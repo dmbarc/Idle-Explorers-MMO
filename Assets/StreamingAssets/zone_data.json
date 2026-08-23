@@ -15,7 +15,7 @@
         "reqAccountLevel": 0,
         "reqAnyCharLevel": 0,
         "defaultMonsterId": "goblin",
-        "sceneAddress": "",
+        "sceneAddress": "Map_GoblinCamp",
         "skillNodes": [
           { "nodeId": "tin_rock_1",    "skillId": "mining",      "targetItemId": "tin_ore",    "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 14, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "copper_rock_1", "skillId": "mining",      "targetItemId": "copper_ore", "reqSkillLevel": 10, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 26, "specialChance": 0.0, "specialLabel": "" },
@@ -24,6 +24,26 @@
           { "nodeId": "campfire_1",    "skillId": "cooking",     "stationType": "campfire", "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "anvil_1",       "skillId": "smithing",    "stationType": "anvil",    "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "bank_chest_1",  "skillId": "",            "stationType": "bank",     "targetItemId": "", "reqSkillLevel": 0,  "activeRateMulti": 1.0, "afkRateMulti": 0.0, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" }
+        ]
+      },
+      {
+        "id": "fading_hollow",
+        "name": "Hollow of the Fading Light",
+        "description": "A bowl of green ringed by rock. Everything grows a little too well here, and nobody has worked out why.",
+        "zoneId": "verdant_wilds",
+        "reqCharLevel": 1,
+        "reqAccountLevel": 0,
+        "reqAnyCharLevel": 0,
+        "defaultMonsterId": "goblin",
+        "sceneAddress": "Map_FadingHollow",
+        "skillNodes": [
+          { "nodeId": "hollow_tin_rock",    "skillId": "mining",      "targetItemId": "tin_ore",     "reqSkillLevel": 1,  "activeRateMulti": 1.1, "afkRateMulti": 0.65, "xpPerAction": 14, "specialChance": 0.0,  "specialLabel": "" },
+          { "nodeId": "hollow_copper_rock", "skillId": "mining",      "targetItemId": "copper_ore",  "reqSkillLevel": 10, "activeRateMulti": 1.1, "afkRateMulti": 0.65, "xpPerAction": 26, "specialChance": 0.0,  "specialLabel": "" },
+          { "nodeId": "hollow_tree",        "skillId": "woodcutting", "targetItemId": "normal_logs", "reqSkillLevel": 1,  "activeRateMulti": 1.1, "afkRateMulti": 0.65, "xpPerAction": 25, "specialChance": 0.03, "specialLabel": "Bird's nest" },
+          { "nodeId": "hollow_fishing",     "skillId": "fishing",     "targetItemId": "raw_shrimp",  "reqSkillLevel": 1,  "activeRateMulti": 1.1, "afkRateMulti": 0.65, "xpPerAction": 10, "specialChance": 0.02, "specialLabel": "Treasure casket" },
+          { "nodeId": "hollow_campfire",    "skillId": "cooking",     "stationType": "campfire", "targetItemId": "", "reqSkillLevel": 1, "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "hollow_anvil",       "skillId": "smithing",    "stationType": "anvil",    "targetItemId": "", "reqSkillLevel": 1, "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "hollow_bank",        "skillId": "",            "stationType": "bank",     "targetItemId": "", "reqSkillLevel": 0, "activeRateMulti": 1.0, "afkRateMulti": 0.0, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" }
         ]
       },
       {

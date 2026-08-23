@@ -148,7 +148,7 @@ public static class MapSceneSetup
 
         // After the nodes exist, so the bake sees the finished scene. Placing geometry
         // and leaving the NavMesh stale is what forced a manual rebuild every time.
-        bool baked = BakeNavMesh();
+        bool baked = BakeNavMesh(MAP_SCENE);
 
         EditorSceneManager.MarkSceneDirty(scene);
         bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
@@ -187,24 +187,21 @@ public static class MapSceneSetup
     /// Returns false when there is nothing to bake, which is worth reporting rather
     /// than passing over quietly.
     /// </summary>
-    private static bool BakeNavMesh()
+    internal static bool BakeNavMesh(string scenePath)
     {
         var surface = Object.FindAnyObjectByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsInactive.Include);
 
         if (surface == null)
         {
-            // The terrain is the walkable ground, so that is where the surface belongs.
+            // Prefer the terrain when there is one — that is the walkable ground on
+            // the terrain-based maps. A tile-built map has no terrain at all, so the
+            // surface goes on its own object and collects the whole scene either way.
             var terrain = Object.FindAnyObjectByType<Terrain>(FindObjectsInactive.Include);
-            if (terrain == null)
-            {
-                Debug.LogWarning("[MapSetup] No NavMeshSurface and no Terrain — NavMesh not baked. " +
-                                 "The player and every monster will be unable to move.");
-                return false;
-            }
+            var host    = terrain != null ? terrain.gameObject : new GameObject("NavMesh");
 
-            surface = terrain.gameObject.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
+            surface = host.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
             surface.collectObjects = Unity.AI.Navigation.CollectObjects.All;
-            Debug.Log("[MapSetup] Added a NavMeshSurface to the Terrain.");
+            Debug.Log($"[MapSetup] Added a NavMeshSurface to '{host.name}'.");
         }
 
         surface.BuildNavMesh();
@@ -220,12 +217,12 @@ public static class MapSceneSetup
         string assetPath = AssetDatabase.GetAssetPath(surface.navMeshData);
         if (string.IsNullOrEmpty(assetPath))
         {
-            string directory = Path.Combine(Path.GetDirectoryName(MAP_SCENE),
-                                             Path.GetFileNameWithoutExtension(MAP_SCENE));
+            string directory = Path.Combine(Path.GetDirectoryName(scenePath),
+                                             Path.GetFileNameWithoutExtension(scenePath));
             if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
             assetPath = AssetDatabase.GenerateUniqueAssetPath(
-                Path.Combine(directory, "NavMesh-Terrain.asset").Replace("\\", "/"));
+                Path.Combine(directory, "NavMesh.asset").Replace("\\", "/"));
             AssetDatabase.CreateAsset(surface.navMeshData, assetPath);
         }
 
@@ -251,7 +248,7 @@ public static class MapSceneSetup
     ///  • Objects left holding deleted scripts, which Unity shows as
     ///    "Missing (Mono Script)".
     /// </summary>
-    private static int StripLegacyObjects(UnityEngine.SceneManagement.Scene scene)
+    internal static int StripLegacyObjects(UnityEngine.SceneManagement.Scene scene)
     {
         int removed = 0;
         var toDestroy = new List<GameObject>();
@@ -294,7 +291,7 @@ public static class MapSceneSetup
     }
 
     /// <summary>Gives the map camera WASD panning, scroll zoom and player follow.</summary>
-    private static void EnsureCameraController()
+    internal static void EnsureCameraController()
     {
         var camera = Camera.main;
         if (camera == null)
@@ -352,7 +349,7 @@ public static class MapSceneSetup
     /// can reach. Five hundred NavMeshAgents is also enough to bury the frame rate on
     /// its own. Both are set here so regenerating the map corrects them.
     /// </summary>
-    private static void ConfigureMonsterSpawner()
+    internal static void ConfigureMonsterSpawner()
     {
         var spawner = Object.FindAnyObjectByType<MonsterSpawner>(FindObjectsInactive.Include);
         if (spawner == null)
@@ -361,24 +358,22 @@ public static class MapSceneSetup
             return;
         }
 
-        // A box around the player spawn, comfortably inside the terrain the NavMesh is
-        // baked over, and wide enough that monsters are not all on top of each other.
-        const float Half = 32f;
-        spawner.minXSpawn = PlayerSpawn.x - Half;
-        spawner.maxXSpawn = PlayerSpawn.x + Half;
-        spawner.minZSpawn = PlayerSpawn.z - Half;
-        spawner.maxZSpawn = PlayerSpawn.z + Half;
+        // A ring around the player rather than a world-space box, so this works on
+        // any map without knowing its coordinates.
+        spawner.minSpawnRadius = 12f;
+        spawner.maxSpawnRadius = 38f;
 
         spawner.spawnInterval   = 4f;
         spawner.maxMonsterCount = 12;
 
         EditorUtility.SetDirty(spawner);
         Debug.Log($"[MapSetup] Monster spawner: {spawner.maxMonsterCount} max, one every " +
-                  $"{spawner.spawnInterval}s, within {Half * 2}x{Half * 2} of the player spawn.");
+                  $"{spawner.spawnInterval}s, {spawner.minSpawnRadius}-{spawner.maxSpawnRadius} " +
+                  "units from the player.");
     }
 
     /// <summary>PlayerController's drop pickups depend on the Player tag being set.</summary>
-    private static void EnsurePlayerTag()
+    internal static void EnsurePlayerTag()
     {
         var player = GameObject.Find("PlayerCharacter");
         if (player == null)
@@ -499,7 +494,7 @@ public static class MapSceneSetup
     /// before the pipeline was set — or copied in from elsewhere — will not, and a
     /// field of magenta rocks is a worse outcome than a moment of defensive code.
     /// </summary>
-    private static void EnsureUrpMaterials(GameObject root)
+    internal static void EnsureUrpMaterials(GameObject root)
     {
         var urpLit = Shader.Find("Universal Render Pipeline/Lit");
         if (urpLit == null) return;   // not a URP project after all; leave well alone
@@ -535,7 +530,7 @@ public static class MapSceneSetup
     /// Gives a node a collider sized to its rendered bounds. Primitives already have
     /// one; imported models never do.
     /// </summary>
-    private static void EnsureCollider(GameObject go)
+    internal static void EnsureCollider(GameObject go)
     {
         if (go.GetComponentInChildren<Collider>() != null) return;
 
@@ -562,7 +557,7 @@ public static class MapSceneSetup
     /// self-explanatory rather than anonymous blocks. Billboard keeps it facing
     /// the camera.
     /// </summary>
-    private static void AddFloatingLabel(Transform parent, string text)
+    internal static void AddFloatingLabel(Transform parent, string text)
     {
         if (string.IsNullOrEmpty(text)) return;
 
@@ -617,7 +612,7 @@ public static class MapSceneSetup
 
     // ── Build settings ────────────────────────────────────────────────────────
 
-    private static void AddSceneToBuildSettings(string scenePath)
+    internal static void AddSceneToBuildSettings(string scenePath)
     {
         var scenes = new List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
         foreach (var s in scenes)
