@@ -36,7 +36,11 @@ public class ShopManager : MonoBehaviour
         var account = AccountManager.Current;
         if (account == null || amount <= 0) return;
 
-        account.relicCoins += amount;
+        // Saturating then clamped, like the coin wallet. A premium balance that
+        // wrapped negative would read as a debt the player cannot clear.
+        long total = SlotContainer.SafeAdd(account.relicCoins, amount);
+        account.relicCoins = System.Math.Clamp(total, 0L, InventoryManager.MaxCoins);
+
         Debug.Log($"[Shop] +{amount} relic coins ({reason}). Balance {account.relicCoins}.");
 
         Changed();

@@ -41,7 +41,8 @@ public class BankManager : MonoBehaviour
 
     public long GetQuantity(string itemId) => SlotContainer.GetQuantity(Items, itemId);
 
-    public bool CanAddItem(string itemId) => SlotContainer.CanAddItem(Items, itemId);
+    public bool CanAddItem(string itemId, long quantity = 1) =>
+        SlotContainer.CanAddItem(Items, itemId, quantity);
 
     public bool AddItem(string itemId, long quantity)
     {
@@ -151,7 +152,10 @@ public class BankManager : MonoBehaviour
         var ch      = CharacterManager.Current;
         if (account == null || ch == null || amount <= 0) return false;
 
+        // Clamped by what the character has AND by what the vault can still hold, so
+        // depositing into a near-full vault moves what fits instead of overflowing it.
         long moving = System.Math.Min(amount, ch.coins);
+        moving      = System.Math.Min(moving, InventoryManager.MaxCoins - account.bankCoins);
         if (moving <= 0) return false;
 
         ch.coins          -= moving;
@@ -169,7 +173,11 @@ public class BankManager : MonoBehaviour
         var ch      = CharacterManager.Current;
         if (account == null || ch == null || amount <= 0) return false;
 
+        // Clamped by the vault's balance AND by room left in the wallet, mirroring
+        // the deposit path — otherwise a withdrawal into a full wallet would be
+        // deducted from the vault and clamped away on arrival.
         long moving = System.Math.Min(amount, account.bankCoins);
+        moving      = System.Math.Min(moving, InventoryManager.MaxCoins - ch.coins);
         if (moving <= 0) return false;
 
         account.bankCoins -= moving;

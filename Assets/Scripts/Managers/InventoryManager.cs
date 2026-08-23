@@ -45,11 +45,26 @@ public class InventoryManager : MonoBehaviour
 
     // ── Currency ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Ceiling on a single currency balance.
+    ///
+    /// Coins are one number rather than a set of stacks, so there is nothing for them
+    /// to spill into — they clamp instead. Well below long.MaxValue so that the
+    /// addition which produces them cannot wrap before the clamp is applied.
+    /// </summary>
+    public const long MaxCoins = 1_000_000_000_000_000L;
+
     public void AddCoins(long amount)
     {
         var ch = CharacterManager.Current;
         if (ch == null || amount == 0) return;
-        ch.coins = System.Math.Max(0, ch.coins + amount);
+
+        // Saturating, then clamped. `coins + amount` on a large balance would wrap to
+        // a negative, and a negative balance reads as bankrupt — an overflow would
+        // present as having lost everything.
+        long total = SlotContainer.SafeAdd(ch.coins, amount);
+        ch.coins   = System.Math.Clamp(total, 0L, MaxCoins);
+
         GameEvents.OnCoinsChanged?.Invoke(ch.coins);
     }
 
@@ -87,10 +102,29 @@ public class InventoryManager : MonoBehaviour
         return true;
     }
 
-    public bool CanAddItem(string itemId)
+    /// <summary>Whether a quantity would fit. Defaults to a single unit.</summary>
+    public bool CanAddItem(string itemId, long quantity = 1)
     {
         if (itemId == CoinsItemId) return true;   // wallet, not a slot
-        return SlotContainer.CanAddItem(Items, itemId);
+        return SlotContainer.CanAddItem(Items, itemId, quantity);
+    }
+
+    /// <summary>
+    /// Adds as much as will fit and returns how much landed. For rewards that may
+    /// arrive when the bag is nearly full, where the honest number matters more than
+    /// an all-or-nothing guarantee.
+    /// </summary>
+    public long AddUpTo(string itemId, long quantity)
+    {
+        if (itemId == CoinsItemId) { AddCoins(quantity); return quantity; }
+        if (string.IsNullOrEmpty(itemId) || quantity <= 0) return 0;
+
+        var inv = Items;
+        if (inv == null) return 0;
+
+        long added = SlotContainer.AddUpTo(inv, itemId, quantity);
+        if (added > 0) GameEvents.FireInventoryChanged();
+        return added;
     }
 
     public long GetQuantity(string itemId)

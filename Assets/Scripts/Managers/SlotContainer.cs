@@ -17,8 +17,40 @@ using UnityEngine;
 /// </summary>
 public static class SlotContainer
 {
+    /// <summary>
+    /// Most of one item a single slot may hold. Beyond this it spills into another
+    /// slot rather than growing without limit.
+    ///
+    /// One quadrillion, for two reasons. It displays as a clean "1Qa" through
+    /// NumberFormatter, and it leaves enormous headroom: the largest container is 120
+    /// slots, so even a completely full bank totals 1.2e17 against a long's 9.22e18
+    /// ceiling. Summing every stack therefore cannot overflow, which is what makes
+    /// GetQuantity safe to write as a plain loop.
+    /// </summary>
+    public const long MaxStack = 1_000_000_000_000_000L;
+
+    /// <summary>
+    /// Addition that saturates at long.MaxValue instead of wrapping.
+    ///
+    /// Signed overflow in C# is silent in an unchecked context — it wraps to a large
+    /// negative, and a negative quantity reads as an empty slot, so an inventory that
+    /// overflowed would appear to have LOST everything rather than to have too much.
+    /// Every quantity sum goes through here so that outcome is impossible regardless
+    /// of what the caps are later changed to.
+    /// </summary>
+    public static long SafeAdd(long a, long b)
+    {
+        if (a > 0 && b > long.MaxValue - a) return long.MaxValue;
+        if (a < 0 && b < long.MinValue - a) return long.MinValue;
+        return a + b;
+    }
+
     public static bool IsEmpty(InventoryEntry e) =>
         e == null || string.IsNullOrEmpty(e.itemId) || e.quantity <= 0;
+
+    /// <summary>Room left in one slot before it hits the stack cap.</summary>
+    private static long Headroom(InventoryEntry e) =>
+        IsEmpty(e) ? MaxStack : System.Math.Max(0L, MaxStack - e.quantity);
 
     /// <summary>
     /// Pads or trims a list to exactly <paramref name="capacity"/>. Runs on access so
@@ -46,67 +78,160 @@ public static class SlotContainer
 
     // ── Contents ──────────────────────────────────────────────────────────────
 
-    /// <summary>Tops up an existing stack, else takes the first free slot. False when full.</summary>
+    /// <summary>
+    /// Total room for an item: the headroom left in its partial stacks, plus a full
+    /// stack for every empty slot. Saturating, so a large container cannot overflow
+    /// the sum it is measuring.
+    /// </summary>
+    public static long FreeCapacityFor(List<InventoryEntry> slots, string itemId)
+    {
+        if (slots == null || string.IsNullOrEmpty(itemId)) return 0;
+
+        long capacity = 0;
+        foreach (var entry in slots)
+        {
+            if (IsEmpty(entry))              capacity = SafeAdd(capacity, MaxStack);
+            else if (entry.itemId == itemId) capacity = SafeAdd(capacity, Headroom(entry));
+        }
+        return capacity;
+    }
+
+    /// <summary>
+    /// Adds a quantity, topping up existing stacks to the cap before opening new ones.
+    ///
+    /// All-or-nothing: when the whole amount will not fit, NOTHING is added and false
+    /// is returned. Callers such as EquipmentManager are moving an item rather than
+    /// creating one, and a partial add would leave the remainder nowhere — which is
+    /// to say, destroyed.
+    /// </summary>
     public static bool AddItem(List<InventoryEntry> slots, string itemId, long quantity)
     {
         if (slots == null || string.IsNullOrEmpty(itemId) || quantity <= 0) return false;
+        if (FreeCapacityFor(slots, itemId) < quantity) return false;
 
+        long added = AddUpTo(slots, itemId, quantity);
+
+        if (added < quantity)
+        {
+            // FreeCapacityFor said it would fit, so this cannot happen — and if it
+            // ever does, the two are disagreeing and that is worth knowing about.
+            Debug.LogError($"[SlotContainer] Capacity check passed but only {added} of " +
+                           $"{quantity}x '{itemId}' fit. This is a bug in SlotContainer.");
+        }
+
+        return added > 0;
+    }
+
+    /// <summary>
+    /// Adds as much as will fit and returns how much that was.
+    ///
+    /// Separate from AddItem because the two callers want opposite things. Moving an
+    /// item needs all-or-nothing, or the remainder is destroyed. Granting offline
+    /// rewards into a bag that may be full wants whatever fits, and needs to know the
+    /// real number so the summary reports what the player actually received rather
+    /// than what was theoretically earned.
+    /// </summary>
+    public static long AddUpTo(List<InventoryEntry> slots, string itemId, long quantity)
+    {
+        if (slots == null || string.IsNullOrEmpty(itemId) || quantity <= 0) return 0;
+
+        long remaining = quantity;
+
+        // Fill partial stacks of this item first, so the container stays compact and a
+        // second stack only appears once the first is genuinely full.
         foreach (var entry in slots)
         {
-            if (!IsEmpty(entry) && entry.itemId == itemId)
-            {
-                entry.quantity += quantity;
-                return true;
-            }
+            if (remaining <= 0) break;
+            if (IsEmpty(entry) || entry.itemId != itemId) continue;
+
+            long room = Headroom(entry);
+            if (room <= 0) continue;
+
+            long moving = System.Math.Min(room, remaining);
+            entry.quantity += moving;
+            remaining      -= moving;
         }
 
-        for (int i = 0; i < slots.Count; i++)
+        // Then spill the rest into empty slots, a capped stack at a time.
+        foreach (var entry in slots)
         {
-            if (!IsEmpty(slots[i])) continue;
+            if (remaining <= 0) break;
+            if (!IsEmpty(entry)) continue;
 
-            slots[i].itemId   = itemId;
-            slots[i].quantity = quantity;
-            return true;
+            long moving = System.Math.Min(MaxStack, remaining);
+            entry.itemId   = itemId;
+            entry.quantity = moving;
+            remaining     -= moving;
         }
 
-        return false;
+        return quantity - remaining;
     }
 
-    public static bool CanAddItem(List<InventoryEntry> slots, string itemId)
+    /// <summary>Whether a given quantity would fit. Defaults to a single unit.</summary>
+    public static bool CanAddItem(List<InventoryEntry> slots, string itemId, long quantity = 1)
     {
-        if (slots == null) return false;
-
-        foreach (var e in slots)
-        {
-            if (IsEmpty(e)) return true;             // free slot
-            if (e.itemId == itemId) return true;     // existing stack
-        }
-        return false;
+        if (slots == null || string.IsNullOrEmpty(itemId) || quantity <= 0) return false;
+        return FreeCapacityFor(slots, itemId) >= quantity;
     }
 
+    /// <summary>
+    /// How much of an item the container holds, ACROSS EVERY STACK.
+    ///
+    /// This used to return the first matching stack and stop. That was correct only
+    /// while a second stack was impossible; now that a full stack spills into a new
+    /// slot, reading one stack would under-report what the player owns — and the
+    /// crafting supply check reads exactly this, so a full bank of ore would report
+    /// as one stack's worth and the station would refuse to work.
+    /// </summary>
     public static long GetQuantity(List<InventoryEntry> slots, string itemId)
     {
-        if (slots == null) return 0;
+        if (slots == null || string.IsNullOrEmpty(itemId)) return 0;
 
+        long total = 0;
         foreach (var e in slots)
-            if (!IsEmpty(e) && e.itemId == itemId) return e.quantity;
-        return 0;
+            if (!IsEmpty(e) && e.itemId == itemId) total = SafeAdd(total, e.quantity);
+        return total;
     }
 
+    /// <summary>
+    /// Removes a quantity, draining across as many stacks as it takes.
+    ///
+    /// All-or-nothing, and it checks the total BEFORE touching anything — spending
+    /// half a cost and then discovering the rest is missing would charge the player
+    /// for a craft they never receive.
+    /// </summary>
     public static bool RemoveItem(List<InventoryEntry> slots, string itemId, long quantity)
     {
-        if (slots == null || quantity <= 0) return false;
+        if (slots == null || string.IsNullOrEmpty(itemId) || quantity <= 0) return false;
+        if (GetQuantity(slots, itemId) < quantity) return false;
 
-        foreach (var e in slots)
+        long remaining = quantity;
+
+        // Drain the smallest stacks first so the container tends toward fewer, fuller
+        // stacks rather than a scattering of nearly-empty ones.
+        foreach (var e in SmallestFirst(slots, itemId))
         {
-            if (IsEmpty(e) || e.itemId != itemId) continue;
-            if (e.quantity < quantity) return false;
+            if (remaining <= 0) break;
 
-            e.quantity -= quantity;
+            long taken = System.Math.Min(e.quantity, remaining);
+            e.quantity -= taken;
+            remaining  -= taken;
+
             if (e.quantity <= 0) Clear(e);
-            return true;
         }
-        return false;
+
+        return remaining <= 0;
+    }
+
+    /// <summary>The container's stacks of one item, smallest first.</summary>
+    private static List<InventoryEntry> SmallestFirst(List<InventoryEntry> slots, string itemId)
+    {
+        var matches = new List<InventoryEntry>();
+        foreach (var e in slots)
+            if (!IsEmpty(e) && e.itemId == itemId) matches.Add(e);
+
+        matches.Sort((a, b) => a.quantity.CompareTo(b.quantity));
+        return matches;
     }
 
     // ── Slot manipulation ─────────────────────────────────────────────────────
@@ -128,8 +253,15 @@ public static class SlotContainer
 
         if (!IsEmpty(to) && from.itemId == to.itemId)
         {
-            to.quantity += from.quantity;
-            Clear(from);
+            // Merge only as far as the cap allows and leave the remainder behind.
+            // Pouring one stack into another without a limit is how a slot ends up
+            // holding more than a slot can hold.
+            long moving = System.Math.Min(Headroom(to), from.quantity);
+
+            to.quantity   += moving;
+            from.quantity -= moving;
+
+            if (from.quantity <= 0) Clear(from);
             return;
         }
 
@@ -165,8 +297,15 @@ public static class SlotContainer
 
         if (!IsEmpty(dst) && dst.itemId == src.itemId)
         {
-            dst.quantity += src.quantity;
-            Clear(src);
+            // Capped, like the within-container merge. A full destination stack takes
+            // nothing and the drag is a no-op rather than a silent overflow.
+            long moving = System.Math.Min(Headroom(dst), src.quantity);
+            if (moving <= 0) return false;
+
+            dst.quantity += moving;
+            src.quantity -= moving;
+
+            if (src.quantity <= 0) Clear(src);
             return true;
         }
 
@@ -193,7 +332,13 @@ public static class SlotContainer
         if (IsEmpty(src)) return false;
 
         long moving = System.Math.Min(quantity, src.quantity);
-        if (!CanAddItem(to, src.itemId)) return false;
+
+        // Clamp to what the destination can actually take, rather than refusing the
+        // whole move. Depositing a stack into a nearly-full bank should move what
+        // fits, not nothing at all — and AddItem is all-or-nothing, so the amount has
+        // to be trimmed here rather than there.
+        moving = System.Math.Min(moving, FreeCapacityFor(to, src.itemId));
+        if (moving <= 0) return false;
 
         if (!AddItem(to, src.itemId, moving)) return false;
 

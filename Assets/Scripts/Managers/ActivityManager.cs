@@ -360,11 +360,14 @@ public class ActivityManager : MonoBehaviour
         foreach (var loot in monster.lootTable)
         {
             long drops = (long)(RollBulkDrops(totalKills, loot) * quantityMultiplier);
-            if (drops > 0)
-            {
-                GameManager.Inventory?.AddItem(loot.itemId, drops);
-                summary?.AddItem(loot.itemId, drops);
-            }
+            if (drops <= 0) continue;
+
+            // Record what actually landed, not what was rolled. Offline rewards used
+            // to be added with no capacity check at all, so a full inventory dropped
+            // them on the floor while the summary went on claiming the player had
+            // received them.
+            long granted = GameManager.Inventory?.AddUpTo(loot.itemId, drops) ?? 0;
+            summary?.AddItem(loot.itemId, granted);
         }
 
         // Combat XP (from kills). Character XP follows from AddSkillXP, which derives
@@ -411,8 +414,9 @@ public class ActivityManager : MonoBehaviour
             double jitter   = UnityEngine.Random.Range(0.9f, 1.1f);
             long   bonusQty = (long)System.Math.Max(0d, totalActions * activity.specialChance * jitter);
 
-            GameManager.Inventory?.AddItem(activity.activityTargetId, totalActions + bonusQty);
-            summary?.AddItem(activity.activityTargetId, totalActions + bonusQty);
+            long gathered = GameManager.Inventory?.AddUpTo(activity.activityTargetId,
+                                                            totalActions + bonusQty) ?? 0;
+            summary?.AddItem(activity.activityTargetId, gathered);
         }
 
         GrantSkillXP(activity, totalActions, summary);
@@ -472,8 +476,8 @@ public class ActivityManager : MonoBehaviour
         // The multiplier lands on output only — a proc that doubles what you make
         // must not also double what it cost you to make it.
         long produced = (long)(recipe.outputQuantity * actualCrafts * outputMultiplier);
-        GameManager.Inventory?.AddItem(recipe.outputItemId, produced);
-        summary?.AddItem(recipe.outputItemId, produced);
+        long delivered = GameManager.Inventory?.AddUpTo(recipe.outputItemId, produced) ?? 0;
+        summary?.AddItem(recipe.outputItemId, delivered);
 
         long xp = (long)(recipe.xpPerCraft * actualCrafts);
         if (xp > 0)

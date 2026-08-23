@@ -201,18 +201,27 @@ public class DropPickup : MonoBehaviour
         var inventory = GameManager.Inventory;
         if (inventory == null) return;
 
-        if (!inventory.CanAddItem(itemId))
-        {
-            // Inventory full — leave it on the ground rather than deleting loot.
-            return;
-        }
+        // Take what fits and leave the rest on the ground. The check has to be against
+        // the actual quantity, not one unit: a bag with room for ten of something is
+        // not a bag with room for a stack of a thousand, and destroying the pickup
+        // after a failed add would delete the difference.
+        long taken = inventory.AddUpTo(itemId, quantity);
+        if (taken <= 0) return;
 
-        inventory.AddItem(itemId, quantity);
-        GameEvents.FireItemPickedUp(itemId, quantity);
+        GameEvents.FireItemPickedUp(itemId, taken);
 
         var item = GameManager.Content?.GetItem(itemId);
-        GameEvents.FireToast($"+{NumberFormatter.Format(quantity)} {item?.DisplayName ?? itemId}");
+        GameEvents.FireToast($"+{NumberFormatter.Format(taken)} {item?.DisplayName ?? itemId}");
         GameManager.Audio?.PlayPickup();
+
+        quantity -= taken;
+        if (quantity > 0)
+        {
+            // Partially collected: shrink the pile and leave it there.
+            UpdateVisualSize();
+            GameEvents.FireToast("Inventory full — some was left behind.");
+            return;
+        }
 
         Destroy(gameObject);
     }

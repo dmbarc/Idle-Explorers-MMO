@@ -199,16 +199,6 @@ public class SkillNodeController : MonoBehaviour
             return false;
         }
 
-        if (GameManager.Inventory?.CanAddItem(_recipe.outputItemId) != true)
-        {
-            GameEvents.FireToast("Inventory full.");
-            return false;
-        }
-
-        // All-or-nothing: verifies again and only then spends, so nothing is consumed
-        // unless every input is affordable.
-        if (!CraftingSupply.ConsumeFor(_recipe, 1)) return false;
-
         // Procs multiply the output, never the inputs — doubling a craft must not
         // also double what it cost. Talent double-output is a genuine chance here
         // rather than expected value: a live craft produces a whole item or it does
@@ -217,6 +207,19 @@ public class SkillNodeController : MonoBehaviour
         if (Random.value < TalentManager.Bonus(TalentManager.CraftDoubleChance)) multiplier += 1f;
 
         long produced = (long)Mathf.Max(1f, _recipe.outputQuantity * multiplier);
+
+        // Room is checked for the WHOLE output, before anything is spent. A recipe
+        // that doubles can produce more than one slot's remaining space, and finding
+        // that out after consuming the inputs would charge for a craft that vanished.
+        if (GameManager.Inventory?.CanAddItem(_recipe.outputItemId, produced) != true)
+        {
+            GameEvents.FireToast("Inventory full.");
+            return false;
+        }
+
+        // All-or-nothing: verifies again and only then spends, so nothing is consumed
+        // unless every input is affordable.
+        if (!CraftingSupply.ConsumeFor(_recipe, 1)) return false;
 
         GameManager.Inventory.AddItem(_recipe.outputItemId, produced);
         GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
@@ -308,7 +311,7 @@ public class SkillNodeController : MonoBehaviour
                     GameEvents.FireToast($"✦ {_entry.specialLabel}!");
             }
 
-            if (GameManager.Inventory?.CanAddItem(_entry.targetItemId) == true)
+            if (GameManager.Inventory?.CanAddItem(_entry.targetItemId, qty) == true)
             {
                 GameManager.Inventory.AddItem(_entry.targetItemId, qty);
                 GameEvents.FireItemPickedUp(_entry.targetItemId, qty);
