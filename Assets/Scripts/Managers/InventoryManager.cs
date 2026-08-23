@@ -64,18 +64,27 @@ public class InventoryManager : MonoBehaviour
 
     // ── Items ─────────────────────────────────────────────────────────────────
 
-    public void AddItem(string itemId, long quantity)
+    /// <summary>
+    /// Adds to the inventory. Returns false when there was no room and NOTHING was
+    /// added — callers that are moving an item rather than creating one must check,
+    /// or the item ceases to exist.
+    /// </summary>
+    public bool AddItem(string itemId, long quantity)
     {
-        if (itemId == CoinsItemId) { AddCoins(quantity); return; }
-        if (string.IsNullOrEmpty(itemId) || quantity <= 0) return;
+        if (itemId == CoinsItemId) { AddCoins(quantity); return true; }
+        if (string.IsNullOrEmpty(itemId) || quantity <= 0) return false;
 
         var inv = Items;
-        if (inv == null) return;
+        if (inv == null) return false;
 
-        if (SlotContainer.AddItem(inv, itemId, quantity))
-            GameEvents.FireInventoryChanged();
-        else
+        if (!SlotContainer.AddItem(inv, itemId, quantity))
+        {
             Debug.LogWarning($"[InventoryManager] Inventory full — could not add {quantity}x {itemId}");
+            return false;
+        }
+
+        GameEvents.FireInventoryChanged();
+        return true;
     }
 
     public bool CanAddItem(string itemId)

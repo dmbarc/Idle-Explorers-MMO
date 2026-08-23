@@ -16,11 +16,30 @@ public class SaveManager : MonoBehaviour
 
     public static string SavePath => Path.Combine(Application.persistentDataPath, SAVE_FILE);
 
+    /// <summary>Previous good save, kept so one bad write cannot end a career.</summary>
+    private static string BackupPath => SavePath + ".bak";
+
+    /// <summary>Where a half-written save lands before it replaces the real one.</summary>
+    private static string TempPath => SavePath + ".tmp";
+
     /// <summary>True when a save file exists on disk.</summary>
     public bool HasSave => File.Exists(SavePath);
 
     // ── Save ──────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Writes the account to disk atomically.
+    ///
+    /// File.WriteAllText truncates the target and then writes, so a crash, a battery
+    /// death or an OS kill partway through leaves a truncated file that parses to
+    /// null — and Load treats null as "no save" and hands back a brand new account.
+    /// The player loses everything, and nothing anywhere reports why. This game saves
+    /// on every craft, bank transfer and talent point, so the window is not small.
+    ///
+    /// Writing to a temporary file first and moving it into place means the real save
+    /// is only ever replaced by a complete one, and the previous good copy survives
+    /// as a backup.
+    /// </summary>
     public void Save()
     {
         var account = AccountManager.Current;
@@ -33,7 +52,26 @@ public class SaveManager : MonoBehaviour
         try
         {
             string json = JsonUtility.ToJson(account, prettyPrint: true);
-            File.WriteAllText(SavePath, json);
+
+            // Guard against serialising an empty document over a good save.
+            if (string.IsNullOrWhiteSpace(json) || json.Length < 2)
+            {
+                Debug.LogError("[SaveManager] Refusing to write an empty save.");
+                return;
+            }
+
+            File.WriteAllText(TempPath, json);
+
+            if (File.Exists(SavePath))
+            {
+                // Replace keeps the old file as the backup in one operation.
+                File.Replace(TempPath, SavePath, BackupPath, ignoreMetadataErrors: true);
+            }
+            else
+            {
+                File.Move(TempPath, SavePath);
+            }
+
             Debug.Log($"[SaveManager] Saved {account.characters?.Count ?? 0} character(s) to {SavePath}");
         }
         catch (Exception e)
@@ -47,48 +85,94 @@ public class SaveManager : MonoBehaviour
     /// <summary>Returns the saved account, or null if there is no valid save.</summary>
     public AccountData Load()
     {
-        if (!HasSave) return null;
+        var account = LoadFrom(SavePath);
+
+        // A save that will not parse is not the same as no save. Falling straight
+        // through to a fresh account means the next autosave — seconds later —
+        // overwrites the damaged file, destroying whatever could have been recovered
+        // from it by hand.
+        if (account == null && File.Exists(SavePath))
+        {
+            QuarantineBadSave();
+
+            account = LoadFrom(BackupPath);
+            if (account != null)
+                Debug.LogWarning("[SaveManager] Recovered the previous save from the backup.");
+        }
+
+        if (account == null) return null;
+
+        Rehydrate(account);
+        Debug.Log($"[SaveManager] Loaded {account.characters.Count} character(s).");
+        return account;
+    }
+
+    private AccountData LoadFrom(string path)
+    {
+        if (!File.Exists(path)) return null;
 
         try
         {
-            string json    = File.ReadAllText(SavePath);
-            var    account = JsonUtility.FromJson<AccountData>(json);
+            string json = File.ReadAllText(path);
+            var parsed  = JsonUtility.FromJson<AccountData>(json);
 
-            if (account == null)
-            {
-                Debug.LogWarning("[SaveManager] Save file parsed to null — starting fresh.");
-                return null;
-            }
+            if (parsed == null)
+                Debug.LogWarning($"[SaveManager] '{Path.GetFileName(path)}' parsed to null.");
 
-            // JsonUtility writes null collections as null, not empty — rehydrate so
-            // callers never have to null-check the lists. The bank is also absent
-            // entirely from saves written before it existed.
-            account.characters ??= new System.Collections.Generic.List<CharacterData>();
-            account.bank       ??= new System.Collections.Generic.List<InventoryEntry>();
-            foreach (var ch in account.characters)
-            {
-                ch.skills    ??= new System.Collections.Generic.List<SkillProgress>();
-                ch.inventory ??= new System.Collections.Generic.List<InventoryEntry>();
-                ch.mergeBoard ??= new System.Collections.Generic.List<InventoryEntry>();
-                ch.equipment ??= new System.Collections.Generic.List<EquipmentEntry>();
-                // Absent from every save written before talents existed.
-                ch.talents   ??= new System.Collections.Generic.List<TalentRank>();
-
-                // Nobody is online at load. If the game was killed mid-session the
-                // flag stayed true, and the character card showed "⚡ ONLINE"
-                // forever while never accruing anything.
-                ch.isOnline = false;
-
-                BackfillCharacterXP(ch);
-            }
-
-            Debug.Log($"[SaveManager] Loaded {account.characters.Count} character(s) from {SavePath}");
-            return account;
+            return parsed;
         }
         catch (Exception e)
         {
-            Debug.LogError($"[SaveManager] Load failed: {e.Message} — starting fresh.");
+            Debug.LogError($"[SaveManager] Could not read '{Path.GetFileName(path)}': {e.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Moves an unreadable save aside rather than letting it be overwritten.
+    /// Timestamped, so a repeated failure cannot clobber the first evidence.
+    /// </summary>
+    private void QuarantineBadSave()
+    {
+        try
+        {
+            string corrupt = $"{SavePath}.corrupt-{DateTime.UtcNow:yyyyMMdd-HHmmss}";
+            File.Move(SavePath, corrupt);
+            Debug.LogError($"[SaveManager] Save could not be read. Moved to {corrupt} — " +
+                           "it has NOT been deleted and may be recoverable.");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[SaveManager] Could not set the damaged save aside: {e.Message}");
+        }
+    }
+
+    /// <summary>Fills in collections JsonUtility writes as null, and runs migrations.</summary>
+    private void Rehydrate(AccountData account)
+    {
+        // JsonUtility writes null collections as null, not empty — rehydrate so
+        // callers never have to null-check the lists. The bank is also absent
+        // entirely from saves written before it existed.
+        account.characters ??= new System.Collections.Generic.List<CharacterData>();
+        account.bank       ??= new System.Collections.Generic.List<InventoryEntry>();
+
+        foreach (var ch in account.characters)
+        {
+            if (ch == null) continue;
+
+            ch.skills     ??= new System.Collections.Generic.List<SkillProgress>();
+            ch.inventory  ??= new System.Collections.Generic.List<InventoryEntry>();
+            ch.mergeBoard ??= new System.Collections.Generic.List<InventoryEntry>();
+            ch.equipment  ??= new System.Collections.Generic.List<EquipmentEntry>();
+            // Absent from every save written before talents existed.
+            ch.talents    ??= new System.Collections.Generic.List<TalentRank>();
+
+            // Nobody is online at load. If the game was killed mid-session the
+            // flag stayed true, and the character card showed "⚡ ONLINE"
+            // forever while never accruing anything.
+            ch.isOnline = false;
+
+            BackfillCharacterXP(ch);
         }
     }
 

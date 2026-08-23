@@ -22,6 +22,9 @@ public class SkillNodeController : MonoBehaviour
     [Tooltip("Seconds per gather action at 1.0x rate.")]
     public float baseSecondsPerAction = 3f;
 
+    /// <summary>Ceiling on actions completed in a single frame. See TickGather.</summary>
+    private const int MaxActionsPerFrame = 20;
+
     private SkillNodeEntry _entry;
     private float          _actionTimer;
     private bool           _isGathering;
@@ -263,7 +266,12 @@ public class SkillNodeController : MonoBehaviour
         float secondsPerAction = perAction / Mathf.Max(0.01f, _entry.activeRateMulti);
         _actionTimer += deltaTime;
 
-        while (_actionTimer >= secondsPerAction)
+        // Bounded, because the loop count is (deltaTime / secondsPerAction) and both
+        // sides of that come from JSON. A node authored with a large activeRateMulti,
+        // or a single long frame after a stall, would otherwise run thousands of
+        // crafts inside one frame and make the hitch worse.
+        int guard = 0;
+        while (_actionTimer >= secondsPerAction && guard++ < MaxActionsPerFrame)
         {
             _actionTimer -= secondsPerAction;
 

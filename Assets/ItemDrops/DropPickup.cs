@@ -31,6 +31,13 @@ public class DropPickup : MonoBehaviour
     [Tooltip("Peak height of the arc above the straight line to the landing point.")]
     public float tossArcHeight = 0.8f;
 
+    [Header("Lifetime")]
+    [Tooltip("Seconds before uncollected loot vanishes. Zero means it never does.")]
+    public float despawnSeconds = 180f;
+
+    [Tooltip("Seconds of fading before it goes, so loot does not blink out of existence.")]
+    public float fadeSeconds = 8f;
+
     /// <summary>How high above the ground the item rests, so it is not half-buried.</summary>
     private const float RestHeight = 0.45f;
 
@@ -150,7 +157,41 @@ public class DropPickup : MonoBehaviour
             local.y = Mathf.Sin(Time.time * 2f + _bobPhase) * 0.08f;
             spriteRenderer.transform.localPosition = local;
         }
+
+        TickLifetime();
     }
+
+    /// <summary>
+    /// Fades out and removes loot nobody collected.
+    ///
+    /// Without this, drops are immortal: an overnight AFK session with auto-pickup
+    /// unable to keep up — or a full inventory, which makes the player walk past
+    /// everything — leaves thousands of objects, each with a collider and an Update,
+    /// and the frame rate goes with them. Fading rather than vanishing so a player
+    /// walking toward something can see it is about to go.
+    /// </summary>
+    private void TickLifetime()
+    {
+        if (despawnSeconds <= 0f) return;
+
+        _age += Time.deltaTime;
+        if (_age < despawnSeconds - fadeSeconds) return;
+
+        if (_age >= despawnSeconds)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        if (spriteRenderer == null) return;
+
+        float remaining = despawnSeconds - _age;
+        var colour = spriteRenderer.color;
+        colour.a = Mathf.Clamp01(remaining / Mathf.Max(0.01f, fadeSeconds));
+        spriteRenderer.color = colour;
+    }
+
+    private float _age;
 
     private void OnTriggerEnter(Collider other)
     {

@@ -92,8 +92,17 @@ public class EquipmentManager : MonoBehaviour
         // even when the inventory was otherwise full.
         if (!GameManager.Inventory.RemoveFromSlot(inventorySlot, 1)) return false;
 
-        if (!string.IsNullOrEmpty(displaced))
-            GameManager.Inventory.AddItem(displaced, 1);
+        // Taking one off a stack of five does NOT free the slot, so "remove first"
+        // only guarantees room when the incoming item was the last of its kind. With
+        // a full bag and a stack of rings, the displaced item had nowhere to go and
+        // was then overwritten by Set() below — destroyed outright. Put the incoming
+        // item back and refuse instead.
+        if (!string.IsNullOrEmpty(displaced) && !GameManager.Inventory.AddItem(displaced, 1))
+        {
+            GameManager.Inventory.AddItem(item.id, 1);
+            GameEvents.FireToast("No room for the item you would be taking off.");
+            return false;
+        }
 
         Set(target, item.id);
         Changed();
