@@ -27,7 +27,10 @@ public class CharCreateNameScreen : UIScreen
                                      theme.accentGold, TextAlignmentOptions.Center);
         UIFactory.At(title, 0.20f, 0.74f, 0.80f, 0.86f);
 
-        var subtitle = UIFactory.Label(transform, "You can change how they look next.",
+        // Says what actually happens next. The old copy promised the appearance
+        // editor, but GoNext pushes the CLASS picker — appearance is the screen after
+        // that, and a first-run player following the sentence hit the wrong screen.
+        var subtitle = UIFactory.Label(transform, "Choose a class and customise your look next.",
                                         theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
         UIFactory.At(subtitle, 0.25f, 0.68f, 0.75f, 0.73f);
 
@@ -96,12 +99,18 @@ public static class CharCreateState
 {
     public static string       PendingName;
     public static string       PendingClassId;
-    public static SpumSaveData PendingSpum = new SpumSaveData();
+
+    /// <summary>
+    /// Seeded with a real look rather than an empty struct, so a player who skips
+    /// straight through the appearance screen still gets a character rather than an
+    /// invisible rig. The appearance screen edits this in place.
+    /// </summary>
+    public static SpumSaveData PendingSpum = SpumAppearance.Default();
 
     public static void Reset()
     {
         PendingName    = null;
         PendingClassId = null;
-        PendingSpum    = new SpumSaveData();
+        PendingSpum    = SpumAppearance.Default();
     }
 }

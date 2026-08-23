@@ -2,7 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Draws worn cosmetics on the SPUM rig.
+/// Draws worn EQUIPMENT on the SPUM rig. The character underneath it — body, hair,
+/// eyes, weapon — belongs to CharacterBaseAppearance.
 ///
 /// ══ WHY THE TIN HELMET WAS INVISIBLE ══════════════════════════════════════════
 ///
@@ -14,10 +15,8 @@ using UnityEngine;
 /// already there. The sprite loaded, the renderer was enabled, and nothing appeared.
 ///
 /// The second half of the same bug: Legacy's armour, pant and cloth sheets are
-/// Multiple-mode textures cut into Body / Left / Right sub-sprites, and
-/// Resources.Load&lt;Sprite&gt; returns NULL for those. Every chest piece in
-/// item_data.json pointed at one. So chest armour never rendered either, and the log
-/// line that said so was Debug.Log rather than a warning.
+/// Multiple-mode textures, and Resources.Load&lt;Sprite&gt; returns NULL for those.
+/// Every chest piece in item_data.json pointed at one.
 ///
 /// Both are fixed by treating a slot as a GROUP of layers:
 ///
@@ -39,21 +38,7 @@ public class CharacterAppearance : MonoBehaviour
         { "tabard", 4 },
     };
 
-    /// <summary>One renderer we may write to, plus what it looked like before we did.</summary>
-    private class Layer
-    {
-        public SpriteRenderer Renderer;
-        public Sprite         OriginalSprite;
-        public bool           OriginalEnabled;
-
-        /// <summary>Which half of a Left/Right/Body sheet belongs on this renderer.</summary>
-        public string         Side;
-
-        /// <summary>True when the rig shipped art here — the layer it actually draws.</summary>
-        public bool           WasDrawn => OriginalSprite != null;
-    }
-
-    private readonly Dictionary<string, List<Layer>> _layers = new();
+    private readonly Dictionary<string, List<SpumRig.Layer>> _layers = new();
     private GameObject _auraInstance;
     private string     _auraItemId;
 
@@ -83,13 +68,26 @@ public class CharacterAppearance : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Forgets which sprites the rig "originally" had, so the next Refresh re-reads them.
+    ///
+    /// Load-bearing for the appearance editor. A slot's original sprite is captured
+    /// the first time that slot is drawn, and taking an item off restores it — but the
+    /// boots slot writes to the same two renderers that hold the BODY's bare feet. So
+    /// changing race while wearing boots, then taking them off, would restore the old
+    /// race's feet and leave a character with mismatched legs. CharacterBaseAppearance
+    /// calls this after writing the body; ordering alone cannot fix it, because
+    /// appearance can change at any time.
+    /// </summary>
+    public void InvalidateLayerCache() => _layers.Clear();
+
     private void ApplySlot(EquipmentSlots.Slot slot, ItemData item)
     {
         var layers = ResolveLayers(slot);
         if (layers == null || layers.Count == 0) return;
 
         // Nothing worn, or worn art that does not exist: put the rig back exactly as
-        // it shipped. Leaving the last item's sprite behind would read as phantom
+        // it was. Leaving the last item's sprite behind would read as phantom
         // equipment, and blanking everything would strip the character's own body.
         if (item == null || string.IsNullOrEmpty(item.equipSpriteAddress))
         {
@@ -119,14 +117,8 @@ public class CharacterAppearance : MonoBehaviour
             var sprite = SpriteLoader.Load(item.equipSpriteAddress, layer.Side);
             if (sprite == null) continue;
 
-            layer.Renderer.sprite  = sprite;
-            layer.Renderer.enabled = true;
-
-            // enabled = true does nothing for a renderer on a deactivated object, and
-            // a silently-inactive layer looks exactly like a failed sprite load.
-            if (!layer.Renderer.gameObject.activeSelf)
-                layer.Renderer.gameObject.SetActive(true);
-
+            SpumRig.Show(layer, sprite);
+            layer.Renderer.color = Color.white;
             appliedAny = true;
         }
 
@@ -143,10 +135,11 @@ public class CharacterAppearance : MonoBehaviour
         }
     }
 
-    private static void Restore(Layer layer)
+    private static void Restore(SpumRig.Layer layer)
     {
         layer.Renderer.sprite  = layer.OriginalSprite;
         layer.Renderer.enabled = layer.OriginalEnabled;
+        layer.Renderer.color   = Color.white;
     }
 
     /// <summary>The aura is a looping particle effect parented to the rig, not a sprite.</summary>
@@ -174,7 +167,7 @@ public class CharacterAppearance : MonoBehaviour
 
     // ── Rig lookup ────────────────────────────────────────────────────────────
 
-    private List<Layer> ResolveLayers(EquipmentSlots.Slot slot)
+    private List<SpumRig.Layer> ResolveLayers(EquipmentSlots.Slot slot)
     {
         if (_layers.TryGetValue(slot.SlotId, out var cached) && cached != null && cached.Count > 0)
         {
@@ -184,12 +177,12 @@ public class CharacterAppearance : MonoBehaviour
             if (!stale) return cached;
         }
 
-        var layers = new List<Layer>();
+        var layers = new List<SpumRig.Layer>();
 
         if (slot.RendersOnCharacter)
         {
             foreach (var partName in slot.SpumParts)
-                CollectPart(partName, layers);
+                layers.AddRange(SpumRig.Collect(transform, partName));
 
             if (layers.Count == 0)
                 Debug.LogWarning($"[CharacterAppearance] No SPUM part for slot '{slot.SlotId}' " +
@@ -200,89 +193,17 @@ public class CharacterAppearance : MonoBehaviour
         {
             var synthetic = CreateSyntheticLayer(slot.SlotId);
             if (synthetic != null)
-                layers.Add(new Layer { Renderer = synthetic, Side = "Body" });
+                layers.Add(new SpumRig.Layer
+                {
+                    Renderer        = synthetic,
+                    Side            = "Body",
+                    OriginalSprite  = synthetic.sprite,
+                    OriginalEnabled = synthetic.enabled,
+                });
         }
 
         _layers[slot.SlotId] = layers;
         return layers;
-    }
-
-    /// <summary>
-    /// Adds every renderer belonging to one SPUM part, recording what it looked like
-    /// first.
-    ///
-    /// Two things about this rig make the obvious one-liner wrong:
-    ///
-    ///   • A part name can appear TWICE. There are two P_Shoulder transforms, one on
-    ///     each arm, so a FindDeep that returns the first would dress one shoulder and
-    ///     leave the other bare.
-    ///   • Parts NEST. P_LCloth — the left legguard — is a child of P_LFoot, so
-    ///     GetComponentsInChildren on the boot slot would sweep up the leg layer and
-    ///     boots would silently overwrite legguards.
-    ///
-    /// Hence: find every transform with the name, and walk each subtree by hand,
-    /// stopping at any nested "P_" part because that layer belongs to another slot.
-    /// </summary>
-    private void CollectPart(string partName, List<Layer> into)
-    {
-        var parts = new List<Transform>();
-        FindAllDeep(transform, partName, parts);
-
-        // P_LFoot / P_RCloth name their own side; P_Shoulder does not, and its child
-        // (25_L_Shoulder or -15_R_Shoulder) names it instead.
-        string partSide = SideFromName(partName);
-
-        foreach (var part in parts)
-            WalkPart(part, partSide, into, isRoot: true);
-    }
-
-    private void WalkPart(Transform node, string partSide, List<Layer> into, bool isRoot)
-    {
-        // A nested part is a different slot's layer. Descending into it is how boots
-        // end up drawing over legguards.
-        if (!isRoot && node.name.StartsWith("P_", System.StringComparison.Ordinal)) return;
-
-        var renderer = node.GetComponent<SpriteRenderer>();
-        if (renderer != null)
-        {
-            into.Add(new Layer
-            {
-                Renderer        = renderer,
-                OriginalSprite  = renderer.sprite,
-                OriginalEnabled = renderer.enabled,
-                Side            = partSide ?? SideFromName(node.name) ?? "Body",
-            });
-        }
-
-        foreach (Transform child in node)
-            WalkPart(child, partSide, into, isRoot: false);
-    }
-
-    /// <summary>
-    /// "Left", "Right" or null, from a rig transform name.
-    ///
-    /// Deliberately narrow: it matches the L/R marker SPUM uses (P_LFoot, _3L_Foot,
-    /// 25_L_Shoulder) and nothing else. A looser test would read the "l" in "Helmet"
-    /// or "Cloth" and hand every layer a side it does not have.
-    /// </summary>
-    private static string SideFromName(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return null;
-
-        for (int i = 0; i < name.Length - 1; i++)
-        {
-            char c = name[i];
-            if (c != 'L' && c != 'R') continue;
-
-            // Preceded by a separator, a digit, or nothing; followed by a capital or
-            // an underscore. That is exactly SPUM's convention and not much else.
-            bool startOk = i == 0 || name[i - 1] == '_' || name[i - 1] == '-' || char.IsDigit(name[i - 1]);
-            char next    = name[i + 1];
-            bool endOk   = next == '_' || char.IsUpper(next);
-
-            if (startOk && endOk) return c == 'L' ? "Left" : "Right";
-        }
-        return null;
     }
 
     /// <summary>
@@ -294,11 +215,11 @@ public class CharacterAppearance : MonoBehaviour
     {
         string childName = $"Equip_{slotId}";
 
-        var existing = FindDeep(transform, childName);
+        var existing = SpumRig.FindDeep(transform, childName);
         if (existing != null) return existing.GetComponent<SpriteRenderer>();
 
         // Parent to the body so the layer inherits the rig's facing and flipping.
-        var anchor = FindDeep(transform, "P_Body") ?? transform;
+        var anchor = SpumRig.FindDeep(transform, "P_Body") ?? transform;
 
         var go = new GameObject(childName);
         go.transform.SetParent(anchor, false);
@@ -307,7 +228,7 @@ public class CharacterAppearance : MonoBehaviour
         var renderer = go.AddComponent<SpriteRenderer>();
         renderer.enabled = false;
 
-        var reference = anchor.GetComponent<SpriteRenderer>();
+        var reference = anchor.GetComponentInChildren<SpriteRenderer>();
         if (reference != null)
         {
             renderer.sortingLayerID = reference.sortingLayerID;
@@ -316,27 +237,5 @@ public class CharacterAppearance : MonoBehaviour
         }
 
         return renderer;
-    }
-
-    /// <summary>Depth-first search by exact name through the whole rig. First match.</summary>
-    private static Transform FindDeep(Transform root, string targetName)
-    {
-        if (root.name == targetName) return root;
-
-        foreach (Transform child in root)
-        {
-            var found = FindDeep(child, targetName);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    /// <summary>Every transform with the name — P_Shoulder appears once per arm.</summary>
-    private static void FindAllDeep(Transform root, string targetName, List<Transform> into)
-    {
-        if (root.name == targetName) into.Add(root);
-
-        foreach (Transform child in root)
-            FindAllDeep(child, targetName, into);
     }
 }

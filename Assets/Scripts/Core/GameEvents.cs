@@ -50,6 +50,9 @@ public static class GameEvents
     /// <summary>Auto-mode was switched on or off.</summary>
     public static Action<bool>            OnAutoModeChanged;
 
+    /// <summary>The character's body, hair, eyes or held weapon changed.</summary>
+    public static Action                  OnAppearanceChanged;
+
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex
     public static Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
@@ -136,6 +139,7 @@ public static class GameEvents
         OnClassChanged           = null;
         OnDurabilityChanged      = null;
         OnAutoModeChanged        = null;
+        OnAppearanceChanged      = null;
         OnRelicCoinsChanged      = null;
 
         OnMergeSlotChanged       = null;

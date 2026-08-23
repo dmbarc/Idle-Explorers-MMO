@@ -7,10 +7,25 @@ using UnityEngine.UI;
 /// <summary>
 /// Screen 5 of character creation: choose a class.
 ///
+/// ══ WHY EVERY CARD COLLAPSED INTO ONE LINE ════════════════════════════════════
+///
+/// This asked UIFactory.ScrollView for a HORIZONTAL scroll, but that helper always
+/// returns content anchored top-stretch — full width, ZERO HEIGHT — because it was
+/// written for vertical lists. The screen then added a ContentSizeFitter with only
+/// horizontalFit, which fixes the axis that was already fine and leaves the broken one
+/// at zero. HorizontalLayoutGroup.childControlHeight then handed every card that zero
+/// height, and BuildClassCard positioned its labels by FRACTIONAL anchors — so 0.90
+/// and 0.04 of zero are the same point, and the name, flavour, stats, divider,
+/// abilities and button all stacked on one line at the top.
+///
+/// Fixed twice over: UIFactory.ScrollStrip re-anchors the content left-stretch so it
+/// inherits the viewport's height, and the card is now a VerticalLayoutGroup with real
+/// pixel heights instead of fractions of a container it does not control.
+///
 /// Only the card strip is rebuilt when the selection changes. Rebuilding the whole
-/// screen (the previous approach) recreated the scroll view underneath itself and
-/// left duplicate children alive for a frame, because Destroy is deferred to end
-/// of frame while Build ran immediately.
+/// screen recreated the scroll view underneath itself and left duplicate children
+/// alive for a frame, because Destroy is deferred to end of frame while Build runs
+/// immediately.
 /// </summary>
 public class CharCreateClassScreen : UIScreen
 {
@@ -18,6 +33,8 @@ public class CharCreateClassScreen : UIScreen
     private RectTransform _cardContent;
     private Button        _nextButton;
     private TMP_Text      _hint;
+
+    private const float CardWidth = 300f;
 
     /// <summary>Cards reflect the current selection, which changes between visits.</summary>
     public override bool RebuildOnShow => true;
@@ -35,33 +52,23 @@ public class CharCreateClassScreen : UIScreen
 
         var title = UIFactory.Label(transform, "CHOOSE YOUR CLASS", theme.fontSizeTitle,
                                      theme.accentGold, TextAlignmentOptions.Center);
-        UIFactory.At(title, 0.05f, 0.88f, 0.95f, 0.97f);
+        UIFactory.At(title, 0.05f, 0.90f, 0.95f, 0.98f);
 
-        var (scroll, content) = UIFactory.ScrollView(transform, "ClassScroll", vertical: false, horizontal: true);
-        UIFactory.At(scroll, 0.02f, 0.22f, 0.98f, 0.86f);
-
-        var hlg = content.gameObject.AddComponent<HorizontalLayoutGroup>();
-        hlg.spacing                = theme.spacing * 2;
-        hlg.padding                = new RectOffset(12, 12, 12, 12);
-        hlg.childForceExpandWidth  = false;
-        hlg.childForceExpandHeight = true;
-        hlg.childControlWidth      = false;
-        hlg.childControlHeight     = true;
-        hlg.childAlignment         = TextAnchor.MiddleLeft;
-        content.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        var (scroll, content) = UIFactory.ScrollStrip(transform, "ClassScroll", theme.spacing * 2);
+        UIFactory.At(scroll, 0.02f, 0.19f, 0.98f, 0.89f);
 
         _cardContent = content;
         RebuildCards();
 
         _hint = UIFactory.Label(transform, "Pick a class to continue.", theme.fontSizeSmall,
                                  theme.textSecondary, TextAlignmentOptions.Center);
-        UIFactory.At(_hint, 0.30f, 0.15f, 0.70f, 0.20f);
+        UIFactory.At(_hint, 0.25f, 0.13f, 0.75f, 0.18f);
 
         var backBtn = UIFactory.Button(transform, "← BACK", () => GameManager.UI?.Pop(), width: 0f);
-        UIFactory.At(backBtn, 0.33f, 0.05f, 0.47f, 0.12f);
+        UIFactory.At(backBtn, 0.33f, 0.04f, 0.47f, 0.11f);
 
         _nextButton = UIFactory.Button(transform, "NEXT →", GoNext, width: 0f);
-        UIFactory.At(_nextButton, 0.53f, 0.05f, 0.67f, 0.12f);
+        UIFactory.At(_nextButton, 0.53f, 0.04f, 0.67f, 0.11f);
 
         RefreshNextState();
     }
@@ -84,7 +91,9 @@ public class CharCreateClassScreen : UIScreen
         if (_cardContent == null) return;
 
         // DestroyImmediate: the cards are rebuilt in the same frame, so deferred
-        // Destroy would leave the old set visible alongside the new one.
+        // Destroy would leave the old set visible alongside the new one. It also
+        // disposes each preview's RenderTexture through CharacterPreview.OnDestroy —
+        // reselecting a class five times would otherwise leak five stages.
         for (int i = _cardContent.childCount - 1; i >= 0; i--)
             DestroyImmediate(_cardContent.GetChild(i).gameObject);
 
@@ -103,49 +112,106 @@ public class CharCreateClassScreen : UIScreen
             BuildClassCard(kv.Value);
     }
 
+    /// <summary>
+    /// One class card: portrait, name, flavour, what it is good at, and its abilities.
+    ///
+    /// Built as a vertical stack with pixel heights. The previous version anchored
+    /// every row to a fraction of the card, which only works if the card has a height
+    /// of its own — and inside a layout group it does not.
+    /// </summary>
     private void BuildClassCard(ClassData cls)
     {
-        var theme      = UIManager.Theme;
+        var theme       = UIManager.Theme;
         bool isSelected = _selectedClassId == cls.id;
 
         var card = UIFactory.Panel(_cardContent, $"Card_{cls.id}",
                                     isSelected ? theme.accentGold : theme.cardBg, false);
-        var le = card.AddComponent<LayoutElement>();
-        le.minWidth = le.preferredWidth = 300f;
+
+        var cardLe = card.AddComponent<LayoutElement>();
+        cardLe.minWidth = cardLe.preferredWidth = CardWidth;
+
+        var vlg = card.AddComponent<VerticalLayoutGroup>();
+        vlg.padding                = new RectOffset(12, 12, 12, 12);
+        vlg.spacing                = 6f;
+        vlg.childForceExpandWidth  = true;
+        vlg.childForceExpandHeight = false;
+        vlg.childControlWidth      = true;
+        vlg.childControlHeight     = true;
+        vlg.childAlignment         = TextAnchor.UpperCenter;
 
         Color heading = isSelected ? theme.panelBg : theme.accentGold;
         Color body    = isSelected ? theme.panelBg : theme.textSecondary;
         Color detail  = isSelected ? theme.panelBg : theme.textPrimary;
 
+        // ── Portrait ──────────────────────────────────────────────────────────
+        var portrait = UIFactory.Panel(card.transform, "Portrait", theme.slotBg, false);
+        Fixed(portrait, 170f);
+
+        var preview = CharacterPreview.Create(portrait.transform, PreviewLookFor(cls), $"Preview_{cls.id}");
+        if (preview == null)
+        {
+            // No rig prefab. Say so on the card rather than leaving a grey rectangle
+            // that looks like a loading bug.
+            var fallback = UIFactory.Label(portrait.transform, cls.DisplayName.ToUpper(),
+                                            theme.fontSizeBody, body, TextAlignmentOptions.Center);
+            UIFactory.FillParent(fallback.rectTransform);
+        }
+
+        // ── Name ──────────────────────────────────────────────────────────────
         var name = UIFactory.Label(card.transform, cls.DisplayName.ToUpper(), theme.fontSizeBody * 1.2f,
                                     heading, TextAlignmentOptions.Center);
-        UIFactory.At(name, 0.05f, 0.90f, 0.95f, 0.98f);
+        Fixed(name, 30f);
 
+        // ── Flavour ───────────────────────────────────────────────────────────
         var flavor = UIFactory.Label(card.transform, cls.flavorText, theme.fontSizeSmall,
                                       body, TextAlignmentOptions.Top);
-        UIFactory.At(flavor, 0.06f, 0.76f, 0.94f, 0.89f);
+        flavor.textWrappingMode = TextWrappingModes.Normal;
+        Fixed(flavor, 62f);
 
-        var stats = UIFactory.Label(card.transform,
-                                     $"HP {cls.baseHp}   MP {cls.baseMp}\n" +
-                                     $"Damage {cls.baseAttackMin}–{cls.baseAttackMax}   " +
-                                     $"Speed {cls.attackSpeedSeconds:0.0}s",
-                                     theme.fontSizeLabel, detail, TextAlignmentOptions.Center);
-        UIFactory.At(stats, 0.06f, 0.64f, 0.94f, 0.75f);
+        // ── What it is good at ────────────────────────────────────────────────
+        var stats = UIFactory.Label(card.transform, StatLine(cls), theme.fontSizeLabel,
+                                     detail, TextAlignmentOptions.Center);
+        Fixed(stats, 34f);
 
-        UIFactory.At(UIFactory.HorizontalDivider(card.transform).transform, 0.08f, 0.61f, 0.92f, 0.63f);
+        Fixed(UIFactory.HorizontalDivider(card.transform), 8f);
 
+        // ── Abilities ─────────────────────────────────────────────────────────
         var abilities = UIFactory.Label(card.transform, FormatAbilities(cls), theme.fontSizeLabel,
-                                         detail, TextAlignmentOptions.Top);
-        UIFactory.At(abilities, 0.06f, 0.18f, 0.94f, 0.60f);
+                                         detail, TextAlignmentOptions.TopLeft);
+        Fixed(abilities, 92f);
 
+        // ── Select ────────────────────────────────────────────────────────────
         var selectBtn = UIFactory.Button(card.transform, isSelected ? "✓ SELECTED" : "SELECT", () =>
         {
             _selectedClassId = cls.id;
             RebuildCards();
             RefreshNextState();
         }, width: 0f);
-        UIFactory.At(selectBtn, 0.10f, 0.04f, 0.90f, 0.14f);
+        Fixed(selectBtn, 44f);
     }
+
+    /// <summary>Gives a row a real pixel height, since the card has no height to divide up.</summary>
+    private static void Fixed(GameObject row, float height)
+    {
+        var le = row.AddComponent<LayoutElement>();
+        le.minHeight = le.preferredHeight = height;
+    }
+
+    private static void Fixed(Component row, float height) => Fixed(row.gameObject, height);
+
+    /// <summary>
+    /// How the preview is dressed for a class. Falls back to the plain default, so a
+    /// class added to class_data.json without a previewLook still shows a character.
+    /// </summary>
+    private static SpumSaveData PreviewLookFor(ClassData cls)
+    {
+        if (cls.previewLook != null && !cls.previewLook.IsEmpty) return cls.previewLook;
+        return SpumAppearance.Default();
+    }
+
+    private static string StatLine(ClassData cls) =>
+        $"HP {cls.baseHp}   MP {cls.baseMp}\n" +
+        $"Damage {cls.baseAttackMin}–{cls.baseAttackMax}   Speed {cls.attackSpeedSeconds:0.0}s";
 
     private static string FormatAbilities(ClassData cls)
     {
@@ -155,7 +221,7 @@ public class CharCreateClassScreen : UIScreen
         for (int i = 0; i < cls.abilities.Length; i++)
         {
             var a = cls.abilities[i];
-            sb.Append(a.isPassive ? "⬦ " : $"{i + 1}. ");
+            sb.Append(a.isPassive ? "⬦ " : "• ");
             sb.Append(a.name);
             if (a.isPassive) sb.Append("  (passive)");
             if (i < cls.abilities.Length - 1) sb.Append('\n');

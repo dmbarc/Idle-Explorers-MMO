@@ -72,20 +72,35 @@ public static class AudioSetup
         (Sfx.SetProc, new[] { "impactBell_heavy_" },  0.65f),
     };
 
-    /// <summary>musicId → exact track name from Kenney's Music Loops.</summary>
+    /// <summary>
+    /// musicId → exact track name.
+    ///
+    /// Kenney's Music Loops cannot serve this game: every track in it is comedic
+    /// ("Wacky Waiting", "Polka Train", "Retro Comedy"), which is what made the menu
+    /// sound like a party game. Both tracks now come from the Asset Store packs.
+    /// </summary>
     private static readonly (string Id, string[] Names, float Volume)[] MusicMap =
     {
-        // Wandering and unhurried, which is what a menu wants.
-        (Bgm.Menu, new[] { "Wacky Waiting" },  0.75f),
+        // Orchestral and unhurried. One of the four longest cues in the pack, so it is
+        // a real loop rather than a stinger, and it sets a ceremonial tone for the
+        // login and character-select screens.
+        (Bgm.Menu, new[] { "exploration_2A" }, 0.55f),
 
-        // Long, low-key and loopable. An idle game is left running for hours, so the
-        // in-game track must not be the one with a hook.
-        (Bgm.Game, new[] { "Infinite Descent" }, 0.65f),
+        // Calm and sustainable. Deliberately NOT one of the epic battle cues: those
+        // are ~1-minute loops written to be tense, and this is a game left running for
+        // hours at a time. Tension on a loop for a six-hour session is fatigue.
+        (Bgm.Game, new[] { "Forest" }, 0.40f),
     };
 
-    /// <summary>Folders searched, in order. First match wins for a given prefix.</summary>
+    /// <summary>
+    /// Folders searched, in order. First match wins for a given name, so the music
+    /// packs come before Kenney's — several names would otherwise be ambiguous.
+    /// </summary>
     private static readonly string[] SearchRoots =
     {
+        "Assets/Epic Adventure Orchestral Background Music",
+        "Assets/Casual & Relaxing Game Music",
+        "Assets/Lo-Fi Chillout Music For Games",
         "Assets/Kenney Game Assets All-in-1 3.7.0/Audio",
         "Assets/Imports",
     };
@@ -150,6 +165,7 @@ public static class AudioSetup
         }
 
         ReportUnmappedIds(library);
+        ApplyMusicImportSettings(library);
 
         if (showDialog)
             EditorUtility.DisplayDialog("Audio Library Rebuilt",
@@ -185,26 +201,106 @@ public static class AudioSetup
                          string.Join(", ", gaps));
     }
 
+    /// <summary>
+    /// Makes the music tracks affordable to ship and to play.
+    ///
+    /// The imported packs arrive at their authors' defaults, and two of them are
+    /// expensive: the "Casual & Relaxing" tracks are uncompressed WAV at 12-22 MB
+    /// each, and Unity's default `DecompressOnLoad` would hold a decoded copy of a
+    /// multi-minute track in memory for the whole session. Streaming reads it from
+    /// disk instead, which is what long background music is for.
+    ///
+    /// Only clips the library actually references are touched — re-importing every
+    /// audio file in the project would be a very long operation for no benefit.
+    /// </summary>
+    private static void ApplyMusicImportSettings(AudioLibrary library)
+    {
+        int changed = 0;
+
+        foreach (var entry in library.music)
+        {
+            if (entry?.clips == null) continue;
+
+            foreach (var clip in entry.clips)
+            {
+                if (clip == null) continue;
+
+                string path = AssetDatabase.GetAssetPath(clip);
+                var importer = AssetImporter.GetAtPath(path) as AudioImporter;
+                if (importer == null) continue;
+
+                var settings = importer.defaultSampleSettings;
+
+                bool needsChange = settings.loadType        != AudioClipLoadType.Streaming ||
+                                   settings.compressionFormat != AudioCompressionFormat.Vorbis;
+                if (!needsChange) continue;
+
+                settings.loadType          = AudioClipLoadType.Streaming;
+                settings.compressionFormat = AudioCompressionFormat.Vorbis;
+                settings.quality           = 0.7f;
+
+                importer.defaultSampleSettings = settings;
+                importer.SaveAndReimport();
+                changed++;
+            }
+        }
+
+        if (changed > 0)
+            Debug.Log($"[Audio] Re-imported {changed} music track(s) as streaming Vorbis.");
+    }
+
     // ── Clip discovery ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Preference between two files with the same name.
+    ///
+    /// The orchestral pack ships EVERY track twice — `battle1A.ogg` alongside
+    /// `battle1A.wav`. Keying the index by name without extension made those collide,
+    /// and whichever `FindAssets` happened to return first won: a coin flip over
+    /// whether the build carried a compressed track or a multi-megabyte uncompressed
+    /// twin of it. Higher score wins.
+    /// </summary>
+    private static int FormatRank(string path)
+    {
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        return ext switch
+        {
+            ".ogg" => 3,
+            ".mp3" => 2,
+            ".wav" => 1,
+            _      => 0,
+        };
+    }
 
     private static Dictionary<string, AudioClip> BuildClipIndex()
     {
-        var index = new Dictionary<string, AudioClip>();
+        var index  = new Dictionary<string, AudioClip>();
+        var chosen = new Dictionary<string, (int Rank, int Root)>();
 
-        foreach (var root in SearchRoots)
+        for (int rootIndex = 0; rootIndex < SearchRoots.Length; rootIndex++)
         {
+            string root = SearchRoots[rootIndex];
             if (!Directory.Exists(root)) continue;
 
             foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", new[] { root }))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 string name = Path.GetFileNameWithoutExtension(path);
+                int    rank = FormatRank(path);
 
-                // First root wins, so Kenney's packs take precedence over Imports.
-                if (index.ContainsKey(name)) continue;
+                if (chosen.TryGetValue(name, out var current))
+                {
+                    // An earlier root always wins the name; within one root, the better
+                    // format does.
+                    if (current.Root < rootIndex) continue;
+                    if (current.Rank >= rank)     continue;
+                }
 
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(path);
-                if (clip != null) index[name] = clip;
+                if (clip == null) continue;
+
+                index[name]  = clip;
+                chosen[name] = (rank, rootIndex);
             }
         }
         return index;

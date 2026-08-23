@@ -406,6 +406,55 @@ public static class UIFactory
         return (scroll, content);
     }
 
+    /// <summary>
+    /// A horizontally scrolling strip of cards, ready to have them parented straight
+    /// to the returned content.
+    ///
+    /// ScrollList's sibling, and it exists because ScrollList cannot be reused for
+    /// this: it hard-wires a VerticalLayoutGroup and fits the vertical axis.
+    ///
+    /// The important part is the re-anchor. ScrollView returns content anchored
+    /// TOP-STRETCH — full width, ZERO HEIGHT — which is right for a vertical list
+    /// that grows downward and completely wrong for a horizontal one. A caller that
+    /// only adds a horizontal ContentSizeFitter fixes the axis that was already fine
+    /// and leaves the broken one at zero; every card then gets height 0 from
+    /// childControlHeight, and any child positioned by fractional anchors inside it
+    /// collapses onto a single line, because 0.9 × 0 and 0.04 × 0 are the same point.
+    /// That is exactly what happened to the class picker.
+    ///
+    /// Anchoring LEFT-STRETCH instead makes content inherit the viewport's height and
+    /// grow rightward, which is the mirror image of what ScrollList does.
+    /// </summary>
+    public static (ScrollRect scroll, RectTransform content) ScrollStrip(Transform parent,
+                                                                           string name = "ScrollStrip",
+                                                                           float spacing = 0f,
+                                                                           int padding = 12)
+    {
+        var (scroll, content) = ScrollView(parent, name, vertical: false, horizontal: true);
+
+        content.anchorMin = new Vector2(0f, 0f);
+        content.anchorMax = new Vector2(0f, 1f);
+        content.pivot     = new Vector2(0f, 0.5f);
+        content.offsetMin = Vector2.zero;
+        content.offsetMax = Vector2.zero;
+        content.anchoredPosition = Vector2.zero;
+
+        var layout = content.gameObject.AddComponent<HorizontalLayoutGroup>();
+        layout.spacing                = spacing > 0f ? spacing : T.spacing;
+        layout.padding                = new RectOffset(padding, padding, padding, padding);
+        layout.childForceExpandWidth  = false;
+        layout.childForceExpandHeight = true;
+        layout.childControlWidth      = true;
+        layout.childControlHeight     = true;
+        layout.childAlignment         = TextAnchor.MiddleLeft;
+
+        var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.verticalFit   = ContentSizeFitter.FitMode.Unconstrained;   // height comes from the viewport
+
+        return (scroll, content);
+    }
+
     // ── Grid layout ───────────────────────────────────────────────────────────
 
     public static GridLayoutGroup Grid(Transform parent, int cols, float cellSize = 0f,

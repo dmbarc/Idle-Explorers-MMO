@@ -5,6 +5,15 @@
     "flavorText": "Steel and fury. Outlasts everything by refusing to fall.",
     "baseHp": 120, "baseMp": 40, "baseAttackMin": 8, "baseAttackMax": 14,
     "attackSpeedSeconds": 2.8,
+    "previewLook": {
+      "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Human_2",
+      "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_1",
+      "faceHairAddress": "Addons/Legacy/0_Unit/0_Sprite/1_FaceHair/FaceHair_4",
+      "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye4",
+      "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_3",
+      "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_2",
+      "hairColor": "#2B2118", "eyeColor": "", "skinTint": ""
+    },
     "abilities": [
       { "id": "cleave",         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.",              "isPassive": false, "effect": "aoe",     "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0 },
       { "id": "shield_bash",    "name": "Shield Bash",    "description": "A brutal shove that staggers what it hits.",           "isPassive": false, "effect": "damage",  "power": 2.0, "cooldownSeconds": 6 },
@@ -34,6 +43,15 @@
     "flavorText": "Rapid and ruthless. A dozen arrows while you raise your sword.",
     "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
     "attackSpeedSeconds": 1.6,
+    "previewLook": {
+      "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Elf_1",
+      "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_4",
+      "faceHairAddress": "",
+      "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye10",
+      "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/2_Bow/Bow_1",
+      "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/BowBack_1",
+      "hairColor": "#C08A3E", "eyeColor": "#2F7A4F", "skinTint": ""
+    },
     "abilities": [
       { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",                          "isPassive": false, "effect": "damage",  "power": 0.8, "hits": 3, "cooldownSeconds": 5 },
       { "id": "marked_target", "name": "Marked Target", "description": "Line up the shot. It lands hard.",                       "isPassive": false, "effect": "damage",  "power": 3.0, "cooldownSeconds": 10 },
@@ -63,6 +81,15 @@
     "flavorText": "Glass cannon. You will die constantly and kill everything first.",
     "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
     "attackSpeedSeconds": 3.5,
+    "previewLook": {
+      "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Human_3",
+      "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_9",
+      "faceHairAddress": "Addons/Legacy/0_Unit/0_Sprite/1_FaceHair/FaceHair_5",
+      "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye8",
+      "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/5_Wand/Ward_1",
+      "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_3",
+      "hairColor": "#8C8C93", "eyeColor": "#5E3B7A", "skinTint": ""
+    },
     "abilities": [
       { "id": "fireball",      "name": "Fireball",       "description": "It goes where you point and everything nearby regrets it.", "isPassive": false, "effect": "aoe",    "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0 },
       { "id": "frost_nova",    "name": "Frost Nova",     "description": "Everything close by stops moving quite so confidently.",    "isPassive": false, "effect": "slow",   "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0, "durationSeconds": 5 },
@@ -92,6 +119,15 @@
     "flavorText": "Gadget-fuelled chaos. Your Fabrication skill makes you absurdly powerful.",
     "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
     "attackSpeedSeconds": 2.2,
+    "previewLook": {
+      "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Orc_2",
+      "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_6",
+      "faceHairAddress": "Addons/Legacy/0_Unit/0_Sprite/1_FaceHair/FaceHair_1",
+      "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye6",
+      "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/6_Hammer/F_SR_Hammer",
+      "backAddress": "",
+      "hairColor": "#A33B22", "eyeColor": "#C08A3E", "skinTint": ""
+    },
     "abilities": [
       { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "It fires at whatever is closest. It is not fussy.",     "isPassive": false, "effect": "summon", "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0, "durationSeconds": 12 },
       { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "Everything nearby loses track of you, briefly.",        "isPassive": false, "effect": "stealth","power": 0.8, "cooldownSeconds": 12, "aoeRadius": 5.0, "durationSeconds": 6 },
@@ -121,6 +157,15 @@
     "flavorText": "Ghost-energy combat. Half here, half not. Synergises with Spectral Work.",
     "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
     "attackSpeedSeconds": 2.0,
+    "previewLook": {
+      "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Skelton_1",
+      "hairAddress": "",
+      "faceHairAddress": "",
+      "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye7",
+      "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/4_Spear/Spear_1",
+      "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1",
+      "hairColor": "", "eyeColor": "#3E6B8C", "skinTint": ""
+    },
     "abilities": [
       { "id": "spectral_strike","name": "Spectral Strike","description": "Goes straight through armour as though it were a suggestion.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6 },
       { "id": "phase_shift",    "name": "Phase Shift",    "description": "Be briefly less present. It helps.",                              "isPassive": false, "effect": "heal",   "power": 0.25, "cooldownSeconds": 20 },

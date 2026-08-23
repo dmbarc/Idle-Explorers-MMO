@@ -101,7 +101,7 @@ public class CharCreateConfirmScreen : UIScreen
             isOnline           = true,
             lastMapId          = "goblin_camp",
             allowGhostDisplay  = true,
-            spumConfig         = CharCreateState.PendingSpum ?? new SpumSaveData(),
+            spumConfig         = CharCreateState.PendingSpum ?? SpumAppearance.Default(),
         };
 
         GameManager.Character?.CreateCharacter(newChar);
@@ -117,7 +117,7 @@ public class CharCreateConfirmScreen : UIScreen
         // Clear creation state
         CharCreateState.PendingName    = null;
         CharCreateState.PendingClassId = null;
-        CharCreateState.PendingSpum    = new SpumSaveData();
+        CharCreateState.PendingSpum    = SpumAppearance.Default();
 
         GameManager.Instance?.GoToGame();
     }

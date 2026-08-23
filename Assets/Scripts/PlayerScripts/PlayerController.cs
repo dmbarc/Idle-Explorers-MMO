@@ -50,6 +50,13 @@ public class PlayerController : MonoBehaviour
 
         // Cosmetics are drawn by their own component so the rig lookup stays out of
         // the controller; adding it here means every spawned player gets it.
+        // Base appearance first, equipment second. Both are safe in either order —
+        // CharacterBaseAppearance invalidates the equipment layer cache after writing
+        // the body — but this way the equipment layer captures the right body's feet
+        // on its first pass instead of capturing the prefab's and correcting itself.
+        if (GetComponent<CharacterBaseAppearance>() == null)
+            gameObject.AddComponent<CharacterBaseAppearance>();
+
         if (GetComponent<CharacterAppearance>() == null)
             gameObject.AddComponent<CharacterAppearance>();
     }
