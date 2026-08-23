@@ -79,6 +79,12 @@ public class EquipmentManager : MonoBehaviour
             return false;
         }
 
+        if (!MeetsRequirement(item, out string blocked))
+        {
+            GameEvents.FireToast(blocked);
+            return false;
+        }
+
         string target = string.IsNullOrEmpty(slotId) ? FirstFreeSlotFor(item) : slotId;
         if (!EquipmentSlots.Exists(target))
         {
@@ -109,6 +115,33 @@ public class EquipmentManager : MonoBehaviour
 
         GameEvents.FireToast($"Equipped {item.DisplayName}.");
         return true;
+    }
+
+    /// <summary>
+    /// Whether the character may wear this item.
+    ///
+    /// levelReq was shown on the tooltip as "Requires level 20" and enforced nowhere,
+    /// so a level 1 character could wear anything and the tooltip was simply untrue.
+    /// It is measured against the item's own sourceSkill, which is what the number
+    /// was authored to mean: bronze armour is levelReq 20 because bronze smithing is
+    /// level 20. Anyone who made the armour already qualifies, so this only ever
+    /// blocks gear acquired some other way before its time.
+    ///
+    /// An item with no sourceSkill cannot be gated by this and is always allowed.
+    /// </summary>
+    public static bool MeetsRequirement(ItemData item, out string reason)
+    {
+        reason = null;
+
+        if (item == null || item.levelReq <= 0)         return true;
+        if (string.IsNullOrEmpty(item.sourceSkill))     return true;
+
+        int level = GameManager.Skills?.GetSkillLevel(item.sourceSkill) ?? 1;
+        if (level >= item.levelReq) return true;
+
+        string skill = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
+        reason = $"Requires {skill} level {item.levelReq} (you are {level}).";
+        return false;
     }
 
     /// <summary>Takes an item off and returns it to the inventory.</summary>

@@ -179,7 +179,17 @@ public class InventoryPanel : UIScreen, ISlotPanel
         _tooltipDesc.text = item.description ?? "";
 
         string meta = $"Quantity: {NumberFormatter.Format(entry.quantity)}";
-        if (item.levelReq > 0) meta += $"\nRequires level {item.levelReq}";
+
+        // Name the skill the requirement is actually measured against. "Requires
+        // level 20" said nothing about WHICH level, and was enforced nowhere at all —
+        // so it was both vague and false.
+        if (item.levelReq > 0 && !string.IsNullOrEmpty(item.sourceSkill))
+        {
+            string reqSkill = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
+            int    have     = GameManager.Skills?.GetSkillLevel(item.sourceSkill) ?? 1;
+            meta += $"\nRequires {reqSkill} {item.levelReq}" + (have < item.levelReq ? $" (you are {have})" : "");
+        }
+
         if (!string.IsNullOrEmpty(item.sourceSkill))
         {
             string skillName = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
