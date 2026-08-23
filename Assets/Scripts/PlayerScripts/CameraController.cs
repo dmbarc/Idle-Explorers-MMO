@@ -15,10 +15,17 @@ public class CameraController : MonoBehaviour
     public float followSmoothing = 8f;
 
     [Header("Zoom")]
-    public float distance    = 18f;
-    public float minDistance = 6f;
-    public float maxDistance = 45f;
-    public float zoomSpeed   = 4f;
+    public float distance    = 30f;
+    public float minDistance = 4f;
+    public float maxDistance = 300f;
+
+    /// <summary>
+    /// Multiplier per scroll notch. Zoom is proportional, not linear: a fixed number
+    /// of units per notch that feels right up close takes seventy-five notches to
+    /// cross the range from here, and one that crosses the range quickly is unusable
+    /// when you are stood next to something.
+    /// </summary>
+    public float zoomStep = 1.18f;
 
     [Header("Angles")]
     public float pitch      = 50f;
@@ -30,12 +37,21 @@ public class CameraController : MonoBehaviour
     [Tooltip("How far WASD may drag the view from the player before it stops.")]
     public float maxPanDistance = 30f;
 
+    [Tooltip("Seconds of no WASD input before the view eases back to the player.")]
+    public float panHoldSeconds = 1.5f;
+
+    [Tooltip("How quickly the pan offset decays once the hold expires. Higher is snappier.")]
+    public float panRecentreSpeed = 3.5f;
+
     /// <summary>Offset applied by WASD, reset when the camera re-centres.</summary>
     private Vector3 _panOffset;
     private Vector3 _lastKnownTargetPos;
+    private float   _lastPanInputAt = -999f;
 
     void Start()
     {
+        DetachFromParent();
+
         AcquireTarget();
         if (target != null)
         {
@@ -43,6 +59,28 @@ public class CameraController : MonoBehaviour
             transform.position  = DesiredPosition();
             transform.rotation  = Quaternion.Euler(pitch, yaw, 0f);
         }
+    }
+
+    /// <summary>
+    /// A follow camera must not be a CHILD of what it follows.
+    ///
+    /// The map scene had this camera parented to PlayerCharacter. LateUpdate computes
+    /// a world position and assigns transform.position/rotation — but by the time it
+    /// runs, the parent has already moved the camera and, because the NavMeshAgent
+    /// rotates the player to face travel, swung it around them. The smoothed follow
+    /// then hauls it back, every frame. That is what "the camera moves in odd
+    /// directions, sometimes behind the character" was.
+    ///
+    /// MapSceneSetup detaches it at authoring time; this is the runtime guarantee for
+    /// any scene that has not been regenerated.
+    /// </summary>
+    private void DetachFromParent()
+    {
+        if (transform.parent == null) return;
+
+        Debug.Log($"[CameraController] Detaching from '{transform.parent.name}' — " +
+                  "a follow camera parented to its own target fights itself every frame.");
+        transform.SetParent(null, worldPositionStays: true);
     }
 
     void LateUpdate()
@@ -79,7 +117,11 @@ public class CameraController : MonoBehaviour
         float normalized = Mathf.Clamp(scroll / 120f, -1f, 1f);
         if (Mathf.Abs(normalized) < 0.01f) normalized = Mathf.Sign(scroll);
 
-        distance = Mathf.Clamp(distance - normalized * zoomSpeed, minDistance, maxDistance);
+        // Proportional: each notch scales the distance rather than subtracting from
+        // it, so a notch moves you the same *fraction* whether you are at 5 units or
+        // 250. A linear step cannot serve both ends of a 4-to-300 range.
+        distance = Mathf.Clamp(distance * Mathf.Pow(Mathf.Max(1.01f, zoomStep), -normalized),
+                                minDistance, maxDistance);
     }
 
     private void HandleOrbit()
@@ -103,14 +145,43 @@ public class CameraController : MonoBehaviour
         // Space snaps back to the player
         if (kb.spaceKey.wasPressedThisFrame) _panOffset = Vector3.zero;
 
-        if (Mathf.Approximately(x, 0f) && Mathf.Approximately(z, 0f)) return;
+        if (Mathf.Approximately(x, 0f) && Mathf.Approximately(z, 0f))
+        {
+            RecentreAfterPanning();
+            return;
+        }
 
-        // Pan relative to where the camera is looking, flattened to the ground
+        _lastPanInputAt = Time.time;
+
+        // Pan relative to where the camera is looking, flattened to the ground.
+        // Scaled by zoom: at 250 units out, an 18-units-per-second pan is barely
+        // perceptible, and up close it would be a lurch.
         Vector3 forward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
         Vector3 right   = Vector3.ProjectOnPlane(transform.right,   Vector3.up).normalized;
+        float   speed   = panSpeed * Mathf.Max(0.35f, distance / 30f);
 
-        _panOffset += (right * x + forward * z) * panSpeed * Time.deltaTime;
-        _panOffset  = Vector3.ClampMagnitude(_panOffset, maxPanDistance);
+        _panOffset += (right * x + forward * z) * speed * Time.deltaTime;
+        _panOffset  = Vector3.ClampMagnitude(_panOffset, maxPanDistance * Mathf.Max(1f, distance / 30f));
+    }
+
+    /// <summary>
+    /// Eases the pan offset back to zero once WASD has been idle for a moment.
+    ///
+    /// The offset is world-space and used to persist until Space was pressed — an
+    /// undiscoverable key. Panning once left the camera permanently off-centre, so as
+    /// the player walked about it appeared ahead of them, then beside, then behind,
+    /// with no obvious cause.
+    /// </summary>
+    private void RecentreAfterPanning()
+    {
+        if (_panOffset == Vector3.zero) return;
+        if (Time.time - _lastPanInputAt < panHoldSeconds) return;
+
+        _panOffset = Vector3.Lerp(_panOffset, Vector3.zero,
+                                   1f - Mathf.Exp(-panRecentreSpeed * Time.deltaTime));
+
+        // Snap the last fraction of a unit, or it creeps toward zero forever.
+        if (_panOffset.sqrMagnitude < 0.01f) _panOffset = Vector3.zero;
     }
 
     // ── Positioning ───────────────────────────────────────────────────────────

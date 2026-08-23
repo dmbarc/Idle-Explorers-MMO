@@ -372,6 +372,40 @@ public static class UIFactory
         return (scroll, content);
     }
 
+    /// <summary>
+    /// A vertical scrolling list, ready to have rows parented straight to the
+    /// returned content.
+    ///
+    /// ScrollView alone returns a content RectTransform anchored top-stretch with zero
+    /// offsets — it is ZERO PIXELS TALL until something sizes it. Adding a stretched
+    /// child and expecting it to fill that produces a list that overflows off the top
+    /// of the viewport with nothing for ScrollRect to scroll, which is precisely how
+    /// the class picker lost its first three rows.
+    ///
+    /// The layout group and size fitter therefore go on the content itself. Prefer
+    /// this over ScrollView for any list of rows.
+    /// </summary>
+    public static (ScrollRect scroll, RectTransform content) ScrollList(Transform parent,
+                                                                          string name = "ScrollList",
+                                                                          float spacing = 0f,
+                                                                          int padding = 6)
+    {
+        var (scroll, content) = ScrollView(parent, name);
+
+        var layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+        layout.spacing                = spacing > 0f ? spacing : T.spacing;
+        layout.padding                = new RectOffset(padding, padding, padding, padding);
+        layout.childForceExpandWidth  = true;
+        layout.childForceExpandHeight = false;
+        layout.childControlWidth      = true;
+        layout.childControlHeight     = true;
+
+        var fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        return (scroll, content);
+    }
+
     // ── Grid layout ───────────────────────────────────────────────────────────
 
     public static GridLayoutGroup Grid(Transform parent, int cols, float cellSize = 0f,

@@ -282,11 +282,44 @@ public static class MapSceneSetup
             return;
         }
 
-        if (camera.GetComponent<CameraController>() == null)
+        // The camera was saved as a CHILD of PlayerCharacter. A follow camera cannot
+        // be parented to its own target: CameraController assigns a world position
+        // every LateUpdate, but the parent has already moved and rotated it by then —
+        // and the NavMeshAgent rotates the player to face travel, which swings the
+        // camera around them before the follow drags it back.
+        if (camera.transform.parent != null)
         {
-            camera.gameObject.AddComponent<CameraController>();
+            Debug.Log($"[MapSetup] Detaching the camera from '{camera.transform.parent.name}'.");
+            camera.transform.SetParent(null, worldPositionStays: true);
+        }
+
+        // A 15-degree lens showed roughly twelve world units at full zoom-out, so
+        // zooming further barely widened the view — the focal length was the limit,
+        // not the distance. 45 is an ordinary isometric-ARPG field of view.
+        camera.fieldOfView = 45f;
+
+        // The terrain runs to 2000 units; at the new maximum zoom the far plane has
+        // to reach past it or the horizon visibly cuts off.
+        camera.farClipPlane = 3000f;
+
+        var controller = camera.GetComponent<CameraController>();
+        if (controller == null)
+        {
+            controller = camera.gameObject.AddComponent<CameraController>();
             Debug.Log("[MapSetup] Added CameraController to the map camera.");
         }
+
+        // Written explicitly, not left to the script defaults. The scene already holds
+        // serialized values for these (distance 18, maxDistance 45) and a serialized
+        // value silently wins — which is exactly how the monster spawner kept its
+        // 0.01-second interval no matter what the script said.
+        controller.distance    = 30f;
+        controller.minDistance = 4f;
+        controller.maxDistance = 300f;
+        controller.zoomStep    = 1.18f;
+
+        EditorUtility.SetDirty(camera);
+        EditorUtility.SetDirty(controller);
     }
 
     /// <summary>

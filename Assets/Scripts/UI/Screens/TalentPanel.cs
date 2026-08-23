@@ -110,7 +110,10 @@ public class TalentPanel : UIScreen
 
     private void BuildTree(Transform parent, UITheme theme)
     {
-        var (scroll, content) = UIFactory.ScrollView(parent, "TalentScroll");
+        // ScrollList puts the layout group on the content itself. Building rows into a
+        // stretched child of a zero-height content is what cut the top off the class
+        // picker, and this tree would do the same the moment it outgrew its viewport.
+        var (scroll, content) = UIFactory.ScrollList(parent, "TalentScroll", RowGap);
         var scrollRt = scroll.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0.02f, 0.10f);
         scrollRt.anchorMax = new Vector2(0.98f, 0.885f);
@@ -121,10 +124,11 @@ public class TalentPanel : UIScreen
 
         if (tree == null || tree.Length == 0)
         {
-            var empty = UIFactory.Label(content, "This class has no talents yet.",
-                                         theme.fontSizeBody, theme.textSecondary,
-                                         TextAlignmentOptions.Center);
-            UIFactory.At(empty, 0f, 0.4f, 1f, 0.6f);
+            // No At() call: the content now drives its children through a layout
+            // group, and anchoring a child inside one is a fight the layout wins.
+            UIFactory.Label(content, "This class has no talents yet.",
+                             theme.fontSizeBody, theme.textSecondary,
+                             TextAlignmentOptions.Center);
             return;
         }
 
@@ -141,24 +145,10 @@ public class TalentPanel : UIScreen
         foreach (var row in tiers.Values)
             row.Sort((a, b) => a.column.CompareTo(b.column));
 
-        var stack = UIFactory.VStack(content, RowGap, true, "Tiers");
-        UIFactory.At(stack, 0f, 0f, 1f, 1f);
-
-        var fitter = stack.gameObject.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
         int spent = TalentManager.SpentPoints(character);
 
         foreach (var kvp in tiers)
-            BuildTierRow(stack.transform, theme, character, kvp.Key, kvp.Value, spent);
-
-        // The scroll content must size itself or the rows render on top of each other.
-        var contentFitter = content.gameObject.AddComponent<ContentSizeFitter>();
-        contentFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        var contentLayout = content.gameObject.AddComponent<VerticalLayoutGroup>();
-        contentLayout.childForceExpandHeight = false;
-        contentLayout.childControlHeight     = true;
-        contentLayout.childControlWidth      = true;
+            BuildTierRow(content, theme, character, kvp.Key, kvp.Value, spent);
     }
 
     private void BuildTierRow(Transform parent, UITheme theme, CharacterData character,

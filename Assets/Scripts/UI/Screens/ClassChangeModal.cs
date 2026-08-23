@@ -57,22 +57,19 @@ public class ClassChangeModal : UIScreen
 
     private void BuildClassList(Transform parent, UITheme theme, CharacterData character)
     {
-        var (scroll, content) = UIFactory.ScrollView(parent, "ClassScroll");
+        // ScrollList, not ScrollView: rows go straight onto the content, which carries
+        // the layout group and size fitter. Nesting a stretched stack inside a
+        // zero-height content is what cut the top of this list off.
+        var (scroll, content) = UIFactory.ScrollList(parent, "ClassScroll", theme.spacing);
         var scrollRt = scroll.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0.05f, 0.10f);
         scrollRt.anchorMax = new Vector2(0.95f, 0.845f);
         scrollRt.offsetMin = scrollRt.offsetMax = Vector2.zero;
 
-        var stack = UIFactory.VStack(content, theme.spacing, true, "Classes");
-        UIFactory.At(stack, 0f, 0f, 1f, 1f);
-
-        var stackFitter = stack.gameObject.AddComponent<ContentSizeFitter>();
-        stackFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
         var classes = GameManager.Content?.Classes;
         if (classes == null || classes.Count == 0)
         {
-            UIFactory.Label(stack.transform, "No classes are defined.", theme.fontSizeBody,
+            UIFactory.Label(content, "No classes are defined.", theme.fontSizeBody,
                              theme.textSecondary, TextAlignmentOptions.Center);
             return;
         }
@@ -80,7 +77,7 @@ public class ClassChangeModal : UIScreen
         foreach (var cls in classes.Values)
         {
             if (cls == null) continue;
-            BuildClassRow(stack.transform, theme, cls, isCurrent: cls.id == character?.classId);
+            BuildClassRow(content, theme, cls, isCurrent: cls.id == character?.classId);
         }
     }
 
