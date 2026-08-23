@@ -78,6 +78,8 @@ public class SaveManager : MonoBehaviour
                 // flag stayed true, and the character card showed "⚡ ONLINE"
                 // forever while never accruing anything.
                 ch.isOnline = false;
+
+                BackfillCharacterXP(ch);
             }
 
             Debug.Log($"[SaveManager] Loaded {account.characters.Count} character(s) from {SavePath}");
@@ -88,6 +90,40 @@ public class SaveManager : MonoBehaviour
             Debug.LogError($"[SaveManager] Load failed: {e.Message} — starting fresh.");
             return null;
         }
+    }
+
+    /// <summary>
+    /// Brings a character onto the current character-XP rule: a quarter of all skill
+    /// XP, from every skill.
+    ///
+    /// Character XP used to come from combat kills alone. A character who mined,
+    /// fished and cooked could hold two hundred thousand skill XP and still be level 1
+    /// — and talent points come from character level, so that playstyle would have
+    /// earned nothing. Applying the new rule only to future XP would leave existing
+    /// characters permanently behind for having played before it changed.
+    ///
+    /// Only ever raises. A character already at or above what their skills imply is
+    /// left exactly as they are, so this cannot take progress away and re-running it
+    /// on an already-migrated save is a no-op.
+    /// </summary>
+    private static void BackfillCharacterXP(CharacterData character)
+    {
+        if (character?.skills == null || character.skills.Count == 0) return;
+
+        long totalSkillXP = 0;
+        foreach (var skill in character.skills)
+            if (skill != null) totalSkillXP += skill.xp;
+
+        long implied = totalSkillXP / 4;
+        if (implied <= character.xp) return;
+
+        int previousLevel = character.level;
+
+        character.xp    = implied;
+        character.level = CharacterManager.XPToLevel(implied);
+
+        Debug.Log($"[SaveManager] {character.characterName}: character XP backfilled from skill XP " +
+                  $"({totalSkillXP:N0} skill XP → level {previousLevel} → {character.level}).");
     }
 
     // ── Delete (used by a 'reset progress' option later) ──────────────────────
