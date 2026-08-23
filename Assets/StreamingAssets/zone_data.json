@@ -17,11 +17,12 @@
         "defaultMonsterId": "goblin",
         "sceneAddress": "",
         "skillNodes": [
-          { "nodeId": "copper_rock_1", "skillId": "mining",      "targetItemId": "copper_ore", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 18, "specialChance": 0.0, "specialLabel": "" },
-          { "nodeId": "tin_rock_1",    "skillId": "mining",      "targetItemId": "tin_ore",    "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 18, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "tin_rock_1",    "skillId": "mining",      "targetItemId": "tin_ore",    "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 14, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "copper_rock_1", "skillId": "mining",      "targetItemId": "copper_ore", "reqSkillLevel": 10, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 26, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "normal_tree_1", "skillId": "woodcutting", "targetItemId": "normal_logs","reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 25, "specialChance": 0.02,"specialLabel": "Bird's nest" },
           { "nodeId": "shrimp_pool_1", "skillId": "fishing",     "targetItemId": "raw_shrimp", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 10, "specialChance": 0.01,"specialLabel": "Treasure casket" },
           { "nodeId": "campfire_1",    "skillId": "cooking",     "stationType": "campfire", "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
+          { "nodeId": "anvil_1",       "skillId": "smithing",    "stationType": "anvil",    "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "bank_chest_1",  "skillId": "",            "stationType": "bank",     "targetItemId": "", "reqSkillLevel": 0,  "activeRateMulti": 1.0, "afkRateMulti": 0.0, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" }
         ]
       },
@@ -39,7 +40,7 @@
           { "nodeId": "iron_rock_1",  "skillId": "mining",      "targetItemId": "iron_ore",   "reqSkillLevel": 15, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 35, "specialChance": 0.0, "specialLabel": "" },
           { "nodeId": "oak_tree_1",   "skillId": "woodcutting", "targetItemId": "oak_logs",   "reqSkillLevel": 15, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 38, "specialChance": 0.01,"specialLabel": "Bird's nest" },
           { "nodeId": "trout_pool_1", "skillId": "fishing",     "targetItemId": "raw_trout",  "reqSkillLevel": 20, "activeRateMulti": 1.0, "afkRateMulti": 0.6, "xpPerAction": 50, "specialChance": 0.01,"specialLabel": "Treasure casket" },
-          { "nodeId": "forge_1",      "skillId": "smithing",    "stationType": "forge", "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" }
+          { "nodeId": "forge_1",      "skillId": "smithing",    "stationType": "anvil", "targetItemId": "", "reqSkillLevel": 1,  "activeRateMulti": 1.0, "afkRateMulti": 0.5, "xpPerAction": 0, "specialChance": 0.0, "specialLabel": "" }
         ]
       },
       {

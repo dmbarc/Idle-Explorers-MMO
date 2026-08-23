@@ -41,6 +41,9 @@ public static class DevTools
         // and come back, and a stack of twenty would crowd out the inventory that
         // every other test needs room in.
         ("shifting_sigil", 2),
+
+        // Puts every skill back to level 1, for re-testing level gates.
+        ("resetting_draught", 2),
     };
 
     /// <summary>

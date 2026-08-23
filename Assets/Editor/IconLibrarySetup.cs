@@ -43,8 +43,13 @@ public static class IconLibrarySetup
         { "gold_ore",      "ore_gold" },
 
         // Bars — these ARE ingots, which is the whole point of smelting.
-        { "bronze_bar",    "gold_bars_three" },
-        { "iron_bar",      "silver_bars" },
+        // Bars. Only two real ingot-stack icons exist across every pack in the
+        // project, so they go to the two metals whose colour they actually match —
+        // tin is silvery, copper is warm — and the rest borrow smithing-adjacent art.
+        { "tin_bar",       "silver_bars" },
+        { "copper_bar",    "gold_bars_three" },
+        { "bronze_bar",    "BlackSmith_Cooling_Barrel" },
+        { "iron_bar",      "stone_blocks_grey" },
 
         // Wood
         { "normal_logs",   "wood_log" },
@@ -194,7 +199,52 @@ public static class IconLibrarySetup
         Debug.Log($"[IconLibrary] {itemsFound}/{ItemIconNames.Count} item icons, " +
                   $"{skillsFound}/{SkillIconNames.Count} skill icons, " +
                   $"{abilitiesFound}/{AbilityIconNames.Count} ability icons → {ASSET_PATH}");
+
+        ReportUncoveredItems();
     }
+
+    /// <summary>
+    /// Names every item in item_data.json that has neither its own iconAddress nor an
+    /// entry in the table above, and will therefore draw a generated placeholder.
+    ///
+    /// Populate() can only complain about mappings it HAS that failed to resolve. An
+    /// item nobody ever added to the table is invisible to it — which is the same
+    /// silent gap that let ore and fish share a polearm icon for a whole phase. A
+    /// placeholder is a legitimate choice; not knowing you shipped one is not.
+    /// </summary>
+    private static void ReportUncoveredItems()
+    {
+        string path = "Assets/StreamingAssets/item_data.json";
+        if (!File.Exists(path)) return;
+
+        string raw = File.ReadAllText(path).Trim();
+        if (!raw.StartsWith("[")) return;
+
+        var parsed = JsonUtility.FromJson<ItemFile>("{\"items\":" + raw + "}");
+        if (parsed?.items == null) return;
+
+        var uncovered = new List<string>();
+        foreach (var item in parsed.items)
+        {
+            if (item == null || string.IsNullOrEmpty(item.id)) continue;
+            if (!string.IsNullOrEmpty(item.iconAddress)) continue;   // loads its own art
+            if (ItemIconNames.ContainsKey(item.id))      continue;   // mapped above
+
+            uncovered.Add(item.id);
+        }
+
+        if (uncovered.Count == 0)
+        {
+            Debug.Log("[IconLibrary] Every item has real art.");
+            return;
+        }
+
+        Debug.LogWarning($"[IconLibrary] {uncovered.Count} item(s) have no art and will draw a " +
+                         $"generated placeholder: {string.Join(", ", uncovered)}");
+    }
+
+    [System.Serializable] private class ItemFile  { public ItemStub[] items; }
+    [System.Serializable] private class ItemStub  { public string id; public string iconAddress; }
 
     private static int Populate(Dictionary<string, string> source, List<IconLibrary.Entry> target, string kind)
     {

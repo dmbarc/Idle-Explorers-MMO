@@ -54,6 +54,9 @@ public static class ItemEffectResolver
             case "changeClass":
                 return ApplyChangeClass();
 
+            case "resetSkills":
+                return ApplyResetSkills();
+
             default:
                 Debug.LogWarning($"[ItemEffect] '{item.id}' has unhandled action '{effect.action}'.");
                 return false;
@@ -161,6 +164,61 @@ public static class ItemEffectResolver
         }
 
         ui.Push<ClassChangeModal>();
+        return true;
+    }
+
+    /// <summary>
+    /// Puts every skill back to level 1 with no XP. A testing tool, so it is inert
+    /// outside the Editor and development builds — an item that silently deletes a
+    /// player's progress has no business existing in a shipped game.
+    ///
+    /// Deliberately leaves character level, talents and equipment alone. Skill XP and
+    /// character XP are separate curves, and SaveManager.BackfillCharacterXP only ever
+    /// raises, so wiping skills cannot claw back levels or talent points either way.
+    /// That keeps this useful for re-testing the mining and smithing gates without
+    /// dismantling everything else about the character.
+    /// </summary>
+    private static bool ApplyResetSkills()
+    {
+        if (!DevTools.Enabled)
+        {
+            GameEvents.FireToast("That does nothing here.");
+            return false;
+        }
+
+        var character = CharacterManager.Current;
+        if (character?.skills == null || character.skills.Count == 0)
+        {
+            GameEvents.FireToast("No skills to reset.");
+            return false;
+        }
+
+        int reset = 0;
+        foreach (var skill in character.skills)
+        {
+            if (skill == null) continue;
+            if (skill.level <= 1 && skill.xp <= 0) continue;
+
+            skill.level = 1;
+            skill.xp    = 0;
+            reset++;
+        }
+
+        if (reset == 0)
+        {
+            GameEvents.FireToast("Every skill is already at level 1.");
+            return false;
+        }
+
+        GameManager.Save?.Save();
+
+        // The activity snapshot may now describe work this character can no longer do
+        // — cooking at level 1 cannot make what level 40 could. Re-validated on the
+        // next station interaction, but the readout should not keep claiming it.
+        GameEvents.FireActivityChanged(GameManager.Activity?.CurrentActivity);
+
+        GameEvents.FireToast($"Reset {reset} skill(s) to level 1.");
+        Debug.Log($"[DevTools] Reset {reset} skill(s) on {character.characterName}.");
         return true;
     }
 

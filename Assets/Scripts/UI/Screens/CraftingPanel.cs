@@ -67,6 +67,7 @@ public class CraftingPanel : UIScreen
     private static string StationTitle(string stationType) => stationType switch
     {
         "campfire" => "CAMPFIRE",
+        "anvil"    => "ANVIL",
         "forge"    => "FORGE",
         _          => "CRAFTING",
     };

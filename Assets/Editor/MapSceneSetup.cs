@@ -52,38 +52,59 @@ public static class MapSceneSetup
     // A ring around the spawn point, evenly spaced so every node — the bank chest
     // included — is visible and reachable the moment the map loads. The chest used to
     // sit alone behind the player.
+    //
+    // Seven nodes now, so they sit on a circle rather than a hand-placed cross:
+    // adding an eighth is a new entry, not a re-plotting of every position.
     private static readonly NodePlacement[] GoblinCampNodes =
     {
-        new NodePlacement { NodeId = "copper_rock_1", Position = PlayerSpawn + new Vector3(-6f, 0f,  3f),
-                            Label = "Copper Rock", Scale = 2.2f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-a.fbx",
-                            Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
-
-        new NodePlacement { NodeId = "tin_rock_1",    Position = PlayerSpawn + new Vector3(-6f, 0f, -3f),
+        new NodePlacement { NodeId = "tin_rock_1",    Position = RingPosition(0, 7),
                             Label = "Tin Rock", Scale = 2.2f,
                             Model = KenneyModels + "Survival Kit/Models/FBX format/rock-c.fbx",
                             Color = new Color(0.70f, 0.72f, 0.78f), Shape = PrimitiveType.Cube },
 
-        new NodePlacement { NodeId = "normal_tree_1", Position = PlayerSpawn + new Vector3( 6f, 0f,  3f),
+        new NodePlacement { NodeId = "copper_rock_1", Position = RingPosition(1, 7),
+                            Label = "Copper Rock", Scale = 2.2f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-a.fbx",
+                            Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
+
+        new NodePlacement { NodeId = "normal_tree_1", Position = RingPosition(2, 7),
                             Label = "Tree", Scale = 2.0f,
                             Model = KenneyModels + "Nature Kit/Models/FBX format/tree_oak.fbx",
                             Color = new Color(0.20f, 0.60f, 0.22f), Shape = PrimitiveType.Cylinder },
 
-        new NodePlacement { NodeId = "shrimp_pool_1", Position = PlayerSpawn + new Vector3( 6f, 0f, -3f),
+        new NodePlacement { NodeId = "shrimp_pool_1", Position = RingPosition(3, 7),
                             Label = "Shrimp Pool", Scale = 2.0f,
                             Model = KenneyModels + "Survival Kit/Models/FBX format/campfire-fishing-stand.fbx",
                             Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
 
-        new NodePlacement { NodeId = "campfire_1",    Position = PlayerSpawn + new Vector3( 0f, 0f, -6f),
+        new NodePlacement { NodeId = "campfire_1",    Position = RingPosition(4, 7),
                             Label = "Campfire", Scale = 2.0f,
                             Model = KenneyModels + "Nature Kit/Models/FBX format/campfire_stones.fbx",
                             Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
 
-        new NodePlacement { NodeId = "bank_chest_1",  Position = PlayerSpawn + new Vector3( 0f, 0f,  6f),
+        new NodePlacement { NodeId = "anvil_1",       Position = RingPosition(5, 7),
+                            Label = "Anvil", Scale = 2.0f,
+                            Model = KenneyModels + "Survival Kit/Models/FBX format/workbench-anvil.fbx",
+                            Color = new Color(0.45f, 0.45f, 0.50f), Shape = PrimitiveType.Cube },
+
+        new NodePlacement { NodeId = "bank_chest_1",  Position = RingPosition(6, 7),
                             Label = "Bank Chest", Scale = 2.4f,
                             Model = KenneyModels + "Survival Kit/Models/FBX format/chest.fbx",
                             Color = new Color(0.85f, 0.75f, 0.30f), Shape = PrimitiveType.Cube },
     };
+
+    /// <summary>Radius of the node ring around the spawn point, in world units.</summary>
+    private const float RingRadius = 7.5f;
+
+    /// <summary>
+    /// Evenly spaces nodes on a circle around the player spawn, so the layout stays
+    /// balanced as nodes are added instead of needing every offset re-tuned by hand.
+    /// </summary>
+    private static Vector3 RingPosition(int index, int total)
+    {
+        float angle = (index / (float)Mathf.Max(1, total)) * Mathf.PI * 2f;
+        return PlayerSpawn + new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * RingRadius;
+    }
 
     [MenuItem("Idle Explorers/Prepare Map Scene")]
     public static void PrepareMapScene()
