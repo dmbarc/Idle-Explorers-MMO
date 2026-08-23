@@ -85,6 +85,7 @@ public static class IconLibrarySetup
         { "death_rune",    "runeBlack_slab_026" },
         { "faint_residue", "SoulFragment" },
         { "shifting_sigil","runeBlack_slab_017" },
+        { "resetting_draught", "bottle_standard_green" },
 
         // Mystic Gems, escalating by container so the tier reads at a glance in the
         // shop and the bag: one stone, a bag, a bucket, a barrel, a chest.
