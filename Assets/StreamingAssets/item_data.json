@@ -56,7 +56,7 @@
   { "id": "travelers_cape", "name": "Traveller's Cape", "description": "Weathered, patched, and quietly proud of both.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "",
     "equipSlot": "cape", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1" },
 
-  { "id": "bronze_platebody", "name": "Bronze Platebody", "description": "Heavy enough that you notice, light enough that you forgive it.", "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3", "stackable": false, "levelReq": 20, "sourceSkill": "smithing",
+  { "id": "bronze_platebody", "name": "Bronze Chestplate", "description": "Heavy enough that you notice, light enough that you forgive it.", "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3", "stackable": false, "levelReq": 20, "sourceSkill": "smithing",
     "equipSlot": "chest", "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3",
     "setId": "bronze_age_reenactor", "maxDurability": 250,
     "effects": [ { "trigger": "onEquipPassive", "action": "statBonus", "param": "maxHp", "magnitude": 60, "equipText": "Equip: +60 maximum health." } ] },

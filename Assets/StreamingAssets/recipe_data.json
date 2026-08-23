@@ -68,7 +68,7 @@
     "inputs": [ { "itemId": "tin_bar", "quantity": 4 }, { "itemId": "normal_logs", "quantity": 1 } ],
     "outputItemId": "tin_helmet", "outputQuantity": 1, "xpPerCraft": 55, "baseSecondsPerCraft": 6.0 },
 
-  { "id": "smith_tin_platebody", "name": "Tin Platebody", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 6,
+  { "id": "smith_tin_platebody", "name": "Tin Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 6,
     "inputs": [ { "itemId": "tin_bar", "quantity": 8 }, { "itemId": "normal_logs", "quantity": 2 } ],
     "outputItemId": "tin_platebody", "outputQuantity": 1, "xpPerCraft": 110, "baseSecondsPerCraft": 8.0 },
 
@@ -96,7 +96,7 @@
     "inputs": [ { "itemId": "copper_bar", "quantity": 8 }, { "itemId": "normal_logs", "quantity": 2 } ],
     "outputItemId": "copper_helmet", "outputQuantity": 1, "xpPerCraft": 130, "baseSecondsPerCraft": 7.0 },
 
-  { "id": "smith_copper_platebody", "name": "Copper Platebody", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 16,
+  { "id": "smith_copper_platebody", "name": "Copper Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 16,
     "inputs": [ { "itemId": "copper_bar", "quantity": 16 }, { "itemId": "normal_logs", "quantity": 3 } ],
     "outputItemId": "copper_platebody", "outputQuantity": 1, "xpPerCraft": 260, "baseSecondsPerCraft": 9.0 },
 
@@ -124,7 +124,7 @@
     "inputs": [ { "itemId": "bronze_bar", "quantity": 16 }, { "itemId": "normal_logs", "quantity": 3 }, { "itemId": "bones", "quantity": 2 } ],
     "outputItemId": "bronze_helmet", "outputQuantity": 1, "xpPerCraft": 320, "baseSecondsPerCraft": 8.0 },
 
-  { "id": "smith_bronze_platebody", "name": "Bronze Platebody", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 26,
+  { "id": "smith_bronze_platebody", "name": "Bronze Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 26,
     "inputs": [ { "itemId": "bronze_bar", "quantity": 32 }, { "itemId": "normal_logs", "quantity": 4 }, { "itemId": "bones", "quantity": 4 } ],
     "outputItemId": "bronze_platebody", "outputQuantity": 1, "xpPerCraft": 640, "baseSecondsPerCraft": 11.0 },
 
