@@ -379,6 +379,7 @@ public class PlayerController : MonoBehaviour
         {
             if (item == null || string.IsNullOrEmpty(item.itemId)) continue;
             if (inv != null && !inv.CanAddItem(item.itemId)) continue;
+            if (_skipItemUntil.TryGetValue(item, out float until) && Time.time < until) continue;
 
             float dist = Vector3.Distance(transform.position, item.transform.position);
             if (dist >= bestDist || dist >= 40f) continue;
@@ -398,7 +399,8 @@ public class PlayerController : MonoBehaviour
 
         if (currentNodeTarget != node)
         {
-            ClearNodeTarget();
+            // BeginGathering will set this node's own activity in a moment.
+            ClearNodeTarget(revertActivity: false);
             currentNodeTarget = node;
             agent.stoppingDistance = Mathf.Max(0.1f, node.interactionRange * 0.6f);
             agent.ResetPath();
@@ -406,11 +408,32 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    /// <summary>Stops gathering at the current node, if any.</summary>
-    private void ClearNodeTarget()
+    /// <summary>
+    /// Stops gathering at the current node, if any, and stops CLAIMING to.
+    ///
+    /// The activity snapshot is what the character card, the AFK summary and offline
+    /// accrual all read. Nothing used to clear it when the player walked away from a
+    /// node, so killing a goblin after a stint at the tin rock left the game reporting
+    /// "Mining — Tin Ore" indefinitely: the readout was wrong, and logging out there
+    /// would have accrued mining from a rock nobody was standing at.
+    ///
+    /// Reverting to the map's default combat activity is the honest answer, because
+    /// combat is what auto-mode does the moment it is not gathering.
+    /// </summary>
+    /// <param name="revertActivity">
+    /// False when the caller is about to set an activity of its own — switching from
+    /// one rock to another would otherwise announce "Now: Combat" and then "Now:
+    /// Mining" back to back, and reset the AFK clock twice on the way.
+    /// </param>
+    private void ClearNodeTarget(bool revertActivity = true)
     {
+        bool wasGathering = currentNodeTarget != null;
+
         if (currentNodeTarget != null) currentNodeTarget.StopGathering();
         currentNodeTarget = null;
+
+        if (wasGathering && revertActivity)
+            GameManager.Activity?.SetDefaultCombatActivity(GameManager.Zone?.CurrentMapId);
     }
 
     private void GatherLogic()
@@ -522,7 +545,9 @@ public class PlayerController : MonoBehaviour
             attackTimer += Time.deltaTime;
             if (attackTimer >= EffectiveAttackSpeed)
             {
-                currentTarget.TakeDamage(attackDamage);
+                var struck = currentTarget;
+                struck.TakeDamage(attackDamage);
+                GameManager.Audio?.PlayHit();
                 anim.SetBool("1_Move", false);
                 anim.SetBool("2_Attack", true);
                 attackTimer = 0f;
@@ -534,6 +559,7 @@ public class PlayerController : MonoBehaviour
                 if (lifesteal > 0f) Heal(attackDamage * lifesteal);
 
                 ItemEffectResolver.Fire("onHit", null);
+                SetBonusResolver.OnDamageDealt(this, struck, attackDamage);
             }
             return;
         }
@@ -564,6 +590,21 @@ public class PlayerController : MonoBehaviour
         if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
     }
 
+    /// <summary>Drops we walked to and could not collect, and when to try again.</summary>
+    private readonly Dictionary<DropPickup, float> _skipItemUntil = new();
+
+    /// <summary>How long we stand next to a drop before deciding it is out of reach.</summary>
+    private const float PickupPatience = 2.5f;
+
+    /// <summary>
+    /// Horizontal distance at which we consider ourselves standing on a drop.
+    /// Matches the pickup trigger's radius on ItemDrops/GenericDrop, so walking into
+    /// range and the collider firing agree with each other.
+    /// </summary>
+    private const float PickupReach = 1.2f;
+
+    private float _itemArrivedAt;
+
     private void PickupLogic()
     {
         // currentItemTarget == null is true for both C# null and destroyed Unity objects
@@ -572,24 +613,83 @@ public class PlayerController : MonoBehaviour
             string.IsNullOrEmpty(currentItemTarget.itemId) ||
             (inv != null && !inv.CanAddItem(currentItemTarget.itemId)))
         {
-            currentItemTarget = null;
-            agent.isStopped = false;
+            ClearItemTarget();
             return;
         }
 
-        float dist = Vector3.Distance(transform.position, currentItemTarget.transform.position);
+        Vector3 itemPos = currentItemTarget.transform.position;
+
+        // Horizontal distance, because a drop stranded above the ground is directly
+        // overhead — the 3D distance would say we had not arrived and we would keep
+        // walking into it forever, which is exactly what floating loot looked like.
+        Vector3 flat = itemPos - transform.position;
+        flat.y = 0f;
+        float dist = flat.magnitude;
+
         if (dist > 60f)
         {
-            currentItemTarget = null;
-            agent.isStopped = false;
+            ClearItemTarget();
             return;
         }
 
+        // Standing on it and still holding it means the pickup trigger is not reaching
+        // us. Pull the drop down onto real ground once, then give up on it for a while
+        // so one bad pickup cannot hold auto-mode hostage — the same treatment an
+        // unreachable monster gets.
+        if (dist <= PickupReach)
+        {
+            agent.isStopped = true;
+
+            // Ask the drop directly rather than waiting for a trigger callback. The
+            // pickup body is kinematic and the player is standing still, which is
+            // exactly the case where Unity stops raising trigger events — so relying
+            // on physics here is how a character ends up parked on top of its loot.
+            if (currentItemTarget.TryCollect())
+            {
+                ClearItemTarget();
+                _nextTargetScanAt = 0f;
+                return;
+            }
+
+            if (_itemArrivedAt <= 0f) _itemArrivedAt = Time.time;
+
+            if (Time.time - _itemArrivedAt > PickupPatience)
+            {
+                Debug.Log($"[PlayerController] Could not collect {currentItemTarget.itemId} " +
+                          "after standing on it — re-grounding the drop and moving on.");
+
+                currentItemTarget.Reground();
+                _skipItemUntil[currentItemTarget] = Time.time + UnreachableCooldown;
+                ClearItemTarget();
+                _nextTargetScanAt = 0f;
+            }
+            return;
+        }
+
+        _itemArrivedAt = 0f;
+
         // Keep walking toward the item. The trigger collider on DropPickup fires
-        // OnTriggerEnter when we overlap it, which destroys the item and clears
-        // currentItemTarget on the next PickupLogic call.
+        // when we overlap it, which destroys the item and clears currentItemTarget on
+        // the next PickupLogic call.
         agent.isStopped = false;
-        agent.SetDestination(currentItemTarget.transform.position);
+        agent.SetDestination(itemPos);
+    }
+
+    private void ClearItemTarget()
+    {
+        currentItemTarget = null;
+        _itemArrivedAt    = 0f;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
+
+        // Same housekeeping the monster skip list gets — one entry per collected drop
+        // would otherwise accumulate for the whole session.
+        if (_skipItemUntil.Count > 32)
+        {
+            var stale = new List<DropPickup>();
+            foreach (var kvp in _skipItemUntil)
+                if (kvp.Key == null || Time.time > kvp.Value) stale.Add(kvp.Key);
+            foreach (var key in stale) _skipItemUntil.Remove(key);
+        }
     }
 
     private void HandleMouseClick()
@@ -653,12 +753,30 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Chance that a single hit wears down a piece of armour.
+    ///
+    /// Not every hit, because at one attack every couple of seconds a full-durability
+    /// helmet would break inside a few minutes of ordinary play. At roughly a third,
+    /// a 120-point piece survives several hours of continuous fighting — which is the
+    /// timescale an idle game is played on.
+    /// </summary>
+    private const float DurabilityLossChance = 0.34f;
+
     public void TakeDamage(double damageAmount)
     {
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
         DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerTook, "-");
+        GameManager.Audio?.Play(Sfx.PlayerHurt);
         GameEvents.OnPlayerDamageTaken?.Invoke(damageAmount);
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+
+        // Armour wears where it is hit. Rolled before the set bonuses so a set that
+        // manipulates durability sees the state this hit actually left behind.
+        if (Random.value < DurabilityLossChance)
+            GameManager.Equipment?.DamageRandom(SetBonusResolver.DurabilityLossFor(1));
+
+        SetBonusResolver.OnDamageTaken(this, damageAmount);
 
         if (currentHealthPoints <= 0)
         {
@@ -695,7 +813,7 @@ public class PlayerController : MonoBehaviour
             agent.isStopped = true;
         }
 
-        GameManager.Audio?.PlayDeath();
+        GameManager.Audio?.Play(Sfx.PlayerDeath);
         GameEvents.OnPlayerDied?.Invoke();
     }
 
@@ -759,7 +877,34 @@ public class PlayerController : MonoBehaviour
     }
 
     public bool IsAlive() => alive;
-    public void SetAutoAttack(bool autoAttackVal) { autoAttack = autoAttackVal; }
+
+    /// <summary>
+    /// Turns auto-mode on or off and announces it.
+    ///
+    /// The event exists because the HUD is cached and rebuilt across characters and
+    /// screens, so a button that only recoloured itself on click showed the wrong
+    /// state the moment anything else redrew it. Anything that wants to display
+    /// auto-mode subscribes and asks; nothing has to guess.
+    /// </summary>
+    public void SetAutoAttack(bool autoAttackVal)
+    {
+        if (autoAttack == autoAttackVal) return;
+
+        autoAttack = autoAttackVal;
+
+        if (!autoAttack)
+        {
+            // Leaving auto-mode should not leave the character jogging toward whatever
+            // it had picked. Gathering is a deliberate choice and is left running.
+            ClearCombatTarget();
+            ClearItemTarget();
+        }
+
+        GameEvents.OnAutoModeChanged?.Invoke(autoAttack);
+    }
+
+    /// <summary>Whether auto-mode is currently running. Read by the HUD indicator.</summary>
+    public bool AutoModeEnabled => autoAttack;
 
     /// <summary>Number row 1-5 fires the matching action bar slot.</summary>
     private void HandleAbilityKeys()
@@ -844,6 +989,7 @@ public class PlayerController : MonoBehaviour
         anim.SetBool("2_Attack", true);
 
         // The ability's own visual, then any worn proc that triggers on casting.
+        GameManager.Audio?.Play(Sfx.AbilityCast);
         AbilityVFX.Play(AbilityVfxId(ability), AbilityOrigin(ability));
         ItemEffectResolver.Fire("onAbilityUse", ability.id);
         return true;
@@ -1093,6 +1239,12 @@ public class PlayerController : MonoBehaviour
         agent.Warp(navHit.position);
         return true;
     }
+
+    /// <summary>
+    /// What one swing hits for, after class, gear and talents. Read by set bonuses
+    /// that scale off the character's own damage rather than a flat number.
+    /// </summary>
+    public double AttackDamage => attackDamage;
 
     /// <summary>Attack interval after any active haste buff.</summary>
     private float EffectiveAttackSpeed =>

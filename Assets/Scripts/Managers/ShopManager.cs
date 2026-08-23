@@ -148,6 +148,7 @@ public class ShopManager : MonoBehaviour
         inventory.AddItem(product.itemId, System.Math.Max(1L, product.quantity));
 
         var item = GameManager.Content?.GetItem(product.itemId);
+        GameManager.Audio?.PlayPurchase();
         GameEvents.FireToast($"Bought {item?.DisplayName ?? product.DisplayName}.");
         Debug.Log($"[Shop] Bought '{product.id}' for {product.relicCoinCost} relic coins.");
         return true;

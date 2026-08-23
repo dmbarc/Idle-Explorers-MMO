@@ -56,6 +56,24 @@ public class ItemData
     public string   equipSlot;
 
     /// <summary>
+    /// Armour set this piece belongs to, matching an id in set_data.json. Empty for
+    /// everything that is not part of a set.
+    /// </summary>
+    public string   setId;
+
+    /// <summary>
+    /// Points of wear this piece can take before it stops working. ZERO MEANS
+    /// INDESTRUCTIBLE, which is the right default: rings, trinkets and companions
+    /// have no business degrading, and neither does anything authored before
+    /// durability existed.
+    ///
+    /// A broken piece is never destroyed — it stays worn and stops contributing its
+    /// stats until repaired. Deleting gear a player earned because they forgot to
+    /// check a bar is a punishment, not a mechanic.
+    /// </summary>
+    public int      maxDurability;
+
+    /// <summary>
     /// Resources path to the sprite drawn ON THE CHARACTER when this is worn —
     /// deliberately separate from iconAddress, which is the inventory icon. An
     /// inventory icon pasted onto a SPUM layer would be the wrong art at the wrong
@@ -69,6 +87,9 @@ public class ItemData
     public string DisplayName => name;
 
     public bool IsEquippable => !string.IsNullOrEmpty(equipSlot);
+
+    /// <summary>True when this piece wears out and can be repaired.</summary>
+    public bool HasDurability => maxDurability > 0;
 
     /// <summary>True when the item menu should offer Consume.</summary>
     public bool IsConsumable => HasTrigger("onConsume");
@@ -359,6 +380,59 @@ public class SlotUnlockRequirement
     public int reqAnyCharLevel;
 }
 
+// ── Armour sets ───────────────────────────────────────────────────────────────
+
+/// <summary>
+/// One threshold in a set: what you get for wearing N pieces at once.
+///
+/// `action` is a string for the same reason ItemEffect.action and AbilityData.effect
+/// are — a new set bonus should be a content change, not a client rebuild. Every
+/// value SetBonusResolver understands is listed there, and one it does not
+/// understand is reported by ItemSetManager.ValidateContent rather than silently
+/// costing the player four armour slots for nothing.
+/// </summary>
+[Serializable]
+public class ItemSetBonus
+{
+    /// <summary>How many pieces of the set must be worn for this to be active.</summary>
+    public int    piecesRequired;
+
+    /// <summary>Shown verbatim in the tooltip, after "N Set Bonus - ".</summary>
+    public string description;
+
+    public string action;
+
+    /// <summary>0-1 chance for proc bonuses. Ignored by always-on ones.</summary>
+    public float  chance;
+
+    /// <summary>Action-specific size: a damage multiplier, a stat amount, a fraction.</summary>
+    public float  magnitude = 1f;
+
+    /// <summary>Action-specific target: a stat id for statBonus, unused elsewhere.</summary>
+    public string param;
+
+    /// <summary>Metres, for the bonuses that hit everything nearby.</summary>
+    public float  radius = 6f;
+}
+
+/// <summary>
+/// An armour set. The piece list is authoritative and ORDERED — the tooltip prints
+/// it in this order, so it reads head to toe rather than in whatever sequence the
+/// items happen to appear in item_data.json.
+/// </summary>
+[Serializable]
+public class ItemSetData
+{
+    public string         id;
+    public string         name;
+    public string[]       itemIds;
+    public ItemSetBonus[] bonuses;
+
+    public string DisplayName => string.IsNullOrEmpty(name) ? id : name;
+
+    public int PieceCount => itemIds?.Length ?? 0;
+}
+
 // ── Shop ──────────────────────────────────────────────────────────────────────
 
 /// <summary>
@@ -481,6 +555,17 @@ public class CharacterData
     public List<InventoryEntry>     mergeBoard;
     public List<EquipmentEntry>     equipment;
 
+    /// <summary>
+    /// Durability remembered for gear that is NOT currently worn.
+    ///
+    /// Without this, taking a helmet off and putting it back on is a free repair —
+    /// the inventory has no per-item condition to carry, so the piece would come back
+    /// pristine and durability would be theatre. Keyed by itemId, which is exact for
+    /// anything unique and a reasonable average for the rare case of owning two of the
+    /// same piece.
+    /// </summary>
+    public List<ItemDurability>     storedDurability;
+
     // Collection
     public string   equippedWardrobeId;
     public string[] equippedSpiritIds;
@@ -555,6 +640,14 @@ public class InventoryEntry
     public long     quantity;
 }
 
+/// <summary>Condition remembered for a piece of gear while it is off the character.</summary>
+[Serializable]
+public class ItemDurability
+{
+    public string itemId;
+    public int    durability;
+}
+
 /// <summary>
 /// One worn item. A List of these rather than a Dictionary keyed by slot, because
 /// JsonUtility silently serializes dictionaries as empty — the same trap that ate
@@ -565,6 +658,19 @@ public class EquipmentEntry
 {
     public string slotId;
     public string itemId;
+
+    /// <summary>Wear left on this piece. Meaningless when the item has no maxDurability.</summary>
+    public int    durability;
+
+    /// <summary>
+    /// Whether `durability` has ever been written.
+    ///
+    /// Load-bearing, because JsonUtility fills a missing int with 0 and 0 durability
+    /// means BROKEN. Without this flag every piece of gear in every save written
+    /// before durability existed would come back shattered. A bool defaults to false,
+    /// which reads as "never initialised" — the only default that is safe here.
+    /// </summary>
+    public bool   durabilitySet;
 }
 
 [Serializable]

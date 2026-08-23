@@ -84,6 +84,14 @@
     "inputs": [ { "itemId": "tin_bar", "quantity": 2 }, { "itemId": "normal_logs", "quantity": 1 } ],
     "outputItemId": "tin_bracers", "outputQuantity": 1, "xpPerCraft": 28, "baseSecondsPerCraft": 4.5 },
 
+  { "id": "smith_tin_shoulders", "name": "Tin Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 4,
+    "inputs": [ { "itemId": "tin_bar", "quantity": 5 }, { "itemId": "normal_logs", "quantity": 1 } ],
+    "outputItemId": "tin_shoulders", "outputQuantity": 1, "xpPerCraft": 68, "baseSecondsPerCraft": 6.5 },
+
+  { "id": "smith_tin_legguards", "name": "Tin Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 5,
+    "inputs": [ { "itemId": "tin_bar", "quantity": 6 }, { "itemId": "normal_logs", "quantity": 2 } ],
+    "outputItemId": "tin_legguards", "outputQuantity": 1, "xpPerCraft": 82, "baseSecondsPerCraft": 7.0 },
+
   { "id": "smith_copper_helmet", "name": "Copper Helmet", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 13,
     "inputs": [ { "itemId": "copper_bar", "quantity": 8 }, { "itemId": "normal_logs", "quantity": 2 } ],
     "outputItemId": "copper_helmet", "outputQuantity": 1, "xpPerCraft": 130, "baseSecondsPerCraft": 7.0 },
@@ -104,6 +112,14 @@
     "inputs": [ { "itemId": "copper_bar", "quantity": 4 }, { "itemId": "normal_logs", "quantity": 1 } ],
     "outputItemId": "copper_bracers", "outputQuantity": 1, "xpPerCraft": 65, "baseSecondsPerCraft": 5.5 },
 
+  { "id": "smith_copper_shoulders", "name": "Copper Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 14,
+    "inputs": [ { "itemId": "copper_bar", "quantity": 10 }, { "itemId": "normal_logs", "quantity": 2 } ],
+    "outputItemId": "copper_shoulders", "outputQuantity": 1, "xpPerCraft": 160, "baseSecondsPerCraft": 7.5 },
+
+  { "id": "smith_copper_legguards", "name": "Copper Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 15,
+    "inputs": [ { "itemId": "copper_bar", "quantity": 12 }, { "itemId": "normal_logs", "quantity": 3 } ],
+    "outputItemId": "copper_legguards", "outputQuantity": 1, "xpPerCraft": 195, "baseSecondsPerCraft": 8.0 },
+
   { "id": "smith_bronze_helmet", "name": "Bronze Helmet", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 23,
     "inputs": [ { "itemId": "bronze_bar", "quantity": 16 }, { "itemId": "normal_logs", "quantity": 3 }, { "itemId": "bones", "quantity": 2 } ],
     "outputItemId": "bronze_helmet", "outputQuantity": 1, "xpPerCraft": 320, "baseSecondsPerCraft": 8.0 },
@@ -122,5 +138,13 @@
 
   { "id": "smith_bronze_bracers", "name": "Bronze Bracers", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 20,
     "inputs": [ { "itemId": "bronze_bar", "quantity": 8 }, { "itemId": "normal_logs", "quantity": 2 }, { "itemId": "bones", "quantity": 1 } ],
-    "outputItemId": "bronze_bracers", "outputQuantity": 1, "xpPerCraft": 160, "baseSecondsPerCraft": 6.5 }
+    "outputItemId": "bronze_bracers", "outputQuantity": 1, "xpPerCraft": 160, "baseSecondsPerCraft": 6.5 },
+
+  { "id": "smith_bronze_shoulders", "name": "Bronze Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 24,
+    "inputs": [ { "itemId": "bronze_bar", "quantity": 20 }, { "itemId": "normal_logs", "quantity": 4 }, { "itemId": "bones", "quantity": 2 } ],
+    "outputItemId": "bronze_shoulders", "outputQuantity": 1, "xpPerCraft": 400, "baseSecondsPerCraft": 8.5 },
+
+  { "id": "smith_bronze_legguards", "name": "Bronze Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 25,
+    "inputs": [ { "itemId": "bronze_bar", "quantity": 24 }, { "itemId": "normal_logs", "quantity": 4 }, { "itemId": "bones", "quantity": 3 } ],
+    "outputItemId": "bronze_legguards", "outputQuantity": 1, "xpPerCraft": 480, "baseSecondsPerCraft": 9.0 }
 ]

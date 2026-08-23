@@ -1,44 +1,63 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// The 25 equipment slots, defined once so the paperdoll UI, the save format and
+/// The 26 equipment slots, defined once so the paperdoll UI, the save format and
 /// item validation cannot disagree about what exists.
 ///
 /// Cosmetic slots change how the character looks; functional slots carry stats and
-/// procs. Only four cosmetic slots can currently be rendered — SPUM ships swappable
-/// sprite layers for helmet, cape, chest and shirt and nothing for the rest — so the
-/// remainder are marked RendersOnCharacter = false and shown as "cosmetic pending
-/// art" rather than silently doing nothing.
+/// procs.
+///
+/// SPUM turns out to ship swappable layers for far more than the four this used to
+/// claim. Reading the rig rather than guessing, the Devil prefab has P_Shoulder,
+/// P_LFoot/P_RFoot, P_LCloth/P_RCloth and P_LCArm/P_RCArm as well as the obvious
+/// head and body parts — and the Legacy sprite sheets are cut into Body/Left/Right
+/// sub-sprites precisely so one armour set can fill all of them. So shoulders, boots,
+/// legs and bracers all render now; only gloves, tabard and aura have no layer.
+///
+/// SpumParts is a LIST because several slots are two mirrored parts. See
+/// CharacterAppearance for how a sheet's Left/Right sub-sprites reach the right side.
 /// </summary>
 public static class EquipmentSlots
 {
     public class Slot
     {
-        public string SlotId;
-        public string DisplayName;
-        public bool   IsCosmetic;
+        public string   SlotId;
+        public string   DisplayName;
+        public bool     IsCosmetic;
 
-        /// <summary>The SPUM part transform this slot swaps, or null when no layer exists.</summary>
-        public string SpumPart;
+        /// <summary>
+        /// SPUM part transforms this slot swaps. Empty when the rig has no layer for
+        /// it. Two entries means a mirrored pair — left first, right second.
+        /// </summary>
+        public string[] SpumParts = System.Array.Empty<string>();
 
-        public bool RendersOnCharacter => !string.IsNullOrEmpty(SpumPart);
+        public bool RendersOnCharacter => SpumParts != null && SpumParts.Length > 0;
     }
 
     public static readonly Slot[] All =
     {
         // ── Cosmetic ──────────────────────────────────────────────────────────
-        new Slot { SlotId = "helmet",    DisplayName = "Helmet",    IsCosmetic = true, SpumPart = "P_Helmet"    },
-        new Slot { SlotId = "cape",      DisplayName = "Cape",      IsCosmetic = true, SpumPart = "P_Back"      },
-        new Slot { SlotId = "chest",     DisplayName = "Chest",     IsCosmetic = true, SpumPart = "P_ArmorBody" },
-        new Slot { SlotId = "shirt",     DisplayName = "Shirt",     IsCosmetic = true, SpumPart = "P_ClothBody" },
+        new Slot { SlotId = "helmet",    DisplayName = "Helmet",    IsCosmetic = true,
+                   SpumParts = new[] { "P_Helmet" } },
+        new Slot { SlotId = "cape",      DisplayName = "Cape",      IsCosmetic = true,
+                   SpumParts = new[] { "P_Back" } },
+        new Slot { SlotId = "chest",     DisplayName = "Chest",     IsCosmetic = true,
+                   SpumParts = new[] { "P_ArmorBody" } },
+        new Slot { SlotId = "shirt",     DisplayName = "Shirt",     IsCosmetic = true,
+                   SpumParts = new[] { "P_ClothBody" } },
+        new Slot { SlotId = "shoulders", DisplayName = "Shoulders", IsCosmetic = true,
+                   SpumParts = new[] { "P_Shoulder" } },
+        new Slot { SlotId = "legs",      DisplayName = "Legguards", IsCosmetic = true,
+                   SpumParts = new[] { "P_LCloth", "P_RCloth" } },
+        new Slot { SlotId = "boots",     DisplayName = "Boots",     IsCosmetic = true,
+                   SpumParts = new[] { "P_LFoot", "P_RFoot" } },
+        new Slot { SlotId = "bracers",   DisplayName = "Bracers",   IsCosmetic = true,
+                   SpumParts = new[] { "P_LCArm", "P_RCArm" } },
 
-        // No SPUM sprite category exists for these. They equip, save and reserve a
+        // No SPUM layer exists for these. They equip, save, carry stats and reserve a
         // render slot; supplying art later needs no code change.
-        new Slot { SlotId = "shoulders", DisplayName = "Shoulders", IsCosmetic = true },
-        new Slot { SlotId = "tabard",    DisplayName = "Tabard",    IsCosmetic = true },
         new Slot { SlotId = "gloves",    DisplayName = "Gloves",    IsCosmetic = true },
-        new Slot { SlotId = "bracers",   DisplayName = "Bracers",   IsCosmetic = true },
-        new Slot { SlotId = "boots",     DisplayName = "Boots",     IsCosmetic = true },
+        new Slot { SlotId = "tabard",    DisplayName = "Tabard",    IsCosmetic = true },
 
         // Aura is a particle effect parented to the rig, not a sprite swap.
         new Slot { SlotId = "aura",      DisplayName = "Aura",      IsCosmetic = true },
@@ -77,6 +96,9 @@ public static class EquipmentSlots
     }
 
     public static bool Exists(string slotId) => Get(slotId) != null;
+
+    /// <summary>Display name for a slot id, falling back to the raw id.</summary>
+    public static string NameOf(string slotId) => Get(slotId)?.DisplayName ?? slotId;
 
     public static IEnumerable<Slot> Cosmetic()
     {

@@ -29,6 +29,7 @@ public class ContentManager : MonoBehaviour
     public List<CraftRecipe>               CraftRecipes { get; } = new List<CraftRecipe>();
     public List<RelicCoinPack>             CoinPacks    { get; } = new List<RelicCoinPack>();
     public List<ShopProduct>               ShopProducts { get; } = new List<ShopProduct>();
+    public Dictionary<string, ItemSetData> ItemSets     { get; } = new Dictionary<string, ItemSetData>();
 
     public bool IsLoaded { get; private set; }
 
@@ -44,12 +45,13 @@ public class ContentManager : MonoBehaviour
     [Serializable] private class MergeList   { public MergeRecipe[]          recipes;  }
     [Serializable] private class SlotList    { public SlotUnlockRequirement[] slots;   }
     [Serializable] private class CraftList   { public CraftRecipe[]          recipes;  }
+    [Serializable] private class SetList     { public ItemSetData[]          sets;     }
 
     // ── Public API ────────────────────────────────────────────────────────────
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 9;
+        _pendingLoads = 10;
 
         LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
         LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
@@ -69,6 +71,7 @@ public class ContentManager : MonoBehaviour
         LoadJson<MergeList>  ("merge_recipes", "recipes",  j => MergeRecipes.AddRange(j.recipes));
         LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
         LoadJson<CraftList>  ("recipe_data",   "recipes",  j => CraftRecipes.AddRange(j.recipes));
+        LoadJson<SetList>    ("set_data",      "sets",     j => { foreach (var x in j.sets) ItemSets[x.id] = x; });
 
         // shop_data.json is a root OBJECT, not an array — it carries two lists, and
         // the array wrapper below only handles one. The wrapField is unused for it.
@@ -134,11 +137,11 @@ public class ContentManager : MonoBehaviour
     /// <summary>Synchronous sprite lookup with placeholder fallback.</summary>
     public Sprite GetSprite(string address, string fallbackId = null)
     {
-        if (!string.IsNullOrEmpty(address))
-        {
-            var sprite = Resources.Load<Sprite>(address);
-            if (sprite != null) return sprite;
-        }
+        // Through SpriteLoader, not Resources.Load — half the art in the SPUM packs is
+        // in Multiple-mode sheets, for which Resources.Load returns null with no error.
+        var sprite = SpriteLoader.Load(address);
+        if (sprite != null) return sprite;
+
         return UIFactory.PlaceholderIcon(fallbackId ?? address);
     }
 
@@ -173,7 +176,7 @@ public class ContentManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(item?.iconAddress))
         {
-            var direct = Resources.Load<Sprite>(item.iconAddress);
+            var direct = SpriteLoader.Load(item.iconAddress);
             if (direct != null) return direct;
         }
 
@@ -190,7 +193,7 @@ public class ContentManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(skill?.iconAddress))
         {
-            var direct = Resources.Load<Sprite>(skill.iconAddress);
+            var direct = SpriteLoader.Load(skill.iconAddress);
             if (direct != null) return direct;
         }
 
@@ -211,7 +214,7 @@ public class ContentManager : MonoBehaviour
 
         if (!string.IsNullOrEmpty(ability.iconAddress))
         {
-            var direct = Resources.Load<Sprite>(ability.iconAddress);
+            var direct = SpriteLoader.Load(ability.iconAddress);
             if (direct != null) return direct;
         }
 
@@ -291,7 +294,14 @@ public class ContentManager : MonoBehaviour
         {
             IsLoaded = true;
             Debug.Log($"[ContentManager] Loaded: {Items.Count} items, {Monsters.Count} monsters, " +
-                      $"{Zones.Count} zones, {Maps.Count} maps, {Skills.Count} skills, {Classes.Count} classes.");
+                      $"{Zones.Count} zones, {Maps.Count} maps, {Skills.Count} skills, " +
+                      $"{Classes.Count} classes, {ItemSets.Count} armour sets.");
+
+            // Checked once, here, rather than discovered in a playtest: a set bonus
+            // that names an action nothing implements costs the player six armour
+            // slots and gives no sign that it is doing nothing at all.
+            ItemSetManager.ValidateContent();
+
             _onComplete?.Invoke();
         }
     }

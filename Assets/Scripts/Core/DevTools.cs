@@ -44,6 +44,20 @@ public static class DevTools
 
         // Puts every skill back to level 1, for re-testing level gates.
         ("resetting_draught", 2),
+
+        // A complete Weak Tin Man set. Set bonuses and durability are only testable
+        // with six matching pieces on at once, and reaching that by smithing means
+        // mining ore first — a long way to go before you can look at the feature.
+        //
+        // Tin only: copper and bronze are gated behind smithing 10 and 20, and handing
+        // those out would make the level gates untestable, which is what the reset
+        // draught above exists to exercise.
+        ("tin_helmet",    1),
+        ("tin_shoulders", 1),
+        ("tin_platebody", 1),
+        ("tin_gloves",    1),
+        ("tin_boots",     1),
+        ("tin_legguards", 1),
     };
 
     /// <summary>
@@ -59,10 +73,10 @@ public static class DevTools
 
         foreach (var (itemId, stock) in TestItems)
         {
-            // Only top up when below the target, so this never fights the player's own
-            // stack or silently refills something they deliberately dropped everything
-            // of mid-session — it runs once per character selection, not per frame.
-            long held = inventory.GetQuantity(itemId);
+            // Worn copies count. Without this, equipping a test helmet drops the
+            // carried quantity to zero and the next character selection hands out
+            // another one — six armour slots would fill the bag with duplicates.
+            long held = inventory.GetQuantity(itemId) + EquippedCount(itemId);
             if (held >= stock) continue;
 
             if (!inventory.CanAddItem(itemId))
@@ -74,5 +88,18 @@ public static class DevTools
             inventory.AddItem(itemId, stock - held);
             Debug.Log($"[DevTools] Topped up {itemId} to {stock}.");
         }
+    }
+
+    /// <summary>How many of an item the character is wearing.</summary>
+    private static long EquippedCount(string itemId)
+    {
+        var equipment = GameManager.Equipment;
+        if (equipment == null) return 0;
+
+        long worn = 0;
+        foreach (var slot in EquipmentSlots.All)
+            if (equipment.GetEquipped(slot.SlotId) == itemId) worn++;
+
+        return worn;
     }
 }

@@ -1,0 +1,93 @@
+[
+  {
+    "id": "weak_tin_man",
+    "name": "Weak Tin Man",
+    "itemIds": [ "tin_helmet", "tin_shoulders", "tin_platebody", "tin_gloves", "tin_boots", "tin_legguards" ],
+    "bonuses": [
+      {
+        "piecesRequired": 2,
+        "description": "When taking damage, has a chance to explode into tin shards — one piece of your armour is destroyed outright, but everything nearby takes a great deal of damage.",
+        "action": "shardBurst",
+        "chance": 0.07,
+        "magnitude": 5.0,
+        "radius": 6.0
+      },
+      {
+        "piecesRequired": 4,
+        "description": "When dealing damage, has a chance to hurl a piece of your armour at the enemy. It hits very hard and lands on the ground where it fell.",
+        "action": "armorThrow",
+        "chance": 0.05,
+        "magnitude": 7.0
+      },
+      {
+        "piecesRequired": 6,
+        "description": "When taking damage, has a chance to steal durability from the rest of your armour and pour it into whichever piece is worst off. When dealing damage, has a chance to scoop up and re-equip armour lying on the ground.",
+        "action": "durabilitySiphon",
+        "chance": 0.20
+      },
+      {
+        "piecesRequired": 6,
+        "description": "",
+        "action": "scavenge",
+        "chance": 0.25,
+        "radius": 8.0
+      }
+    ]
+  },
+
+  {
+    "id": "verdigris_vanguard",
+    "name": "The Verdigris Vanguard",
+    "itemIds": [ "copper_helmet", "copper_shoulders", "copper_platebody", "copper_gloves", "copper_boots", "copper_legguards" ],
+    "bonuses": [
+      {
+        "piecesRequired": 2,
+        "description": "Verdigris blooms wherever you are struck. 20% of the damage you take is returned to everything within six metres.",
+        "action": "thorns",
+        "magnitude": 0.20,
+        "radius": 6.0
+      },
+      {
+        "piecesRequired": 4,
+        "description": "Copper conducts. +10 attack damage.",
+        "action": "statBonus",
+        "param": "attackDamage",
+        "magnitude": 10.0
+      },
+      {
+        "piecesRequired": 6,
+        "description": "Every kill has a chance to mend two points of wear on whichever piece of your armour is in the worst condition.",
+        "action": "mend",
+        "chance": 0.30,
+        "magnitude": 2.0
+      }
+    ]
+  },
+
+  {
+    "id": "bronze_age_reenactor",
+    "name": "Bronze Age Reenactor",
+    "itemIds": [ "bronze_helmet", "bronze_shoulders", "bronze_platebody", "bronze_gloves", "bronze_boots", "bronze_legguards" ],
+    "bonuses": [
+      {
+        "piecesRequired": 2,
+        "description": "Bronze is heavy and you have stopped noticing. +60 maximum health.",
+        "action": "statBonus",
+        "param": "maxHp",
+        "magnitude": 60.0
+      },
+      {
+        "piecesRequired": 4,
+        "description": "The alloy drinks what it spills. 8% of the damage you deal returns to you as health.",
+        "action": "lifesteal",
+        "magnitude": 0.08
+      },
+      {
+        "piecesRequired": 6,
+        "description": "Bronze endures. Your armour wears out at half the usual rate.",
+        "action": "durabilityGuard",
+        "magnitude": 0.5
+      }
+    ]
+  }
+]

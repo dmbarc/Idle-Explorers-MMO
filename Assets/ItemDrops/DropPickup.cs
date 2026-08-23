@@ -25,6 +25,16 @@ public class DropPickup : MonoBehaviour
     public string itemId;
     public long   quantity = 1;
 
+    /// <summary>
+    /// Condition this piece of gear should come back at, for armour that was thrown
+    /// rather than looted. -1 means "not gear, or unknown" and is the normal case.
+    ///
+    /// Only the set bonus that hurls armour at an enemy sets this, and only the one
+    /// that scoops it back up reads it — a drop collected the ordinary way goes into
+    /// the inventory, where the durability ledger already knows its condition.
+    /// </summary>
+    [System.NonSerialized] public int RecoveredDurability = -1;
+
     [Header("Toss")]
     [Tooltip("Seconds the drop takes to arc from where it spawned to where it lands.")]
     public float tossDuration = 0.45f;
@@ -112,23 +122,64 @@ public class DropPickup : MonoBehaviour
         if (!_tossing) transform.position = _to;
     }
 
+    /// <summary>
+    /// Where a drop comes to rest.
+    ///
+    /// ══ WHY LOOT WAS FLOATING IN MID-AIR ══════════════════════════════════════
+    ///
+    /// This used to raycast straight down from 30 units up against EVERY layer. A
+    /// drop spawns inside the monster that produced it, whose collider outlives it by
+    /// corpseDespawnTime — so the first thing the ray hit on the way down was the top
+    /// of the corpse's own capsule, about two units above the floor. That became the
+    /// "ground". Worse, the NavMesh sample that followed took only x and z from the
+    /// hit and KEPT that bogus y, so snapping to walkable ground could not correct it.
+    /// The item hung at chest height, and auto-mode walked to it and stood underneath
+    /// it forever because the pickup trigger never reached the player.
+    ///
+    /// The NavMesh leads now. It is baked from the walkable floor, so a point on it is
+    /// on the ground by construction and — unlike a raycast — is guaranteed to be
+    /// somewhere the player can actually stand. The raycast is only a fallback for
+    /// spots with no NavMesh nearby, and it now skips characters and other drops.
+    /// </summary>
     private static Vector3 ResolveLanding(Vector3 near)
     {
-        Vector3 ground = near;
+        // Generous radius: the toss starts up to ~2.5 units above the corpse's feet,
+        // and SamplePosition measures in 3D. Too small a radius here is exactly the
+        // mistake that once made the monster spawner stop finding anywhere to spawn.
+        if (NavMesh.SamplePosition(near, out NavMeshHit navHit, 8f, NavMesh.AllAreas))
+            return navHit.position + Vector3.up * RestHeight;
 
-        // Terrain first — it is what the item visually rests on.
+        return RaycastToGround(near) + Vector3.up * RestHeight;
+    }
+
+    /// <summary>
+    /// Lowest solid surface under a point, ignoring anything that is not scenery.
+    ///
+    /// RaycastAll rather than Raycast: the nearest hit is usually the corpse the loot
+    /// fell out of. Taking the LOWEST qualifying hit also survives a drop that spawns
+    /// underneath an overhang.
+    /// </summary>
+    private static Vector3 RaycastToGround(Vector3 near)
+    {
         var origin = new Vector3(near.x, near.y + 30f, near.z);
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 200f,
-                            ~0, QueryTriggerInteraction.Ignore))
-            ground = hit.point;
+        var hits   = Physics.RaycastAll(origin, Vector3.down, 200f, ~0, QueryTriggerInteraction.Ignore);
 
-        // Then nudge onto walkable ground if there is any close by. A small radius:
-        // pulling a drop several units to reach the NavMesh would look like the item
-        // teleporting away from the corpse it came off.
-        if (NavMesh.SamplePosition(ground, out NavMeshHit navHit, 2.5f, NavMesh.AllAreas))
-            ground = new Vector3(navHit.position.x, ground.y, navHit.position.z);
+        bool  found = false;
+        float bestY = float.MaxValue;
 
-        return ground + Vector3.up * RestHeight;
+        foreach (var hit in hits)
+        {
+            // Skip the things that are standing on the ground rather than being it.
+            if (hit.collider.GetComponentInParent<MonsterController>() != null) continue;
+            if (hit.collider.GetComponentInParent<PlayerController>()  != null) continue;
+            if (hit.collider.GetComponentInParent<DropPickup>()        != null) continue;
+
+            if (hit.point.y >= bestY) continue;
+            bestY = hit.point.y;
+            found = true;
+        }
+
+        return found ? new Vector3(near.x, bestY, near.z) : near;
     }
 
     private void Update()
@@ -193,20 +244,66 @@ public class DropPickup : MonoBehaviour
 
     private float _age;
 
+    /// <summary>
+    /// Drags the drop back down onto real ground.
+    ///
+    /// Called when something has walked to this item and failed to collect it, which
+    /// almost always means it is out of reach of the trigger. Cheap, idempotent, and
+    /// it rescues loot already lying in a running scene from before the landing bug
+    /// was fixed — those drops never move again on their own.
+    /// </summary>
+    public void Reground()
+    {
+        if (_tossing) return;
+
+        Vector3 grounded = ResolveLanding(transform.position);
+        if ((grounded - transform.position).sqrMagnitude < 0.0004f) return;
+
+        transform.position = grounded;
+    }
+
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
-        if (string.IsNullOrEmpty(itemId)) return;
+        if (other == null || !other.CompareTag("Player")) return;
+        TryCollect();
+    }
+
+    private bool _warnedFull;
+
+    /// <summary>
+    /// Collects what fits. Returns true once nothing is left and the drop has been
+    /// destroyed.
+    ///
+    /// Public because the trigger cannot be trusted on its own. OnTriggerEnter fires
+    /// exactly once, so a player who arrives with a full bag never gets a second
+    /// chance, and OnTriggerStay is unreliable here — this body is kinematic, and a
+    /// sleeping kinematic body against a stationary character does not reliably
+    /// generate Stay callbacks. PlayerController calls this directly when it has
+    /// walked to a drop, which does not depend on the physics engine's opinion.
+    /// </summary>
+    public bool TryCollect()
+    {
+        if (string.IsNullOrEmpty(itemId)) return false;
 
         var inventory = GameManager.Inventory;
-        if (inventory == null) return;
+        if (inventory == null) return false;
 
         // Take what fits and leave the rest on the ground. The check has to be against
         // the actual quantity, not one unit: a bag with room for ten of something is
         // not a bag with room for a stack of a thousand, and destroying the pickup
         // after a failed add would delete the difference.
         long taken = inventory.AddUpTo(itemId, quantity);
-        if (taken <= 0) return;
+        if (taken <= 0)
+        {
+            // Said once per drop, not once per attempt — the player controller retries
+            // this while standing on a pile it has no room for.
+            if (!_warnedFull)
+            {
+                _warnedFull = true;
+                GameEvents.FireToast("Inventory full — some was left behind.");
+            }
+            return false;
+        }
 
         GameEvents.FireItemPickedUp(itemId, taken);
 
@@ -219,10 +316,10 @@ public class DropPickup : MonoBehaviour
         {
             // Partially collected: shrink the pile and leave it there.
             UpdateVisualSize();
-            GameEvents.FireToast("Inventory full — some was left behind.");
-            return;
+            return false;
         }
 
         Destroy(gameObject);
+        return true;
     }
 }

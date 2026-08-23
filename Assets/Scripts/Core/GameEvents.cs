@@ -44,6 +44,12 @@ public static class GameEvents
     public static Action                  OnTalentsChanged;       // a point was spent or refunded
     public static Action<string>          OnClassChanged;         // new classId
 
+    /// <summary>A worn item's durability changed, or a piece broke or was repaired.</summary>
+    public static Action                  OnDurabilityChanged;
+
+    /// <summary>Auto-mode was switched on or off.</summary>
+    public static Action<bool>            OnAutoModeChanged;
+
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex
     public static Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
@@ -121,6 +127,16 @@ public static class GameEvents
         OnInventoryChanged       = null;
         OnBankChanged            = null;
         OnEquipmentChanged       = null;
+
+        // These four were missed when they were added, so with Fast Enter Play Mode
+        // their handlers survived between sessions and accumulated — the talent badge
+        // refreshing four times, the auto indicator fighting itself. Every new event
+        // belongs here.
+        OnTalentsChanged         = null;
+        OnClassChanged           = null;
+        OnDurabilityChanged      = null;
+        OnAutoModeChanged        = null;
+        OnRelicCoinsChanged      = null;
 
         OnMergeSlotChanged       = null;
         OnMergeCompleted         = null;

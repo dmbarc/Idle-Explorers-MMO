@@ -224,6 +224,7 @@ public class SkillNodeController : MonoBehaviour
         GameManager.Inventory.AddItem(_recipe.outputItemId, produced);
         GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
 
+        GameManager.Audio?.Play(GatherSound(_recipe.skillId));
         ItemEffectResolver.Fire("onCraft", _recipe.skillId);
         return true;
     }
@@ -325,8 +326,21 @@ public class SkillNodeController : MonoBehaviour
         }
 
         GameManager.Skills?.AddSkillXP(_entry.skillId, (long)_entry.xpPerAction);
+        GameManager.Audio?.Play(GatherSound(_entry.skillId));
         ItemEffectResolver.Fire("onGather", _entry.skillId);
     }
+
+    /// <summary>
+    /// The noise a gathering action makes. Falls back to the generic craft sound
+    /// rather than silence, so a skill added later is audible before it is bespoke.
+    /// </summary>
+    private static string GatherSound(string skillId) => skillId switch
+    {
+        "mining"      => Sfx.Mine,
+        "woodcutting" => Sfx.Chop,
+        "smithing"    => Sfx.Smith,
+        _             => Sfx.Craft,
+    };
 
     /// <summary>XP/hour at the active rate — shown in the HUD and used for AFK accrual.</summary>
     private float XpPerHour()

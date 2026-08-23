@@ -16,7 +16,8 @@ public class ActivityManager : MonoBehaviour
     public void SetActivity(string skillId, string targetId, string targetName, string mapId,
                             float activeRate, float afkRate, float specialChance,
                             string specialLabel, float xpPerHour,
-                            string recipeId = null, float secondsPerAction = 0f)
+                            string recipeId = null, float secondsPerAction = 0f,
+                            bool announce = true)
     {
         CurrentActivity = new SkillActivityData
         {
@@ -42,7 +43,7 @@ public class ActivityManager : MonoBehaviour
         // The display name, not the raw id — every other message in the game reads
         // "Cooking", not "cooking".
         string skillName = GameManager.Content?.GetSkill(skillId)?.DisplayName ?? skillId;
-        GameEvents.FireToast($"Now: {skillName} — {targetName}");
+        if (announce) GameEvents.FireToast($"Now: {skillName} — {targetName}");
         Debug.Log($"[ActivityManager] Activity set: {skillId} on {targetName}");
     }
 
@@ -112,7 +113,15 @@ public class ActivityManager : MonoBehaviour
 
     /// <summary>
     /// Set the default map activity (combat vs. the map's default monster).
-    /// Called automatically when entering a map without interacting with a skill node.
+    ///
+    /// Called when entering a map, and again whenever the player walks away from a
+    /// skill node — combat is what the character falls back to, so it is what the
+    /// readout should say once they stop mining.
+    ///
+    /// IDEMPOTENT, and that matters more than it looks. This is now called on every
+    /// target switch, and SetActivity stamps a fresh activityStartUnixTime; without
+    /// the early return, wandering between goblins would restart the AFK clock several
+    /// times a minute and toast "Now: Combat" each time.
     /// </summary>
     public void SetDefaultCombatActivity(string mapId)
     {
@@ -120,6 +129,13 @@ public class ActivityManager : MonoBehaviour
         if (map == null) return;
         var monster = GameManager.Content?.GetMonster(map.defaultMonsterId);
         if (monster == null) return;
+
+        var current = CurrentActivity;
+        if (current != null &&
+            current.skillId          == "combat" &&
+            current.activityTargetId == map.defaultMonsterId &&
+            current.mapId            == mapId)
+            return;
 
         int combatLevel = CharacterManager.Current?.level ?? 1;
         float afkRate = GameManager.Skills?.GetAFKRateMultiplier("combat", combatLevel) ?? 0.6f;

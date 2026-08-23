@@ -97,16 +97,22 @@ public static class BootstrapSetup
         // Default texture cannot be assigned to Image.sprite and is not returned by a
         // t:Sprite search — so every step after this would find nothing and quietly
         // fall back to placeholders.
-        Debug.Log("[Setup] 1/9 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
-        Debug.Log("[Setup] 2/9 UITheme asset");         CreateUIThemeAsset();
-        Debug.Log("[Setup] 3/9 Icon library");          IconLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 4/9 VFX library");           VFXLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 5/9 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
-        Debug.Log("[Setup] 6/9 Item drop prefab");      ItemDropSetup.Rebuild(showDialog: false);
-        Debug.Log("[Setup] 7/9 Bootstrap scene");       CreateBootstrapScene(showDialog: false);
+        Debug.Log("[Setup] 1/11 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
+        Debug.Log("[Setup] 2/11 UITheme asset");         CreateUIThemeAsset();
+        Debug.Log("[Setup] 3/11 Icon library");          IconLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 4/11 Audio library");         AudioSetup.Rebuild(showDialog: false);
+        Debug.Log("[Setup] 5/11 VFX library");           VFXLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 6/11 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
+        Debug.Log("[Setup] 7/11 Item drop prefab");      ItemDropSetup.Rebuild(showDialog: false);
+        Debug.Log("[Setup] 8/11 Bootstrap scene");       CreateBootstrapScene(showDialog: false);
         // Last, and these rebake their own NavMesh — each map has to be final first.
-        Debug.Log("[Setup] 8/9 Goblin Camp + NavMesh"); MapSceneSetup.Execute(showDialog: false);
-        Debug.Log("[Setup] 9/9 Fading Hollow + NavMesh"); HollowMapSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 9/11 Goblin Camp + NavMesh");  MapSceneSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 10/11 Fading Hollow + NavMesh"); HollowMapSetup.Execute(showDialog: false);
+
+        // Reports rather than builds: it reads item_data.json and the SPUM rig and
+        // says which pieces of equipment would draw nothing. Cheap, and it turns the
+        // class of bug that hid the tin helmet into a console line.
+        Debug.Log("[Setup] 11/11 Equipment art check");   EquipmentArtValidator.Validate();
 
         // Bootstrap must be index 0 — it is the scene that owns the Managers object
         // and every other scene loads additively on top of it.

@@ -343,6 +343,7 @@ public class MonsterController : MonoBehaviour
             if (entry.itemId == InventoryManager.CoinsItemId)
             {
                 GameManager.Inventory?.AddCoins(qty);
+                GameManager.Audio?.Play(Sfx.Coins);
                 continue;
             }
 
@@ -375,6 +376,7 @@ public class MonsterController : MonoBehaviour
         // "onKill" is one of the documented equipment triggers and was the only one
         // nothing ever fired, so a ring that promised something on a kill did nothing.
         ItemEffectResolver.Fire("onKill", _data.id);
+        SetBonusResolver.OnKill();
     }
 
     private void SpawnDrop(string itemId, long qty, Vector3 basePos)

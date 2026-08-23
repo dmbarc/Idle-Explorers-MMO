@@ -18,13 +18,10 @@ public class InventoryPanel : UIScreen, ISlotPanel
     /// <summary>Sits over the HUD rather than replacing it.</summary>
     public override bool IsOverlay => true;
 
-    private RectTransform _grid;
-    private GameObject    _tooltip;
-    private TMP_Text      _tooltipName;
-    private TMP_Text      _tooltipDesc;
-    private TMP_Text      _tooltipMeta;
-    private TMP_Text      _capacityLabel;
-    private TMP_Text      _coinsLabel;
+    private RectTransform     _grid;
+    private ItemTooltip.Card  _tooltip;
+    private TMP_Text          _capacityLabel;
+    private TMP_Text          _coinsLabel;
 
     private readonly List<InventorySlotView> _slots = new();
     private GameObject _dragGhost;
@@ -131,36 +128,7 @@ public class InventoryPanel : UIScreen, ISlotPanel
 
     private void BuildTooltip(UITheme theme)
     {
-        _tooltip = UIFactory.Panel(transform, "Tooltip", theme.cardBg, false);
-        var rt = _tooltip.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(300f, 120f);
-        rt.pivot     = new Vector2(0f, 1f);
-
-        // Never let the tooltip intercept the pointer — that is what made the old
-        // inventory tooltip flicker on and off while hovering a slot.
-        var group = _tooltip.AddComponent<CanvasGroup>();
-        group.blocksRaycasts = false;
-        group.interactable   = false;
-
-        var vlg = _tooltip.AddComponent<VerticalLayoutGroup>();
-        vlg.padding                = new RectOffset(10, 10, 8, 8);
-        vlg.spacing                = 4f;
-        vlg.childForceExpandWidth  = true;
-        vlg.childForceExpandHeight = false;
-        vlg.childControlWidth      = true;
-        vlg.childControlHeight     = true;
-
-        var fitter = _tooltip.AddComponent<ContentSizeFitter>();
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        _tooltipName = UIFactory.Label(_tooltip.transform, "", theme.fontSizeBody,
-                                        theme.accentGold, TextAlignmentOptions.TopLeft);
-        _tooltipDesc = UIFactory.Label(_tooltip.transform, "", theme.fontSizeSmall,
-                                        theme.textPrimary, TextAlignmentOptions.TopLeft);
-        _tooltipMeta = UIFactory.Label(_tooltip.transform, "", theme.fontSizeLabel,
-                                        theme.textSecondary, TextAlignmentOptions.TopLeft);
-
-        _tooltip.SetActive(false);
+        _tooltip = ItemTooltip.CreateCard(transform);
     }
 
     /// <summary>Called by a cell on hover. This panel only ever shows inventory cells.</summary>
@@ -175,40 +143,11 @@ public class InventoryPanel : UIScreen, ISlotPanel
         var item = GameManager.Content?.GetItem(entry.itemId);
         if (item == null || _tooltip == null) return;
 
-        _tooltipName.text = item.DisplayName;
-        _tooltipDesc.text = item.description ?? "";
-
-        string meta = $"Quantity: {NumberFormatter.Format(entry.quantity)}";
-
-        // Name the skill the requirement is actually measured against. "Requires
-        // level 20" said nothing about WHICH level, and was enforced nowhere at all —
-        // so it was both vague and false.
-        if (item.levelReq > 0 && !string.IsNullOrEmpty(item.sourceSkill))
-        {
-            string reqSkill = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
-            int    have     = GameManager.Skills?.GetSkillLevel(item.sourceSkill) ?? 1;
-            meta += $"\nRequires {reqSkill} {item.levelReq}" + (have < item.levelReq ? $" (you are {have})" : "");
-        }
-
-        if (!string.IsNullOrEmpty(item.sourceSkill))
-        {
-            string skillName = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
-            meta += $"\nSource: {skillName}";
-        }
-        _tooltipMeta.text = meta;
-
-        _tooltip.SetActive(true);
-        _tooltip.transform.SetAsLastSibling();
-
-        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
-                (RectTransform)transform, screenPos, null, out Vector2 local))
-            _tooltip.GetComponent<RectTransform>().anchoredPosition = local + new Vector2(16f, -16f);
+        ItemTooltip.Show(_tooltip, (RectTransform)transform, item, screenPos,
+                         quantity: entry.quantity, location: "Carried");
     }
 
-    public void HideTooltip()
-    {
-        if (_tooltip != null) _tooltip.SetActive(false);
-    }
+    public void HideTooltip() => _tooltip?.Hide();
 
     // ── Drag ghost (owned here, not by the cell) ──────────────────────────────
 

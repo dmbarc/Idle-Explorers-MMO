@@ -32,6 +32,7 @@ public class GameHUD : UIScreen
 
         BuildTopBar();
         BuildBottomBar();
+        BuildAutoBanner();
     }
 
     public override void OnShow()
@@ -44,6 +45,7 @@ public class GameHUD : UIScreen
         RefreshCoins(GameManager.Inventory?.Coins ?? 0);
         RebuildAbilityBar();
         RefreshTalentBadge();
+        SyncAutoMode();
 
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
@@ -51,6 +53,7 @@ public class GameHUD : UIScreen
         GameEvents.OnPlayerDied          += OnPlayerDied;
         GameEvents.OnTalentsChanged      += RefreshTalentBadge;
         GameEvents.OnClassChanged        += OnClassChanged;
+        GameEvents.OnAutoModeChanged     += RefreshAutoMode;
     }
 
     public override void OnHide()
@@ -61,6 +64,7 @@ public class GameHUD : UIScreen
         GameEvents.OnPlayerDied          -= OnPlayerDied;
         GameEvents.OnTalentsChanged      -= RefreshTalentBadge;
         GameEvents.OnClassChanged        -= OnClassChanged;
+        GameEvents.OnAutoModeChanged     -= RefreshAutoMode;
     }
 
     /// <summary>
@@ -279,26 +283,90 @@ public class GameHUD : UIScreen
         _talentBadge.text = available > 0 ? $"+{available}" : "";
     }
 
+    /// <summary>
+    /// The AUTO toggle, and the banner that says whether it is on.
+    ///
+    /// The button used to recolour itself inside its own click handler, which meant it
+    /// showed the wrong state the moment anything redrew the HUD — and the HUD is
+    /// cached and rebuilt on every character select and every ability change. State
+    /// now comes from the player and arrives on an event, so the button and the
+    /// banner cannot disagree with the game or with each other.
+    /// </summary>
     private void BuildAutoToggle(Transform parent)
     {
-        var btn = UIFactory.Button(parent, "AUTO", null, width: 70f);
+        _autoButton      = UIFactory.Button(parent, "AUTO", null, width: 70f);
+        _autoButtonLabel = _autoButton.GetComponentInChildren<TMP_Text>();
 
-        btn.onClick.AddListener(() =>
+        _autoButton.onClick.AddListener(() =>
         {
             EnsurePlayer();
             if (_player == null) { GameEvents.FireToast("No character in the world yet."); return; }
 
-            bool enabled = !_player.autoAttack;
+            bool enabled = !_player.AutoModeEnabled;
             _player.SetAutoAttack(enabled);
-
-            // Recolour through the colour block, not the Image — Selectable rewrites
-            // the Image tint on every state change and would undo a direct assignment.
-            var colors = btn.colors;
-            colors.normalColor = enabled ? UIManager.Theme.accentGreen : UIManager.Theme.buttonNormal;
-            btn.colors = colors;
-
             GameEvents.FireToast(enabled ? "Auto-mode on" : "Auto-mode off");
         });
+    }
+
+    /// <summary>
+    /// A persistent badge under the top bar, because a recoloured 70px button is not
+    /// something you notice from across the room — and auto-mode being on or off
+    /// changes what the game does when you walk away from it.
+    /// </summary>
+    private void BuildAutoBanner()
+    {
+        var theme = UIManager.Theme;
+
+        var badge = UIFactory.Panel(transform, "AutoBanner", theme.cardBg, false, raycastTarget: false);
+        UIFactory.At(badge.transform, 0.40f, 0.865f, 0.60f, 0.915f);
+        _autoBanner = badge;
+
+        _autoBannerLabel = UIFactory.Label(badge.transform, "", theme.fontSizeLabel,
+                                            theme.accentGreen, TextAlignmentOptions.Center);
+        UIFactory.At(_autoBannerLabel, 0f, 0f, 1f, 1f);
+
+        RefreshAutoMode(false);
+    }
+
+    private Button     _autoButton;
+    private TMP_Text   _autoButtonLabel;
+    private GameObject _autoBanner;
+    private TMP_Text   _autoBannerLabel;
+
+    /// <summary>Paints both indicators from a single source of truth.</summary>
+    private void RefreshAutoMode(bool enabled)
+    {
+        var theme = UIManager.Theme;
+
+        if (_autoButton != null)
+        {
+            // Through the colour block, not the Image — Selectable rewrites the Image
+            // tint on every state change and would undo a direct assignment the first
+            // time the pointer moved over the button.
+            var colors = _autoButton.colors;
+            colors.normalColor      = enabled ? theme.accentGreen : theme.buttonNormal;
+            colors.highlightedColor = enabled ? theme.accentGreen : theme.buttonHover;
+            _autoButton.colors      = colors;
+        }
+
+        if (_autoButtonLabel != null)
+        {
+            _autoButtonLabel.text  = enabled ? "AUTO ●" : "AUTO";
+            _autoButtonLabel.color = enabled ? theme.textPrimary : theme.textSecondary;
+        }
+
+        if (_autoBanner != null) _autoBanner.SetActive(enabled);
+
+        if (_autoBannerLabel != null)
+            _autoBannerLabel.text = "● AUTO-MODE ON";
+    }
+
+    /// <summary>Reads the live state, for the moments no event will arrive — a fresh
+    /// build, a character swap, or re-entering the map.</summary>
+    private void SyncAutoMode()
+    {
+        EnsurePlayer();
+        RefreshAutoMode(_player != null && _player.AutoModeEnabled);
     }
 
     // The current-activity readout used to live here as a permanently visible panel

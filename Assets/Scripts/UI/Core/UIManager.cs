@@ -103,6 +103,9 @@ public class UIManager : MonoBehaviour
 
         screen.OnShow();
         _screenStack.Push(screen);
+
+        // One place for the panel-open sound, so a new screen gets it for free.
+        GameManager.Audio?.Play(Sfx.Open);
         return screen;
     }
 
@@ -113,6 +116,8 @@ public class UIManager : MonoBehaviour
         bool wasOverlay = top.IsOverlay;
         top.OnHide();
         top.gameObject.SetActive(false);
+
+        GameManager.Audio?.Play(Sfx.Close);
 
         if (_screenStack.Count > 0)
         {
