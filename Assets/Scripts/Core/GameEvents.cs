@@ -19,6 +19,13 @@ public static class GameEvents
     public static Action<int>             OnAccountLevelUp;       // new level
     public static Action<int>             OnCharacterLevelUp;     // new level
 
+    /// <summary>
+    /// A character was added, renamed or removed. Exists because overlays (the rename
+    /// modal) never trigger OnHide/OnResume on the screen below, so character select
+    /// has no lifecycle hook telling it a card went stale.
+    /// </summary>
+    public static Action                  OnCharacterRosterChanged;
+
     // ── Skills ───────────────────────────────────────────────────────────────
     public static Action<string, int>     OnSkillLevelUp;         // skillId, newLevel
     public static Action<string, long>    OnSkillXPGained;        // skillId, amount
@@ -97,6 +104,7 @@ public static class GameEvents
         OnCharacterCreated       = null;
         OnAccountLevelUp         = null;
         OnCharacterLevelUp       = null;
+        OnCharacterRosterChanged = null;
 
         OnSkillLevelUp           = null;
         OnSkillXPGained          = null;

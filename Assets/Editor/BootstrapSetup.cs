@@ -84,10 +84,20 @@ public static class BootstrapSetup
     public static void SetupAll()
     {
         Debug.Log("[Setup] ── Idle Explorers full setup ──");
-        CreateUIThemeAsset();
-        IconLibrarySetup.Rebuild();          // before the scenes, so icons resolve immediately
-        CreateBootstrapScene(showDialog: false);
-        MapSceneSetup.Execute(showDialog: false);
+
+        // Art first, scenes second: the scenes reference node models and the UI reads
+        // the theme, so building those afterwards would leave the first Play unskinned.
+        //
+        // UIThemeSetup and VFXLibrarySetup used to exist only as separate menu items
+        // and were never called from here — so anyone running "Setup Everything" got
+        // a flat UI and no ability effects, with nothing reporting that two steps had
+        // simply not happened. Every step now announces itself below.
+        Debug.Log("[Setup] 1/6 UITheme asset");        CreateUIThemeAsset();
+        Debug.Log("[Setup] 2/6 Icon library");         IconLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 3/6 VFX library");          VFXLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 4/6 UI sprite theme");      UIThemeSetup.Apply(showDialog: false);
+        Debug.Log("[Setup] 5/6 Bootstrap scene");      CreateBootstrapScene(showDialog: false);
+        Debug.Log("[Setup] 6/6 Map scene");            MapSceneSetup.Execute(showDialog: false);
 
         // Bootstrap must be index 0 — it is the scene that owns the Managers object
         // and every other scene loads additively on top of it.

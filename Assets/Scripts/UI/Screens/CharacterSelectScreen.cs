@@ -28,6 +28,20 @@ public class CharacterSelectScreen : UIScreen
     // OnResume still needs it, for returning from a non-overlay screen.
     public override void OnResume() => Refresh();
 
+    public override void OnShow()
+    {
+        // An overlay (the rename modal) never triggers OnHide here, so this stays
+        // subscribed while the modal is open — which is exactly what lets a rename
+        // update the card immediately. OnResume alone cannot do it: Pop() skips it
+        // for overlays on purpose, to avoid double-subscribing the screen below.
+        GameEvents.OnCharacterRosterChanged += Refresh;
+    }
+
+    public override void OnHide()
+    {
+        GameEvents.OnCharacterRosterChanged -= Refresh;
+    }
+
     private void Refresh()
     {
         var grid = transform.Find("CharGrid");

@@ -53,7 +53,14 @@ public class ItemActionMenu : UIScreen
 
         var card = UIFactory.Panel(transform, "ActionCard", theme.panelBg, false);
         var cardRt = card.GetComponent<RectTransform>();
-        cardRt.anchorMin = cardRt.anchorMax = new Vector2(0f, 1f);
+
+        // Anchored to the parent's CENTRE, with a top-left pivot so the card hangs
+        // down-right of the cursor. The anchor has to be the centre because
+        // ScreenPointToLocalPointInRectangle returns centre-origin coordinates —
+        // anchoring top-left while positioning with those put the card up and left
+        // of the screen for any click below or left of centre, which is why it
+        // rendered as a backdrop with nothing on it.
+        cardRt.anchorMin = cardRt.anchorMax = new Vector2(0.5f, 0.5f);
         cardRt.pivot     = new Vector2(0f, 1f);
         cardRt.sizeDelta = new Vector2(CardWidth, height);
         PositionCard(cardRt);
@@ -92,13 +99,18 @@ public class ItemActionMenu : UIScreen
         var canvasRect = ((RectTransform)transform).rect;
         float height   = cardRt.sizeDelta.y;
 
-        // Local space here has its origin at the centre, and the card's pivot is its
-        // top-left, so the bounds differ per axis.
+        // Both the anchor and this local point are centre-origin, and the card's
+        // pivot is its top-left — so the card occupies [x, x+width] and [y-height, y].
         float maxX = canvasRect.xMax - CardWidth;
         float minY = canvasRect.yMin + height;
 
-        local.x = Mathf.Clamp(local.x + 12f, canvasRect.xMin, maxX);
-        local.y = Mathf.Clamp(local.y - 12f, minY, canvasRect.yMax);
+        // A card taller than the screen makes minY exceed yMax, and Mathf.Clamp with
+        // min > max silently returns min — which would push it off the top. Prefer
+        // the top edge and let the bottom overflow, so the title stays reachable.
+        local.x = Mathf.Clamp(local.x + 12f, canvasRect.xMin, Mathf.Max(canvasRect.xMin, maxX));
+        local.y = minY > canvasRect.yMax
+            ? canvasRect.yMax
+            : Mathf.Clamp(local.y - 12f, minY, canvasRect.yMax);
 
         cardRt.anchoredPosition = local;
     }

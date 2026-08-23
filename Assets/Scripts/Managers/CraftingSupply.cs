@@ -50,13 +50,29 @@ public static class CraftingSupply
     public static long MaxCrafts(CraftRecipe recipe, out string limitingItemId)
     {
         limitingItemId = null;
-        if (recipe?.inputs == null || recipe.inputs.Length == 0) return long.MaxValue;
+        if (recipe == null) return 0;
+
+        // A crafting recipe that consumes nothing is a data error, not a free lunch.
+        // This used to return long.MaxValue, which is an unbounded-production bug one
+        // bad JSON edit away from firing — and producing from nothing is precisely the
+        // failure this whole system exists to remove.
+        if (recipe.inputs == null || recipe.inputs.Length == 0)
+        {
+            UnityEngine.Debug.LogWarning($"[CraftingSupply] Recipe '{recipe.id}' has no inputs — " +
+                                          "refusing to craft. Check recipe_data.json.");
+            return 0;
+        }
 
         long best = long.MaxValue;
 
         foreach (var input in recipe.inputs)
         {
-            if (input == null || input.quantity <= 0) continue;
+            if (input == null || string.IsNullOrEmpty(input.itemId) || input.quantity <= 0)
+            {
+                UnityEngine.Debug.LogWarning($"[CraftingSupply] Recipe '{recipe.id}' has a malformed " +
+                                              "input entry — refusing to craft.");
+                return 0;
+            }
 
             long possible = Available(input.itemId) / input.quantity;
             if (possible < best)
@@ -66,7 +82,30 @@ public static class CraftingSupply
             }
         }
 
-        return best == long.MaxValue ? long.MaxValue : best;
+        return best;
+    }
+
+    /// <summary>
+    /// Consumes the inputs for a number of crafts, all or nothing.
+    ///
+    /// Verifying every input before spending any is what stops a multi-input recipe
+    /// eating the copper and then discovering there is no tin — which would destroy
+    /// material and produce nothing.
+    /// </summary>
+    public static bool ConsumeFor(CraftRecipe recipe, long crafts)
+    {
+        if (recipe?.inputs == null || crafts <= 0) return false;
+
+        foreach (var input in recipe.inputs)
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) return false;
+            if (Available(input.itemId) < input.quantity * crafts) return false;
+        }
+
+        foreach (var input in recipe.inputs)
+            Consume(input.itemId, input.quantity * crafts);
+
+        return true;
     }
 
     /// <summary>Per-input stock, for the recipe list's have/need readout.</summary>

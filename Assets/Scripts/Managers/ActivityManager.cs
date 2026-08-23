@@ -128,6 +128,78 @@ public class ActivityManager : MonoBehaviour
     /// </summary>
     public const long MinAFKSeconds = 60;
 
+    // ── Validation ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Whether a saved activity still describes something the game can actually do.
+    ///
+    /// Checked against live content rather than a save-version stamp, so this keeps
+    /// working for any future data change that orphans an activity — a node that
+    /// becomes a station, a recipe that is renamed, a monster that is removed.
+    /// </summary>
+    public static bool IsActivityValid(SkillActivityData activity, out string reason)
+    {
+        if (activity == null || string.IsNullOrEmpty(activity.skillId))
+        {
+            reason = "no skill recorded";
+            return false;
+        }
+
+        var content = GameManager.Content;
+        if (content == null)
+        {
+            // Content not loaded yet — assume valid rather than destroying a good save.
+            reason = null;
+            return true;
+        }
+
+        if (activity.skillId == "combat")
+        {
+            if (content.GetMonster(activity.activityTargetId) == null)
+            {
+                reason = $"no monster '{activity.activityTargetId}' exists";
+                return false;
+            }
+            reason = null;
+            return true;
+        }
+
+        if (!string.IsNullOrEmpty(activity.recipeId))
+        {
+            if (content.GetRecipe(activity.recipeId) == null)
+            {
+                reason = $"no recipe '{activity.recipeId}' exists";
+                return false;
+            }
+            reason = null;
+            return true;
+        }
+
+        // Gathering: some node on that map must actually yield this item. A station
+        // does not count — stations consume inputs and have no targetItemId.
+        var map = content.GetMap(activity.mapId);
+        if (map?.skillNodes == null)
+        {
+            reason = $"map '{activity.mapId}' has no skill nodes";
+            return false;
+        }
+
+        foreach (var node in map.skillNodes)
+        {
+            if (node == null) continue;
+            if (!string.IsNullOrEmpty(node.stationType)) continue;
+            if (node.skillId != activity.skillId) continue;
+            if (node.targetItemId != activity.activityTargetId) continue;
+
+            reason = null;
+            return true;
+        }
+
+        reason = $"nothing on '{activity.mapId}' gathers '{activity.activityTargetId}' " +
+                 $"with {activity.skillId} any more";
+        return false;
+    }
+
     /// <summary>The most recently calculated summary, consumed by AFKSummaryScreen.</summary>
     public AFKRewardSummary PendingSummary { get; private set; }
 
@@ -144,6 +216,26 @@ public class ActivityManager : MonoBehaviour
         if (character?.currentActivity == null) return null;
         var activity = character.currentActivity;
         if (activity.activityStartUnixTime <= 0) return null;
+
+        // A snapshot can outlive the content that produced it. The campfire used to be
+        // a gathering node yielding cooked shrimp from nothing; it is a station now, so
+        // a save written before that change still describes an activity the game no
+        // longer has any way to perform — and the gathering path would happily conjure
+        // its target item forever. Discard rather than pay out.
+        if (!IsActivityValid(activity, out string reason))
+        {
+            Debug.LogWarning($"[ActivityManager] Discarding {character.characterName}'s saved activity " +
+                             $"('{activity.skillId}' → '{activity.activityTargetName}'): {reason}");
+
+            character.currentActivity = null;
+            if (ReferenceEquals(CurrentActivity, activity)) ClearActivity();
+
+            // Close the window anyway, or the same stale span is re-examined on every
+            // selection and the warning repeats forever.
+            character.lastLogoutUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            GameManager.Save?.Save();
+            return null;
+        }
 
         long now         = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         long realElapsed = now - character.lastLogoutUnixTime;
@@ -302,11 +394,14 @@ public class ActivityManager : MonoBehaviour
         }
 
         // Consume in bulk rather than per craft: after a 24h gap this can be tens of
-        // thousands of iterations, and the login would visibly hang.
-        foreach (var input in recipe.inputs)
+        // thousands of iterations, and the login would visibly hang. All-or-nothing,
+        // so a disagreement between the stock check and the spend cannot charge the
+        // player for crafts they do not receive.
+        if (!CraftingSupply.ConsumeFor(recipe, actualCrafts))
         {
-            if (input == null || input.quantity <= 0) continue;
-            CraftingSupply.Consume(input.itemId, input.quantity * actualCrafts);
+            Debug.LogWarning($"[ActivityManager] Could not afford {actualCrafts}x '{recipe.id}' " +
+                             "despite the stock check — granting nothing.");
+            return;
         }
 
         // The multiplier lands on output only — a proc that doubles what you make

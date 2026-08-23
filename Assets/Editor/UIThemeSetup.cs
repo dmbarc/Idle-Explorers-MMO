@@ -56,13 +56,18 @@ public static class UIThemeSetup
     };
 
     [MenuItem("Idle Explorers/Apply UI Sprite Theme")]
-    public static void Apply()
+    public static void Apply() => Apply(showDialog: true);
+
+    /// <summary>Dialog-free overload so "Setup Everything" can chain it.</summary>
+    public static void Apply(bool showDialog)
     {
         var theme = AssetDatabase.LoadAssetAtPath<UITheme>(THEME_PATH);
         if (theme == null)
         {
-            EditorUtility.DisplayDialog("No UITheme",
-                $"Expected {THEME_PATH}.\n\nRun 'Idle Explorers → Create UITheme Asset' first.", "OK");
+            Debug.LogError($"[UITheme] Expected {THEME_PATH} — run 'Create UITheme Asset' first.");
+            if (showDialog)
+                EditorUtility.DisplayDialog("No UITheme",
+                    $"Expected {THEME_PATH}.\n\nRun 'Idle Explorers → Create UITheme Asset' first.", "OK");
             return;
         }
 
@@ -100,6 +105,8 @@ public static class UIThemeSetup
         AssetDatabase.Refresh();
 
         Debug.Log($"[UITheme] Applied {applied}/{Skins.Length} sprites ({missing} unmatched) → {THEME_PATH}");
+
+        if (!showDialog) return;
 
         EditorUtility.DisplayDialog("UI Theme Applied",
             $"{applied} of {Skins.Length} sprites assigned.\n\n" +

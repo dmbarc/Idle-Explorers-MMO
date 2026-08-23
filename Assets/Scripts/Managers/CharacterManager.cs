@@ -107,6 +107,8 @@ public class CharacterManager : MonoBehaviour
         character.renameCount++;
         GameManager.Save?.Save();
 
+        GameEvents.OnCharacterRosterChanged?.Invoke();
+
         error = null;
         return true;
     }
@@ -119,6 +121,7 @@ public class CharacterManager : MonoBehaviour
         character.xp = 0;
         AccountManager.Current.characters.Add(character);
         GameEvents.OnCharacterCreated?.Invoke(character);
+        GameEvents.OnCharacterRosterChanged?.Invoke();
         Debug.Log($"[CharacterManager] Created: {character.characterName}");
     }
 

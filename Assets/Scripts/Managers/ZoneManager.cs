@@ -100,6 +100,16 @@ public class ZoneManager : MonoBehaviour
                          && saved.skillId != "combat"
                          && saved.mapId == map.id;
 
+        // Same content check AFK accrual applies. Resuming an orphaned activity would
+        // put the character back to work on something the map no longer offers, and
+        // it would start accruing against it again the moment they logged out.
+        if (resumable && !ActivityManager.IsActivityValid(saved, out string reason))
+        {
+            Debug.LogWarning($"[ZoneManager] Not resuming saved activity: {reason}");
+            if (CharacterManager.Current != null) CharacterManager.Current.currentActivity = null;
+            resumable = false;
+        }
+
         if (resumable)
         {
             GameManager.Activity?.ResumeActivity(saved);

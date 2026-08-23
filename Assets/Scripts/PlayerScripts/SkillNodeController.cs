@@ -184,16 +184,16 @@ public class SkillNodeController : MonoBehaviour
     {
         if (_recipe?.inputs == null) return false;
 
-        // Check everything before consuming anything — a partial consume on a
-        // multi-input recipe would destroy material and produce nothing.
+        // Report which input ran out before attempting anything, so the toast names
+        // the actual blocker rather than just failing.
         foreach (var input in _recipe.inputs)
         {
-            if (CraftingSupply.Available(input.itemId) < input.quantity)
-            {
-                var item = GameManager.Content?.GetItem(input.itemId);
-                GameEvents.FireToast($"Out of {item?.DisplayName ?? input.itemId}.");
-                return false;
-            }
+            if (input == null) continue;
+            if (CraftingSupply.Available(input.itemId) >= input.quantity) continue;
+
+            var item = GameManager.Content?.GetItem(input.itemId);
+            GameEvents.FireToast($"Out of {item?.DisplayName ?? input.itemId}.");
+            return false;
         }
 
         if (GameManager.Inventory?.CanAddItem(_recipe.outputItemId) != true)
@@ -202,8 +202,9 @@ public class SkillNodeController : MonoBehaviour
             return false;
         }
 
-        foreach (var input in _recipe.inputs)
-            CraftingSupply.Consume(input.itemId, input.quantity);
+        // All-or-nothing: verifies again and only then spends, so nothing is consumed
+        // unless every input is affordable.
+        if (!CraftingSupply.ConsumeFor(_recipe, 1)) return false;
 
         // Procs multiply the output, never the inputs — doubling a craft must not
         // also double what it cost.
