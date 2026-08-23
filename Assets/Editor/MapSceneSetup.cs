@@ -123,6 +123,7 @@ public static class MapSceneSetup
         int nodes    = PlaceSkillNodes();
         EnsurePlayerTag();
         EnsureCameraController();
+        ConfigureMonsterSpawner();
 
         // After the nodes exist, so the bake sees the finished scene. Placing geometry
         // and leaving the NavMesh stale is what forced a manual rebuild every time.
@@ -286,6 +287,40 @@ public static class MapSceneSetup
             camera.gameObject.AddComponent<CameraController>();
             Debug.Log("[MapSetup] Added CameraController to the map camera.");
         }
+    }
+
+    /// <summary>
+    /// Points the monster spawner at the playable area and gives it a sane rate.
+    ///
+    /// The values saved in the scene were spawnInterval 0.01 over a 2000x2000 box with
+    /// a cap of 500 — one monster per frame, scattered across an area a hundred times
+    /// larger than the baked NavMesh, most of them nowhere near any ground the player
+    /// can reach. Five hundred NavMeshAgents is also enough to bury the frame rate on
+    /// its own. Both are set here so regenerating the map corrects them.
+    /// </summary>
+    private static void ConfigureMonsterSpawner()
+    {
+        var spawner = Object.FindAnyObjectByType<MonsterSpawner>(FindObjectsInactive.Include);
+        if (spawner == null)
+        {
+            Debug.LogWarning("[MapSetup] No MonsterSpawner in the scene — nothing will spawn.");
+            return;
+        }
+
+        // A box around the player spawn, comfortably inside the terrain the NavMesh is
+        // baked over, and wide enough that monsters are not all on top of each other.
+        const float Half = 32f;
+        spawner.minXSpawn = PlayerSpawn.x - Half;
+        spawner.maxXSpawn = PlayerSpawn.x + Half;
+        spawner.minZSpawn = PlayerSpawn.z - Half;
+        spawner.maxZSpawn = PlayerSpawn.z + Half;
+
+        spawner.spawnInterval   = 4f;
+        spawner.maxMonsterCount = 12;
+
+        EditorUtility.SetDirty(spawner);
+        Debug.Log($"[MapSetup] Monster spawner: {spawner.maxMonsterCount} max, one every " +
+                  $"{spawner.spawnInterval}s, within {Half * 2}x{Half * 2} of the player spawn.");
     }
 
     /// <summary>PlayerController's drop pickups depend on the Player tag being set.</summary>

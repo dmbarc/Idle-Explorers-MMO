@@ -39,7 +39,14 @@ public class TurretController : MonoBehaviour
         if (Time.time < _nextFireAt) return;
 
         var target = NearestTarget();
-        if (target == null) return;
+        if (target == null)
+        {
+            // Nothing in range still costs a scan of every monster in the scene, and
+            // without this the scan repeated every frame for as long as the turret
+            // stood idle. Back off to the fire interval either way.
+            _nextFireAt = Time.time + _fireInterval;
+            return;
+        }
 
         target.TakeDamage(_damage);
         AbilityVFX.Play("impact", target.transform.position, 1.5f);

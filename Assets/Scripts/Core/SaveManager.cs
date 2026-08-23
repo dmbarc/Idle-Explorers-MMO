@@ -71,6 +71,8 @@ public class SaveManager : MonoBehaviour
                 ch.inventory ??= new System.Collections.Generic.List<InventoryEntry>();
                 ch.mergeBoard ??= new System.Collections.Generic.List<InventoryEntry>();
                 ch.equipment ??= new System.Collections.Generic.List<EquipmentEntry>();
+                // Absent from every save written before talents existed.
+                ch.talents   ??= new System.Collections.Generic.List<TalentRank>();
 
                 // Nobody is online at load. If the game was killed mid-session the
                 // flag stayed true, and the character card showed "⚡ ONLINE"

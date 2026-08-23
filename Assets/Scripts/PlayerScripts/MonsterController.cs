@@ -94,7 +94,15 @@ public class MonsterController : MonoBehaviour
 
                 if (dist <= aggroDistance && dist > attackDistance && playerController.IsAlive())
                 {
-                    agent.SetDestination(player.position);
+                    // Only re-path when the player has actually moved. SetDestination
+                    // recalculates the whole path, and calling it every frame for every
+                    // monster in aggro range was most of the cost of a busy camp.
+                    if ((player.position - _lastChaseDestination).sqrMagnitude > 1f)
+                    {
+                        _lastChaseDestination = player.position;
+                        agent.SetDestination(player.position);
+                    }
+
                     anim.SetBool("1_Move", true);
                     anim.SetBool("2_Attack", false);
                 }
@@ -112,10 +120,18 @@ public class MonsterController : MonoBehaviour
                 else
                 {
                     wanderTimer -= Time.deltaTime;
-                    if (wanderTimer <= 0f || agent.remainingDistance < 1f)
+
+                    // pathPending must be checked first: remainingDistance reads 0
+                    // while a path is still being computed, so without this the
+                    // "arrived" test is true every frame and a new destination is
+                    // requested every frame — a full path calculation per monster
+                    // per frame, for monsters that are merely standing about.
+                    bool arrived = !agent.pathPending && agent.remainingDistance < 1f;
+                    if (wanderTimer <= 0f || arrived)
                         PickNewWanderPoint();
 
-                    anim.SetBool("1_Move", true);
+                    anim.SetBool("1_Move", agent.velocity.sqrMagnitude > 0.01f);
+                    anim.SetBool("2_Attack", false);
                 }
             }
 
@@ -283,11 +299,21 @@ public class MonsterController : MonoBehaviour
 
     void PickNewWanderPoint()
     {
-        wanderPoint = transform.position + Random.insideUnitSphere * 8f;
+        wanderPoint   = transform.position + Random.insideUnitSphere * 8f;
         wanderPoint.y = transform.position.y;
-        agent.SetDestination(wanderPoint);
+
+        // Snap onto walkable ground. An off-mesh destination makes SetDestination
+        // produce a partial path that never completes, so the monster stops and is
+        // immediately judged to have "arrived" — picking another bad point forever.
+        if (NavMesh.SamplePosition(wanderPoint, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+            wanderPoint = hit.position;
+
+        if (agent != null && agent.isOnNavMesh) agent.SetDestination(wanderPoint);
         wanderTimer = Random.Range(3f, 6f);
     }
+
+    /// <summary>Last position we asked the agent to path to while chasing.</summary>
+    private Vector3 _lastChaseDestination = new Vector3(float.MinValue, 0f, 0f);
 
     /// <summary>
     /// Rolls this monster's loot table from monster_data.json and spawns one
@@ -340,8 +366,10 @@ public class MonsterController : MonoBehaviour
         if (_data == null) return;
 
         GameEvents.FireMonsterKilled(_data.id);
+
+        // Character XP is derived inside AddSkillXP now, for every skill rather than
+        // combat alone — granting it here as well would pay combat twice.
         GameManager.Skills?.AddSkillXP("combat", _data.xpReward);
-        GameManager.Character?.AddXP(_data.xpReward / 4);   // character XP = 1/4 of combat XP
         GameManager.Audio?.PlayDeath();
 
         // "onKill" is one of the documented equipment triggers and was the only one

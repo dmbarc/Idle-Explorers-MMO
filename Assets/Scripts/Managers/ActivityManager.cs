@@ -333,10 +333,10 @@ public class ActivityManager : MonoBehaviour
             }
         }
 
-        // Combat XP (from kills)
+        // Combat XP (from kills). Character XP follows from AddSkillXP, which derives
+        // it for every skill — adding it here too would pay combat twice.
         long combatXP = monster.xpReward * totalKills;
         GameManager.Skills?.AddSkillXP("combat", combatXP);
-        GameManager.Character?.AddXP(combatXP / 4); // character level XP = 1/4 of combat XP
 
         summary?.AddXP("combat", combatXP);
         if (summary != null) summary.kills = totalKills;

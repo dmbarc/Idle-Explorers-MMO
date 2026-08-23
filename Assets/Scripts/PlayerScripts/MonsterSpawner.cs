@@ -24,20 +24,52 @@ public class MonsterSpawner : MonoBehaviour
     private const string MonsterResourcePath = "Monsters/";
     private const string FallbackPrefabName  = "_default";
 
+    /// <summary>
+    /// Ceilings the Inspector cannot exceed.
+    ///
+    /// The scene was saved with spawnInterval 0.01 and a cap of 500 over a 2000x2000
+    /// box — one monster per frame, most of them off the NavMesh entirely, and five
+    /// hundred NavMeshAgents once it finished. Serialized values silently override
+    /// the script defaults, so the defaults alone were no protection.
+    /// </summary>
+    private const float MinSpawnInterval = 0.5f;
+    private const int   MaxMonsterCeiling = 60;
+
     private int         currentMonsterCount = 0;
     private float       timer = 0f;
     private GameObject  _cachedPrefab;
     private MonsterData _cachedData;
     private string      _cachedMonsterId;
+    private bool        _warnedAboutLimits;
 
     void Update()
     {
+        ClampLimits();
+
         timer += Time.deltaTime;
         if (timer >= spawnInterval && currentMonsterCount < maxMonsterCount)
         {
             SpawnMonster();
             timer = 0f;
         }
+    }
+
+    /// <summary>Pulls absurd serialized values back into range, once, loudly.</summary>
+    private void ClampLimits()
+    {
+        if (spawnInterval >= MinSpawnInterval && maxMonsterCount <= MaxMonsterCeiling) return;
+
+        if (!_warnedAboutLimits)
+        {
+            Debug.LogWarning($"[MonsterSpawner] Scene values out of range " +
+                             $"(interval {spawnInterval}s, cap {maxMonsterCount}) — clamped to " +
+                             $"{MinSpawnInterval}s / {MaxMonsterCeiling}. " +
+                             "Run 'Idle Explorers → Setup Everything' to correct the scene.");
+            _warnedAboutLimits = true;
+        }
+
+        spawnInterval   = Mathf.Max(MinSpawnInterval, spawnInterval);
+        maxMonsterCount = Mathf.Min(MaxMonsterCeiling, maxMonsterCount);
     }
 
     void SpawnMonster()
@@ -47,7 +79,10 @@ public class MonsterSpawner : MonoBehaviour
         Vector3 randomPos = new Vector3(
             Random.Range(minXSpawn, maxXSpawn), 10f, Random.Range(minZSpawn, maxZSpawn));
 
-        if (!NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 20f, NavMesh.AllAreas))
+        // A tight radius on purpose. A generous one drags spawn points from far
+        // outside the NavMesh onto its edge, piling monsters along the boundary
+        // instead of failing the roll and trying somewhere else.
+        if (!NavMesh.SamplePosition(randomPos, out NavMeshHit hit, 8f, NavMesh.AllAreas))
             return;
 
         GameObject monster = Instantiate(prefab, hit.position, Quaternion.identity);

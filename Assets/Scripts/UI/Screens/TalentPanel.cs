@@ -44,10 +44,26 @@ public class TalentPanel : UIScreen
         BuildFooter(panel.transform, theme);
     }
 
-    public override void OnShow()  => GameEvents.OnTalentsChanged += Rebuild;
-    public override void OnHide()  => GameEvents.OnTalentsChanged -= Rebuild;
+    public override void OnShow()  => GameEvents.OnTalentsChanged += MarkDirty;
+    public override void OnHide()  => GameEvents.OnTalentsChanged -= MarkDirty;
 
-    private void Rebuild() => RebuildContents();
+    private bool _needsRebuild;
+
+    /// <summary>
+    /// Defers the redraw to the end of the frame rather than doing it inline.
+    ///
+    /// OnTalentsChanged fires from inside the Button click that spent the point, and
+    /// RebuildContents uses DestroyImmediate — so rebuilding inline would destroy the
+    /// button whose click handler is still on the stack.
+    /// </summary>
+    private void MarkDirty() => _needsRebuild = true;
+
+    private void LateUpdate()
+    {
+        if (!_needsRebuild) return;
+        _needsRebuild = false;
+        RebuildContents();
+    }
 
     // ── Header ────────────────────────────────────────────────────────────────
 

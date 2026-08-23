@@ -27,6 +27,15 @@ public class SkillManager : MonoBehaviour
         progress.xp += amount;
         GameEvents.OnSkillXPGained?.Invoke(skillId, amount);
 
+        // Character XP is a quarter of ALL skill XP, from every skill.
+        //
+        // It used to come from combat kills alone, granted at the two places kills are
+        // awarded. A character who mined, fished and cooked exclusively therefore
+        // stayed at level 1 for as long as they played — which, now that talent points
+        // come from character level, would have meant an entire playstyle never
+        // earning a single talent point. One rule, applied wherever skill XP lands.
+        GameManager.Character?.AddXP(amount / 4);
+
         int newLevel = XPToSkillLevel(progress.xp);
         if (newLevel > progress.level)
         {
