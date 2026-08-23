@@ -124,6 +124,10 @@ public static class MapSceneSetup
         EnsurePlayerTag();
         EnsureCameraController();
 
+        // After the nodes exist, so the bake sees the finished scene. Placing geometry
+        // and leaving the NavMesh stale is what forced a manual rebuild every time.
+        bool baked = BakeNavMesh();
+
         EditorSceneManager.MarkSceneDirty(scene);
         bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
         if (!saved)
@@ -135,15 +139,80 @@ public static class MapSceneSetup
         AssetDatabase.Refresh();
         AddSceneToBuildSettings(MAP_SCENE);
 
-        Debug.Log($"[MapSetup] {MAP_SCENE} saved. Stripped {stripped} legacy object(s), placed {nodes} skill node(s).");
+        Debug.Log($"[MapSetup] {MAP_SCENE} saved. Stripped {stripped} legacy object(s), " +
+                  $"placed {nodes} skill node(s), NavMesh {(baked ? "rebuilt" : "NOT rebuilt")}.");
 
         if (showDialog)
             EditorUtility.DisplayDialog("Map Scene Ready",
                 $"Saved: {MAP_SCENE}\n\n" +
                 $"• Legacy objects removed: {stripped}\n" +
-                $"• Skill nodes placed: {nodes}\n\n" +
+                $"• Skill nodes placed: {nodes}\n" +
+                $"• NavMesh: {(baked ? "rebuilt automatically" : "could not be rebuilt — see Console")}\n\n" +
                 "Bootstrap remains the scene you press Play on — this map loads additively.",
                 "OK");
+    }
+
+    // ── NavMesh ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Rebuilds the map's NavMesh and writes it back to its asset.
+    ///
+    /// This runs on every map build because the alternative — remembering to do it by
+    /// hand — has already failed once: the agent silently keeps whatever mesh was
+    /// baked before the scene was regenerated, and a stale NavMesh looks exactly like
+    /// broken pathfinding rather than like missing data.
+    ///
+    /// Returns false when there is nothing to bake, which is worth reporting rather
+    /// than passing over quietly.
+    /// </summary>
+    private static bool BakeNavMesh()
+    {
+        var surface = Object.FindAnyObjectByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsInactive.Include);
+
+        if (surface == null)
+        {
+            // The terrain is the walkable ground, so that is where the surface belongs.
+            var terrain = Object.FindAnyObjectByType<Terrain>(FindObjectsInactive.Include);
+            if (terrain == null)
+            {
+                Debug.LogWarning("[MapSetup] No NavMeshSurface and no Terrain — NavMesh not baked. " +
+                                 "The player and every monster will be unable to move.");
+                return false;
+            }
+
+            surface = terrain.gameObject.AddComponent<Unity.AI.Navigation.NavMeshSurface>();
+            surface.collectObjects = Unity.AI.Navigation.CollectObjects.All;
+            Debug.Log("[MapSetup] Added a NavMeshSurface to the Terrain.");
+        }
+
+        surface.BuildNavMesh();
+
+        if (surface.navMeshData == null)
+        {
+            Debug.LogWarning("[MapSetup] NavMesh bake produced no data.");
+            return false;
+        }
+
+        // BuildNavMesh fills the NavMeshData in memory. If it is not already a saved
+        // asset it dies with the Editor session, and the scene reloads with nothing.
+        string assetPath = AssetDatabase.GetAssetPath(surface.navMeshData);
+        if (string.IsNullOrEmpty(assetPath))
+        {
+            string directory = Path.Combine(Path.GetDirectoryName(MAP_SCENE),
+                                             Path.GetFileNameWithoutExtension(MAP_SCENE));
+            if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+
+            assetPath = AssetDatabase.GenerateUniqueAssetPath(
+                Path.Combine(directory, "NavMesh-Terrain.asset").Replace("\\", "/"));
+            AssetDatabase.CreateAsset(surface.navMeshData, assetPath);
+        }
+
+        EditorUtility.SetDirty(surface.navMeshData);
+        EditorUtility.SetDirty(surface);
+        AssetDatabase.SaveAssets();
+
+        Debug.Log($"[MapSetup] NavMesh rebuilt → {assetPath}");
+        return true;
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -266,6 +335,18 @@ public static class MapSceneSetup
 
             var node = go.AddComponent<SkillNodeController>();
             node.nodeId = placement.NodeId;
+
+            // Keep nodes out of the NavMesh bake.
+            //
+            // The surface collects render meshes across the whole scene, so a node left
+            // in would carve a hole the size of its model — and the floating name tag
+            // above it is a mesh too, at roughly agent head height. Between them they
+            // can wall off the very node the player is walking to, which presents as
+            // pathfinding being broken rather than as a baking decision. Nodes are
+            // reached by interactionRange (2.5 units), not by standing inside them, so
+            // nothing is lost by letting the player walk over the footprint.
+            var modifier = go.AddComponent<Unity.AI.Navigation.NavMeshModifier>();
+            modifier.ignoreFromBuild = true;
 
             AddFloatingLabel(go.transform, placement.Label);
 

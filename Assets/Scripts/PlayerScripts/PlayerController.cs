@@ -135,9 +135,16 @@ public class PlayerController : MonoBehaviour
 
         // Auto-targeting must not yank the player away from a node they chose to
         // gather at — gathering is an explicit commitment, combat is the default.
-        if (autoAttack && currentNodeTarget == null &&
-            (currentTarget == null && currentItemTarget == null || Time.frameCount % 15 == 0))
+        //
+        // Previously this ran on `Time.frameCount % 15 == 0`, which — because && binds
+        // tighter than || — re-picked a target four times a second even mid-pursuit.
+        // Every re-pick called ResetPath, so two monsters at similar distance made the
+        // agent restart its path forever and the player barely moved.
+        if (autoAttack && currentNodeTarget == null && Time.time >= _nextTargetScanAt)
+        {
+            _nextTargetScanAt = Time.time + TargetScanInterval;
             FindBestAutoTarget();
+        }
 
         // Mouse.current is null on touch-only devices — this project targets mobile,
         // where an unguarded read throws every frame.
@@ -145,6 +152,7 @@ public class PlayerController : MonoBehaviour
             HandleMouseClick();
 
         HandleAbilityKeys();
+        if (autoAttack) AutoCastAbilities();
 
         if (currentTarget != null) AttackLogic();
         else if (currentItemTarget != null) PickupLogic();
@@ -167,52 +175,172 @@ public class PlayerController : MonoBehaviour
                 (float)(currentHealthPoints / maxHealthPoints * 190));
     }
 
+    // ── Auto-targeting ────────────────────────────────────────────────────────
+    //
+    // The rule is simple and deliberate: if there is a living monster anywhere in
+    // the scene, auto-mode goes to it, however far away it is. Everything below
+    // exists to make that hold up against the two things that used to break it —
+    // a monster standing just off the NavMesh, and two candidates swapping places.
+
+    private const float TargetScanInterval = 0.4f;
+
+    /// <summary>How much closer a rival must be before we abandon the current target.</summary>
+    private const float SwitchHysteresis = 0.75f;
+
+    /// <summary>How long a monster is skipped after we fail to make progress toward it.</summary>
+    private const float UnreachableCooldown = 8f;
+
+    private float _nextTargetScanAt;
+
+    /// <summary>
+    /// Reused across every path query. CalculatePath fills a caller-supplied path, and
+    /// allocating one per monster per scan was pure garbage — this runs against every
+    /// monster in the scene several times a second.
+    /// </summary>
+    private NavMeshPath _pathScratch;
+
+    /// <summary>
+    /// Monsters we could not actually reach, and when to consider them again. Without
+    /// this, one monster stranded on unwalkable ground holds auto-mode hostage forever
+    /// — which is exactly what "always go to the enemy" would otherwise guarantee.
+    /// </summary>
+    private readonly Dictionary<MonsterController, float> _skipUntil = new();
+
     private void FindBestAutoTarget()
     {
-        MonsterController bestMonster = GetClosestReachableMonster();
-        DropPickup bestItem = GetClosestReachableItem();
+        MonsterController bestMonster = GetBestMonster();
+        DropPickup        bestItem    = GetClosestReachableItem();
 
+        // Monsters win ties: loot is not going anywhere, and the item is usually
+        // lying where the last monster died anyway.
         if (bestMonster != null && bestItem != null)
         {
             float monsterDist = Vector3.Distance(transform.position, bestMonster.transform.position);
-            float itemDist = Vector3.Distance(transform.position, bestItem.transform.position);
-            if (monsterDist < itemDist) SwitchToMonster(bestMonster);
-            else SwitchToItem(bestItem);
+            float itemDist    = Vector3.Distance(transform.position, bestItem.transform.position);
+            if (monsterDist <= itemDist) SwitchToMonster(bestMonster);
+            else                         SwitchToItem(bestItem);
         }
         else if (bestMonster != null) SwitchToMonster(bestMonster);
-        else if (bestItem != null) SwitchToItem(bestItem);
+        else if (bestItem    != null) SwitchToItem(bestItem);
     }
 
-    private MonsterController GetClosestReachableMonster()
+    /// <summary>
+    /// The monster auto-mode should be fighting, with NO distance limit.
+    ///
+    /// Candidates are ranked in tiers — a fully reachable monster beats a partially
+    /// reachable one, which beats one we cannot path to at all — and by distance
+    /// within a tier. The bottom tier matters: a monster whose position happens to sit
+    /// off the NavMesh is still worth walking toward, and the old code discarded it
+    /// silently, which is the single biggest reason auto-mode "found no target" in a
+    /// scene visibly full of them.
+    /// </summary>
+    private MonsterController GetBestMonster()
     {
-        MonsterController best = null;
-        float bestDist = float.MaxValue;
+        MonsterController best     = null;
+        int               bestTier = -1;
+        float             bestDist = float.MaxValue;
+
+        _pathScratch ??= new NavMeshPath();
+
         foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
         {
-            if (!m.IsAlive()) continue;
+            if (m == null || !m.IsAlive()) continue;
+            if (_skipUntil.TryGetValue(m, out float until) && Time.time < until) continue;
+
             float dist = Vector3.Distance(transform.position, m.transform.position);
-            if (dist < bestDist && dist < 40f && agent.CalculatePath(m.transform.position, new NavMeshPath()))
+            int   tier = ReachabilityTier(m.transform.position);
+
+            if (tier > bestTier || (tier == bestTier && dist < bestDist))
             {
-                bestDist = dist; best = m;
+                bestTier = tier; bestDist = dist; best = m;
             }
         }
+
+        if (best == null) return null;
+
+        // Stay on the current target unless the newcomer is meaningfully closer.
+        // Re-pathing costs a ResetPath, and flip-flopping between two similar
+        // candidates is indistinguishable from being stuck.
+        if (currentTarget != null && currentTarget.IsAlive() && currentTarget != best &&
+            !_skipUntil.ContainsKey(currentTarget))
+        {
+            float currentDist = Vector3.Distance(transform.position, currentTarget.transform.position);
+            if (bestDist > currentDist * SwitchHysteresis) return currentTarget;
+        }
+
         return best;
     }
 
+    /// <summary>
+    /// 2 = a complete path exists, 1 = only a partial one, 0 = none at all.
+    /// The position is snapped onto the NavMesh first: CalculatePath fails outright
+    /// for a destination that is not on the mesh, and a monster standing on a rock or
+    /// mid-step off a ledge is off it often enough to matter.
+    /// </summary>
+    private int ReachabilityTier(Vector3 worldPosition)
+    {
+        if (agent == null || !agent.isOnNavMesh) return 0;
+
+        _pathScratch ??= new NavMeshPath();
+
+        Vector3 destination = worldPosition;
+        if (NavMesh.SamplePosition(worldPosition, out NavMeshHit hit, 6f, NavMesh.AllAreas))
+            destination = hit.position;
+
+        if (!agent.CalculatePath(destination, _pathScratch)) return 0;
+
+        return _pathScratch.status switch
+        {
+            NavMeshPathStatus.PathComplete => 2,
+            NavMeshPathStatus.PathPartial  => 1,
+            _                              => 0,
+        };
+    }
+
+    /// <summary>
+    /// Marks a monster as not-worth-chasing for a while. Called when pursuit stops
+    /// making progress, so auto-mode moves on to something it can actually reach and
+    /// tries this one again later rather than writing it off permanently.
+    /// </summary>
+    private void SkipMonster(MonsterController monster)
+    {
+        if (monster == null) return;
+        _skipUntil[monster] = Time.time + UnreachableCooldown;
+
+        // Drop entries for monsters that have since been destroyed, so a long session
+        // does not accumulate one dictionary slot per corpse.
+        if (_skipUntil.Count > 32)
+        {
+            var stale = new List<MonsterController>();
+            foreach (var kvp in _skipUntil)
+                if (kvp.Key == null || Time.time > kvp.Value) stale.Add(kvp.Key);
+            foreach (var key in stale) _skipUntil.Remove(key);
+        }
+    }
+
+    /// <summary>
+    /// Loot still has a range limit, unlike monsters. Walking the length of the map
+    /// for one bone while a fight is happening next to you is not what auto-mode is
+    /// for — and unlike a monster, an item you ignore is still there later.
+    /// </summary>
     private DropPickup GetClosestReachableItem()
     {
         DropPickup best = null;
         float bestDist = float.MaxValue;
         var inv = GameManager.Inventory;
+
+        _pathScratch ??= new NavMeshPath();
+
         foreach (var item in Object.FindObjectsByType<DropPickup>(FindObjectsInactive.Exclude))
         {
-            if (string.IsNullOrEmpty(item.itemId)) continue;
+            if (item == null || string.IsNullOrEmpty(item.itemId)) continue;
             if (inv != null && !inv.CanAddItem(item.itemId)) continue;
+
             float dist = Vector3.Distance(transform.position, item.transform.position);
-            if (dist < bestDist && dist < 25f && agent.CalculatePath(item.transform.position, new NavMeshPath()))
-            {
-                bestDist = dist; best = item;
-            }
+            if (dist >= bestDist || dist >= 40f) continue;
+            if (ReachabilityTier(item.transform.position) == 0) continue;
+
+            bestDist = dist; best = item;
         }
         return best;
     }
@@ -287,8 +415,14 @@ public class PlayerController : MonoBehaviour
         {
             currentTarget = newTarget;
             agent.stoppingDistance = 0f;
+            agent.isStopped = false;      // we may have been standing still attacking
             agent.ResetPath();
             agent.SetDestination(newTarget.transform.position);
+
+            // Fresh pursuit gets a fresh clock, or the previous chase's stall carries
+            // over and the new target is abandoned the moment it is picked.
+            _closestApproach = float.MaxValue;
+            _lastProgressAt  = Time.time;
         }
     }
 
@@ -306,14 +440,23 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // ── Pursuit progress ──────────────────────────────────────────────────────
+    //
+    // Chasing a target with no distance limit needs a way out, or one unreachable
+    // monster stalls auto-mode indefinitely. Rather than capping range — which is
+    // what stopped auto-mode seeing distant enemies at all — pursuit is abandoned
+    // only when it demonstrably stops working.
+
+    private const float StuckTimeout = 6f;
+
+    private float _closestApproach = float.MaxValue;
+    private float _lastProgressAt;
+
     private void AttackLogic()
     {
-        if (currentTarget == null || !currentTarget.IsAlive() ||
-            !agent.CalculatePath(currentTarget.transform.position, new NavMeshPath()) ||
-            Vector3.Distance(transform.position, currentTarget.transform.position) > 40f)
+        if (currentTarget == null || !currentTarget.IsAlive())
         {
-            currentTarget = null;
-            agent.isStopped = false;
+            ClearCombatTarget();
             return;
         }
 
@@ -323,13 +466,14 @@ public class PlayerController : MonoBehaviour
         // wander onto un-navigable terrain (the mountain) previously left the agent
         // pathing at an unreachable point forever, freezing auto-mode.
         Vector3 targetPos = currentTarget.transform.position;
-        if (NavMesh.SamplePosition(targetPos, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit navHit, 6f, NavMesh.AllAreas))
             targetPos = navHit.position;
         agent.SetDestination(targetPos);
 
         float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
         if (dist <= attackDistance)
         {
+            _lastProgressAt = Time.time;      // in range counts as progress
             agent.isStopped = true;
             attackTimer += Time.deltaTime;
             if (attackTimer >= EffectiveAttackSpeed)
@@ -338,12 +482,35 @@ public class PlayerController : MonoBehaviour
                 anim.SetBool("1_Move", false);
                 anim.SetBool("2_Attack", true);
                 attackTimer = 0f;
+                ItemEffectResolver.Fire("onHit", null);
             }
+            return;
         }
-        else
+
+        agent.isStopped = false;
+
+        // Closing the gap at all resets the clock, so a long walk across the map is
+        // fine and only genuine deadlock trips this.
+        if (dist < _closestApproach - 0.5f)
         {
-            agent.isStopped = false;
+            _closestApproach = dist;
+            _lastProgressAt  = Time.time;
         }
+        else if (Time.time - _lastProgressAt > StuckTimeout)
+        {
+            Debug.Log($"[PlayerController] Cannot reach {currentTarget.name} " +
+                      $"({dist:0.#} units away) — trying something else.");
+            SkipMonster(currentTarget);
+            ClearCombatTarget();
+            _nextTargetScanAt = 0f;   // re-pick immediately rather than idling
+        }
+    }
+
+    private void ClearCombatTarget()
+    {
+        currentTarget    = null;
+        _closestApproach = float.MaxValue;
+        if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
     }
 
     private void PickupLogic()
@@ -577,37 +744,87 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>Fires the ability in the given action bar slot (0-4).</summary>
-    public void UseAbility(int slot)
+    public void UseAbility(int slot) => UseAbility(slot, announce: true);
+
+    /// <summary>
+    /// Fires an ability. <paramref name="announce"/> is false for auto-cast, which
+    /// tries every slot several times a second — the toasts a manual press earns
+    /// ("No target", "3.4s") would be a solid wall of text on the same code path.
+    /// </summary>
+    public bool UseAbility(int slot, bool announce)
     {
         // Update() early-returns before HandleAbilityKeys when dead, so the keyboard
         // path was already safe — but the HUD buttons call straight in here, and a
         // corpse casting Fireball is not a feature.
-        if (!alive) return;
+        if (!alive) return false;
 
         var ability = GetAbility(slot);
-        if (ability == null) return;
+        if (ability == null) return false;
 
         if (!ability.IsActivatable)
         {
-            GameEvents.FireToast($"{ability.name} is passive — always active.");
-            return;
+            if (announce) GameEvents.FireToast($"{ability.name} is passive — always active.");
+            return false;
         }
 
         if (GetAbilityCooldownRemaining(slot) > 0f)
         {
-            GameEvents.FireToast($"{ability.name}: {GetAbilityCooldownRemaining(slot):0.0}s");
-            return;
+            if (announce) GameEvents.FireToast($"{ability.name}: {GetAbilityCooldownRemaining(slot):0.0}s");
+            return false;
         }
 
-        if (!ApplyAbilityEffect(ability)) return;
+        if (!ApplyAbilityEffect(ability, announce)) return false;
 
         _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds;
-        GameEvents.FireToast($"✦ {ability.name}");
+        if (announce) GameEvents.FireToast($"✦ {ability.name}");
         anim.SetBool("2_Attack", true);
 
         // The ability's own visual, then any worn proc that triggers on casting.
         AbilityVFX.Play(AbilityVfxId(ability), AbilityOrigin(ability));
         ItemEffectResolver.Fire("onAbilityUse", ability.id);
+        return true;
+    }
+
+    // ── Auto-cast ─────────────────────────────────────────────────────────────
+
+    /// <summary>Minimum gap between auto-cast abilities, so they do not all fire at once.</summary>
+    private const float AutoCastInterval = 1.25f;
+
+    private float _nextAutoCastAt;
+
+    /// <summary>
+    /// Spends abilities while auto-mode is fighting.
+    ///
+    /// Two effect types are deliberately excluded. "blink" teleports toward the mouse
+    /// cursor, which in auto-mode is wherever the player happened to leave it, and
+    /// "stealth" clears the current target by design — both would fight the auto-mode
+    /// they were cast from. Everything else is fair game, cheapest first: the ability
+    /// itself refuses when it would do nothing (heal at full HP, aoe with nothing in
+    /// range), so no separate list of preconditions is needed here.
+    /// </summary>
+    private void AutoCastAbilities()
+    {
+        if (!alive || currentTarget == null || !currentTarget.IsAlive()) return;
+        if (Time.time < _nextAutoCastAt) return;
+
+        // Only once we are actually engaged — casting Cleave while still jogging
+        // across the map wastes the cooldown on nothing.
+        if (Vector3.Distance(transform.position, currentTarget.transform.position) > attackDistance * 1.5f)
+            return;
+
+        for (int slot = 0; slot < _abilityReadyAt.Length; slot++)
+        {
+            var ability = GetAbility(slot);
+            if (ability == null || !ability.IsActivatable) continue;
+            if (ability.effect == "blink" || ability.effect == "stealth") continue;
+            if (GetAbilityCooldownRemaining(slot) > 0f) continue;
+
+            if (UseAbility(slot, announce: false))
+            {
+                _nextAutoCastAt = Time.time + AutoCastInterval;
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -641,15 +858,19 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>Returns false when the ability could not be used (e.g. no target).</summary>
-    private bool ApplyAbilityEffect(AbilityData ability)
+    private bool ApplyAbilityEffect(AbilityData ability, bool announce)
     {
+        // Auto-cast walks all five slots several times a second, so the refusals a
+        // deliberate keypress deserves an explanation for would be a wall of toasts.
+        void Explain(string reason) { if (announce) GameEvents.FireToast(reason); }
+
         switch (ability.effect)
         {
             case "damage":
             {
                 if (currentTarget == null || !currentTarget.IsAlive())
                 {
-                    GameEvents.FireToast("No target.");
+                    Explain("No target.");
                     return false;
                 }
 
@@ -681,7 +902,7 @@ public class PlayerController : MonoBehaviour
                     m.TakeDamage(attackDamage * ability.power);
                     hits++;
                 }
-                if (hits == 0) { GameEvents.FireToast("Nothing in range."); return false; }
+                if (hits == 0) { Explain("Nothing in range."); return false; }
                 return true;
             }
 
@@ -689,7 +910,7 @@ public class PlayerController : MonoBehaviour
             {
                 if (currentHealthPoints >= maxHealthPoints)
                 {
-                    GameEvents.FireToast("Already at full health.");
+                    Explain("Already at full health.");
                     return false;
                 }
                 double amount = maxHealthPoints * ability.power;
@@ -717,7 +938,7 @@ public class PlayerController : MonoBehaviour
                     m.ApplySlow(0.4f, ability.durationSeconds);
                     slowed++;
                 }
-                if (slowed == 0) { GameEvents.FireToast("Nothing in range."); return false; }
+                if (slowed == 0) { Explain("Nothing in range."); return false; }
                 return true;
             }
 
@@ -729,7 +950,7 @@ public class PlayerController : MonoBehaviour
                     m.DropAggro(ability.durationSeconds);
                     dropped++;
                 }
-                if (dropped == 0) { GameEvents.FireToast("Nothing is watching you."); return false; }
+                if (dropped == 0) { Explain("Nothing is watching you."); return false; }
 
                 // Being forgotten mid-fight should also end your own pursuit,
                 // otherwise you immediately walk back into what just lost you.
@@ -741,7 +962,7 @@ public class PlayerController : MonoBehaviour
             {
                 if (!TryBlink(ability.aoeRadius))
                 {
-                    GameEvents.FireToast("Nowhere to blink to.");
+                    Explain("Nowhere to blink to.");
                     return false;
                 }
                 if (ability.power > 0f) Heal(maxHealthPoints * ability.power);
@@ -756,7 +977,7 @@ public class PlayerController : MonoBehaviour
             }
 
             default:
-                GameEvents.FireToast($"{ability.name} does nothing yet.");
+                Explain($"{ability.name} does nothing yet.");
                 return false;
         }
     }

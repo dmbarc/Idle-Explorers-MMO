@@ -61,6 +61,27 @@ public class UITheme : ScriptableObject
     public Sprite dividerSprite;
     public Sprite inputSprite;
 
+    [Header("Sprite tints")]
+    // Multiplied over the sprite art above.
+    //
+    // Every UI panel Kenney ships is a mid-tone tan, beige or grey — there is no dark
+    // variant in any of the packs. Drawn at full white the beige card sprite fills most
+    // of the screen with bright khaki, which is what made the UI painful to look at.
+    // Tinting keeps the painted grain, bevels and rivets of the artwork and moves the
+    // whole thing into a dark blue, which is a thing multiply CAN do: the tints below
+    // are blue-dominant, so blue survives the multiply while red and green are cut.
+    //
+    // Chrome goes blue; buttons stay wood, so they read as the thing you press.
+    // Set a tint to white to see the art untouched.
+    public Color panelSpriteTint  = new Color(0.20f, 0.38f, 0.92f, 1.00f);
+    public Color cardSpriteTint   = new Color(0.22f, 0.32f, 0.62f, 1.00f);
+    public Color headerSpriteTint = new Color(0.20f, 0.27f, 0.46f, 1.00f);
+    public Color slotSpriteTint   = new Color(0.18f, 0.26f, 0.50f, 1.00f);
+    public Color inputSpriteTint  = new Color(0.24f, 0.32f, 0.55f, 1.00f);
+    public Color buttonSpriteTint = new Color(0.72f, 0.62f, 0.52f, 1.00f);
+    public Color barBgSpriteTint  = new Color(0.30f, 0.36f, 0.52f, 1.00f);
+    public Color dividerSpriteTint = new Color(0.75f, 0.68f, 0.52f, 1.00f);
+
     [Header("Typography")]
     public TMP_FontAsset font;      // assign LiberationSans SDF or custom font in Inspector
     public float fontSizeTitle  = 32f;

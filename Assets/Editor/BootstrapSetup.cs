@@ -96,13 +96,15 @@ public static class BootstrapSetup
         // Default texture cannot be assigned to Image.sprite and is not returned by a
         // t:Sprite search — so every step after this would find nothing and quietly
         // fall back to placeholders.
-        Debug.Log("[Setup] 1/7 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
-        Debug.Log("[Setup] 2/7 UITheme asset");         CreateUIThemeAsset();
-        Debug.Log("[Setup] 3/7 Icon library");          IconLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 4/7 VFX library");           VFXLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 5/7 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
-        Debug.Log("[Setup] 6/7 Bootstrap scene");       CreateBootstrapScene(showDialog: false);
-        Debug.Log("[Setup] 7/7 Map scene");             MapSceneSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 1/8 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
+        Debug.Log("[Setup] 2/8 UITheme asset");         CreateUIThemeAsset();
+        Debug.Log("[Setup] 3/8 Icon library");          IconLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 4/8 VFX library");           VFXLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 5/8 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
+        Debug.Log("[Setup] 6/8 Item drop prefab");      ItemDropSetup.Rebuild(showDialog: false);
+        Debug.Log("[Setup] 7/8 Bootstrap scene");       CreateBootstrapScene(showDialog: false);
+        // Last, and it now rebakes the NavMesh itself — the map has to be final first.
+        Debug.Log("[Setup] 8/8 Map scene + NavMesh");   MapSceneSetup.Execute(showDialog: false);
 
         // Bootstrap must be index 0 — it is the scene that owns the Managers object
         // and every other scene loads additively on top of it.

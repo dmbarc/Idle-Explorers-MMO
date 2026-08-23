@@ -69,6 +69,54 @@ public static class UIThemeSetup
         new SkinEntry { Field = "dividerSprite", SpriteName = "divider-000",            NoSlice = true },
     };
 
+    /// <summary>
+    /// The palette, written into the asset on every apply.
+    ///
+    /// It has to be written rather than left to the C# field defaults: UITheme.asset is
+    /// already serialized, so a field that exists in the asset keeps its stored value
+    /// forever and changing the default in code does nothing. That is why the first
+    /// palette survived being edited — the asset predated the edit.
+    ///
+    /// Dark blue throughout, with the panel art tinted into it rather than replaced.
+    /// Kenney's UI panels are all mid-tone tan and beige; drawn untinted, the beige
+    /// card sprite is the bright khaki that made the UI hard to look at.
+    /// </summary>
+    private static readonly (string Field, Color Value)[] Palette =
+    {
+        // Chrome — deep navy, darkest at the edges of the hierarchy.
+        ("panelBg",       new Color(0.07f, 0.09f, 0.15f, 0.97f)),
+        ("cardBg",        new Color(0.11f, 0.14f, 0.22f, 1.00f)),
+        ("headerBg",      new Color(0.06f, 0.08f, 0.14f, 1.00f)),
+        ("overlayBg",     new Color(0.02f, 0.03f, 0.06f, 0.78f)),
+
+        // Slots read as recesses cut into the panel.
+        ("slotBg",        new Color(0.09f, 0.12f, 0.19f, 1.00f)),
+        ("slotBorder",    new Color(0.28f, 0.34f, 0.48f, 1.00f)),
+
+        // Buttons stay warm so they read as the thing you press against cold chrome.
+        ("buttonNormal",  new Color(0.24f, 0.19f, 0.14f, 1.00f)),
+        ("buttonHover",   new Color(0.33f, 0.26f, 0.19f, 1.00f)),
+        ("buttonPressed", new Color(0.16f, 0.13f, 0.09f, 1.00f)),
+
+        // Text: warm off-white carries well over navy.
+        ("textPrimary",   new Color(0.94f, 0.92f, 0.86f, 1.00f)),
+        ("textSecondary", new Color(0.62f, 0.66f, 0.76f, 1.00f)),
+        ("textDisabled",  new Color(0.38f, 0.42f, 0.50f, 1.00f)),
+
+        ("barBg",         new Color(0.05f, 0.07f, 0.12f, 1.00f)),
+
+        // Sprite tints — multiplied over the panel art. Blue-dominant, because
+        // multiply can only remove: to end up blue, blue has to be what survives.
+        ("panelSpriteTint",   new Color(0.20f, 0.38f, 0.92f, 1.00f)),
+        ("cardSpriteTint",    new Color(0.22f, 0.32f, 0.62f, 1.00f)),
+        ("headerSpriteTint",  new Color(0.20f, 0.27f, 0.46f, 1.00f)),
+        ("slotSpriteTint",    new Color(0.18f, 0.26f, 0.50f, 1.00f)),
+        ("inputSpriteTint",   new Color(0.24f, 0.32f, 0.55f, 1.00f)),
+        ("buttonSpriteTint",  new Color(0.72f, 0.62f, 0.52f, 1.00f)),
+        ("barBgSpriteTint",   new Color(0.30f, 0.36f, 0.52f, 1.00f)),
+        ("dividerSpriteTint", new Color(0.75f, 0.68f, 0.52f, 1.00f)),
+    };
+
     [MenuItem("Idle Explorers/Apply UI Sprite Theme")]
     public static void Apply() => Apply(showDialog: true);
 
@@ -86,7 +134,19 @@ public static class UIThemeSetup
         }
 
         var so = new SerializedObject(theme);
-        int applied = 0, missing = 0;
+        int applied = 0, missing = 0, recoloured = 0;
+
+        foreach (var (field, value) in Palette)
+        {
+            var colorProperty = so.FindProperty(field);
+            if (colorProperty == null)
+            {
+                Debug.LogWarning($"[UITheme] No colour field '{field}' on UITheme — skipped.");
+                continue;
+            }
+            colorProperty.colorValue = value;
+            recoloured++;
+        }
 
         foreach (var skin in Skins)
         {
@@ -118,12 +178,13 @@ public static class UIThemeSetup
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        Debug.Log($"[UITheme] Applied {applied}/{Skins.Length} sprites ({missing} unmatched) → {THEME_PATH}");
+        Debug.Log($"[UITheme] Applied {applied}/{Skins.Length} sprites ({missing} unmatched) " +
+                  $"and {recoloured} palette colours → {THEME_PATH}");
 
         if (!showDialog) return;
 
         EditorUtility.DisplayDialog("UI Theme Applied",
-            $"{applied} of {Skins.Length} sprites assigned.\n\n" +
+            $"{applied} of {Skins.Length} sprites assigned, {recoloured} palette colours written.\n\n" +
             (missing > 0
                 ? $"{missing} had no matching art and were left empty — those elements keep their flat colour.\n\n"
                 : "") +

@@ -343,6 +343,10 @@ public class MonsterController : MonoBehaviour
         GameManager.Skills?.AddSkillXP("combat", _data.xpReward);
         GameManager.Character?.AddXP(_data.xpReward / 4);   // character XP = 1/4 of combat XP
         GameManager.Audio?.PlayDeath();
+
+        // "onKill" is one of the documented equipment triggers and was the only one
+        // nothing ever fired, so a ring that promised something on a kill did nothing.
+        ItemEffectResolver.Fire("onKill", _data.id);
     }
 
     private void SpawnDrop(string itemId, long qty, Vector3 basePos)

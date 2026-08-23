@@ -41,10 +41,12 @@ public static class UIFactory
     /// pass: an unassigned theme field leaves the element exactly as it was, so
     /// swapping in art can never break a layout that already worked.
     ///
-    /// The colour is reset to white when a sprite is applied, because a flat tint
-    /// chosen to BE the background would otherwise dye the artwork that replaced it.
+    /// The flat background colour is replaced by the theme's tint for that role — NOT
+    /// by white. Drawing the art at white was what put bright khaki behind most of the
+    /// UI; the tint multiplies the panel into the dark blue palette while keeping the
+    /// bevels and grain that made the art worth using. See UITheme's tint block.
     /// </summary>
-    private static void Skin(Image img, Sprite sprite, bool keepTint = false)
+    private static void Skin(Image img, Sprite sprite, Color? tint = null)
     {
         if (img == null || sprite == null) return;
 
@@ -56,7 +58,7 @@ public static class UIFactory
         if (sprite.border == Vector4.zero)
             img.type = Image.Type.Simple;
 
-        if (!keepTint) img.color = Color.white;
+        if (tint.HasValue) img.color = tint.Value;
     }
 
     // ── Panel ─────────────────────────────────────────────────────────────────
@@ -73,9 +75,9 @@ public static class UIFactory
         // Panels are drawn in three weights, and which sprite a caller gets is
         // decided by the colour it asked for — that is already how the code
         // distinguishes a window from a card from a header bar.
-        if (color == null || color.Value == T.panelBg)      Skin(img, T.panelSprite);
-        else if (color.Value == T.cardBg)                   Skin(img, T.cardSprite);
-        else if (color.Value == T.headerBg)                 Skin(img, T.headerSprite);
+        if (color == null || color.Value == T.panelBg)      Skin(img, T.panelSprite,  T.panelSpriteTint);
+        else if (color.Value == T.cardBg)                   Skin(img, T.cardSprite,   T.cardSpriteTint);
+        else if (color.Value == T.headerBg)                 Skin(img, T.headerSprite, T.headerSpriteTint);
 
         // A fully transparent panel is a spacer or a HUD root, never a click target.
         // Leaving raycastTarget on made GameHUD's invisible full-screen background
@@ -135,21 +137,29 @@ public static class UIFactory
         img.color = T.buttonNormal;
 
         bool skinned = T.buttonSprite != null;
-        Skin(img, T.buttonSprite, keepTint: true);
+        Skin(img, T.buttonSprite);
 
         var btn = go.GetComponent<Button>();
         var colors = btn.colors;
 
         if (skinned)
         {
-            // Selectable drives every state through the colour block, so a skinned
-            // button needs near-white tints or the flat palette colour dyes the
-            // artwork. Shading rather than recolouring keeps the states readable.
-            colors.normalColor      = Color.white;
-            colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
-            colors.pressedColor     = new Color(0.80f, 0.80f, 0.80f, 1f);
-            colors.disabledColor    = new Color(0.55f, 0.55f, 0.55f, 0.65f);
-            img.color               = Color.white;
+            // Selectable rewrites the Image tint on every state change, so the tint has
+            // to live in the colour block or it is overwritten the first time the mouse
+            // moves. States are shades OF the theme tint rather than fixed greys, which
+            // is what keeps a retinted button consistent across all four states.
+            Color baseTint = T.buttonSpriteTint;
+
+            // Scale RGB only — multiplying the whole Color would take alpha with it,
+            // so a highlighted button would go over-opaque and a dimmed one see-through.
+            static Color Shade(Color c, float f) => new Color(c.r * f, c.g * f, c.b * f, c.a);
+
+            colors.normalColor      = baseTint;
+            colors.highlightedColor = Shade(baseTint, 1.18f);
+            colors.pressedColor     = Shade(baseTint, 0.78f);
+            colors.disabledColor    = new Color(baseTint.r * 0.55f, baseTint.g * 0.55f,
+                                                baseTint.b * 0.55f, 0.65f);
+            img.color               = baseTint;
         }
         else
         {
@@ -197,7 +207,7 @@ public static class UIFactory
 
         var rootImg = root.GetComponent<Image>();
         rootImg.color = T.barBg;
-        Skin(rootImg, T.barBgSprite);
+        Skin(rootImg, T.barBgSprite, T.barBgSpriteTint);
 
         var fillGo = new GameObject("Fill", typeof(RectTransform), typeof(Image));
         fillGo.transform.SetParent(root.transform, false);
@@ -395,7 +405,7 @@ public static class UIFactory
 
         var fieldImg = go.GetComponent<Image>();
         fieldImg.color = T.slotBg;
-        Skin(fieldImg, T.inputSprite);
+        Skin(fieldImg, T.inputSprite, T.inputSpriteTint);
 
         // Text area
         var textAreaGo = new GameObject("Text Area", typeof(RectTransform), typeof(RectMask2D));
@@ -447,7 +457,7 @@ public static class UIFactory
         // A slot sprite already draws its own frame and interior, so the hand-drawn
         // two-layer border is only used when there is no art.
         bool skinnedSlot = T.slotSprite != null;
-        Skin(borderImg, T.slotSprite);
+        Skin(borderImg, T.slotSprite, T.slotSpriteTint);
 
         // Interior, inset by 2px on every side to leave the border visible
         var inner = new GameObject("Background", typeof(RectTransform), typeof(Image));
@@ -513,7 +523,7 @@ public static class UIFactory
 
         if (T.dividerSprite != null)
         {
-            Skin(dividerImg, T.dividerSprite);
+            Skin(dividerImg, T.dividerSprite, T.dividerSpriteTint);
             dividerImg.preserveAspect = true;
             rt.sizeDelta = new Vector2(0, Mathf.Max(height, 8f));
         }
