@@ -38,6 +38,9 @@ public class ActivityManager : MonoBehaviour
         if (CharacterManager.Current != null)
             CharacterManager.Current.currentActivity = CurrentActivity;
 
+        // Switching what you are doing costs you every second of momentum you built.
+        _momentumSeconds = 0f;
+
         GameEvents.FireActivityChanged(CurrentActivity);
 
         // The display name, not the raw id — every other message in the game reads
@@ -75,11 +78,77 @@ public class ActivityManager : MonoBehaviour
         return Mathf.Max(0.05f, secondsPerAction * TalentManager.ReductionMultiplier(effect));
     }
 
-    /// <summary>The activity's AFK multiplier after talents that improve offline rate.</summary>
+    /// <summary>
+    /// Seconds per action after talents AND the class affinity for that skill.
+    ///
+    /// Separate from TalentAdjustedSeconds because affinity needs to know WHICH skill
+    /// is being worked, and the older signature only knew whether it was crafting.
+    /// Both live and offline paths call this, so a Ranger chops faster in both.
+    /// </summary>
+    public static float AdjustedSeconds(float secondsPerAction, bool crafting, string skillId)
+    {
+        float seconds = TalentAdjustedSeconds(secondsPerAction, crafting);
+
+        float affinity = GameManager.Stats?.SkillMultiplier(skillId) ?? 1f;
+        return Mathf.Max(0.05f, seconds / Mathf.Max(0.25f, affinity));
+    }
+
+    /// <summary>
+    /// The activity's AFK multiplier after everything that improves offline rate.
+    ///
+    /// Diligence rather than the talent bonus directly: StatsManager already folds
+    /// afkRatePercent into diligence, so reading both here would count it twice.
+    /// </summary>
     public static float EffectiveAfkRate(SkillActivityData activity)
     {
         if (activity == null) return 0f;
-        return activity.afkRateMulti * TalentManager.Multiplier(TalentManager.AfkRatePercent);
+
+        float diligence = GameManager.Stats?.Current.diligence ?? 0f;
+        return activity.afkRateMulti * (1f + diligence);
+    }
+
+    // ── Momentum ──────────────────────────────────────────────────────────────
+    //
+    // The stat is a ceiling; this is how much of it you have earned. It climbs while
+    // you stay on one thing and drops to nothing the moment you switch, which is the
+    // whole point: an idle game asks you to commit to an activity, and this is the
+    // only stat that pays you for actually doing so.
+
+    /// <summary>How long uninterrupted work takes to reach full momentum.</summary>
+    private const float MomentumRampSeconds = 600f;   // ten minutes
+
+    private float _momentumSeconds;
+
+    /// <summary>0-1, how much of the momentum stat is currently earned.</summary>
+    public float MomentumFraction => Mathf.Clamp01(_momentumSeconds / MomentumRampSeconds);
+
+    /// <summary>
+    /// The live yield bonus from momentum.
+    ///
+    /// Offline accrual deliberately uses the FULL stat instead of this: a character
+    /// who was logged out did exactly one thing for the entire window, which is the
+    /// definition of uninterrupted. Charging them a ramp they could not have watched
+    /// would punish the playstyle the game is built around.
+    /// </summary>
+    public float MomentumBonus
+    {
+        get
+        {
+            float stat = GameManager.Stats?.Current.momentum ?? 0f;
+            return _creditingOfflineTime ? stat : stat * MomentumFraction;
+        }
+    }
+
+    /// <summary>
+    /// True only while offline rewards are being paid out. Set around the whole
+    /// payout rather than passed down, because the XP it affects is granted several
+    /// call layers below through SkillManager, which has no idea where it came from.
+    /// </summary>
+    private bool _creditingOfflineTime;
+
+    void Update()
+    {
+        if (CurrentActivity != null) _momentumSeconds += Time.deltaTime;
     }
 
     /// <summary>
@@ -342,12 +411,23 @@ public class ActivityManager : MonoBehaviour
         // produces its items. XP used to be computed here from xpPerHour while items
         // came from an unrelated formula below, so a single session paid out two
         // numbers that could not both be true.
-        if (activity.skillId == "combat")
-            ProcessCombatAFKRewards(activity, hours, character, summary);
-        else if (!string.IsNullOrEmpty(activity.recipeId))
-            ProcessCraftingAFKRewards(activity, hours, summary);
-        else
-            ProcessGatheringAFKRewards(activity, hours, summary);
+        // Offline time counts as full momentum — see MomentumBonus. Wrapped in a
+        // try/finally so an exception mid-payout cannot leave every subsequent live
+        // action permanently earning the offline rate.
+        _creditingOfflineTime = true;
+        try
+        {
+            if (activity.skillId == "combat")
+                ProcessCombatAFKRewards(activity, hours, character, summary);
+            else if (!string.IsNullOrEmpty(activity.recipeId))
+                ProcessCraftingAFKRewards(activity, hours, summary);
+            else
+                ProcessGatheringAFKRewards(activity, hours, summary);
+        }
+        finally
+        {
+            _creditingOfflineTime = false;
+        }
 
         PendingSummary = summary;
         GameEvents.OnAFKRewardsCollected?.Invoke(elapsedSeconds);
@@ -418,7 +498,7 @@ public class ActivityManager : MonoBehaviour
         // "AFK earns 60% of active" was always supposed to mean. The old formula
         // (skillLevel * 20 per hour) produced ~20/hr at level 1 against the live
         // rate of 1200/hr, so going AFK was ~60x worse than the multiplier claimed.
-        float secondsPerAction = TalentAdjustedSeconds(ActionSeconds(activity), crafting: false);
+        float secondsPerAction = AdjustedSeconds(ActionSeconds(activity), crafting: false, activity.skillId);
         long  totalActions     = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
                                         * hours * EffectiveAfkRate(activity));
         if (totalActions <= 0) return;
@@ -426,9 +506,13 @@ public class ActivityManager : MonoBehaviour
         if (!string.IsNullOrEmpty(activity.activityTargetId))
         {
             // Special chance rolls (e.g. bird's nest). Expected value rather than a
-            // per-action loop — see RollBulkDrops for why.
+            // per-action loop — see RollBulkDrops for why. Insight raises the rate the
+            // same way it does live, so a stat that pays while watching also pays
+            // while away — which for this game is the more important half.
+            float  insight  = GameManager.Stats?.Current.insight ?? 0f;
             double jitter   = UnityEngine.Random.Range(0.9f, 1.1f);
-            long   bonusQty = (long)System.Math.Max(0d, totalActions * activity.specialChance * jitter);
+            long   bonusQty = (long)System.Math.Max(0d,
+                totalActions * activity.specialChance * (1f + insight) * jitter);
 
             long gathered = GameManager.Inventory?.AddUpTo(activity.activityTargetId,
                                                             totalActions + bonusQty) ?? 0;
@@ -449,7 +533,7 @@ public class ActivityManager : MonoBehaviour
         var recipe = GameManager.Content?.GetRecipe(activity.recipeId);
         if (recipe == null) return;
 
-        float secondsPerAction = TalentAdjustedSeconds(ActionSeconds(activity), crafting: true);
+        float secondsPerAction = AdjustedSeconds(ActionSeconds(activity), crafting: true, activity.skillId);
         long  possibleCrafts   = (long)(ActionsPerHour(secondsPerAction, activity.activeRateMulti)
                                         * hours * EffectiveAfkRate(activity));
         if (possibleCrafts <= 0) return;

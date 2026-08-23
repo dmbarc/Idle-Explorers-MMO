@@ -178,10 +178,22 @@ public class MonsterController : MonoBehaviour
         name = data.DisplayName;
     }
 
-    public void TakeDamage(double damageAmount)
+    /// <summary>
+    /// How much incoming damage this monster shrugs off.
+    ///
+    /// Scaled from its level rather than authored per monster, so a new entry in
+    /// monster_data.json cannot accidentally ship with none. The curve in
+    /// StatBlock.DamageThrough means this never reaches immunity.
+    /// </summary>
+    public float Armor => _data != null ? _data.level * 6f : 0f;
+
+    public void TakeDamage(double damageAmount) => TakeDamage(damageAmount, false);
+
+    public void TakeDamage(double damageAmount, bool wasCrit)
     {
         ShowHealthUI();
-        DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerDealt);
+        DamageNumber.Spawn(transform.position, damageAmount,
+                           wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt);
 
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
 
@@ -330,10 +342,15 @@ public class MonsterController : MonoBehaviour
         double multiplier = (playerController != null) ? playerController.dropMultiplier : 1d;
         Vector3 basePos   = transform.position + Vector3.up * 0.6f;
 
+        // Insight raises the CHANCE of a drop, drop quantity raises how much falls.
+        // Keeping them separate is the whole reason both stats exist: one makes rare
+        // things less rare, the other makes common things more plentiful.
+        float insight = GameManager.Stats?.Current.insight ?? 0f;
+
         foreach (var entry in _data.lootTable)
         {
             if (entry == null || string.IsNullOrEmpty(entry.itemId)) continue;
-            if (Random.value > entry.DropChance) continue;
+            if (Random.value > entry.DropChance * (1f + insight)) continue;
 
             long rolled = RandomRangeLong(entry.minQty, entry.maxQty);
             long qty    = (long)System.Math.Max(1d, rolled * multiplier);

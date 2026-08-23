@@ -1,0 +1,36 @@
+{
+  "_comment": "The baseline every character starts from, before any class is added. Classes contribute on top of this rather than replacing it, which is what makes a second and third class purely additive. Fields ending in Multiplier are BONUS FRACTIONS: 0 means no change, 0.25 means +25%.",
+
+  "health": 60,
+  "mana": 20,
+  "stamina": 20,
+  "healthRegen": 1.0,
+  "manaRegen": 0.6,
+  "staminaRegen": 1.2,
+
+  "minHit": 1,
+  "maxHit": 3,
+  "minHitMultiplier": 0,
+  "maxHitMultiplier": 0,
+  "critChance": 0.05,
+  "critMultiplier": 0.5,
+
+  "_comment_attackSpeed": "Seconds per swing. Classes never set this directly — they contribute attackSpeedMultiplier, so three classes combine into one sensible number instead of three intervals being added together.",
+  "attackSpeed": 3.0,
+  "attackSpeedMultiplier": 0,
+
+  "armor": 0,
+  "armorMultiplier": 0,
+
+  "dropRate": 0,
+  "dropRateMultiplier": 0,
+
+  "_comment_explorer": "The five stats particular to this game. Small non-zero baselines so a new character can see them working before any gear grants them.",
+  "momentum": 0.10,
+  "diligence": 0,
+  "insight": 0.02,
+  "resonance": 0,
+  "tenacity": 0,
+
+  "skillAffinity": []
+}

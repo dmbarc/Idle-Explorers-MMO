@@ -49,9 +49,9 @@
       },
       {
         "piecesRequired": 4,
-        "description": "Copper conducts. +10 attack damage.",
+        "description": "Copper conducts. +10 maximum hit.",
         "action": "statBonus",
-        "param": "attackDamage",
+        "param": "maxHit",
         "magnitude": 10.0
       },
       {

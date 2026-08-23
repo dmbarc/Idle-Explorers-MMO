@@ -61,6 +61,31 @@ public static class SetBonusResolver
     public static float StatBonusFor(string statId) =>
         ItemSetManager.TotalMagnitude(StatBonus, statId);
 
+    /// <summary>Pours every active set's flat stat bonuses into a block.</summary>
+    public static void ContributeTo(StatBlock block)
+    {
+        if (block == null) return;
+
+        foreach (var bonus in ItemSetManager.ActiveBonuses())
+        {
+            if (bonus.action != StatBonus) continue;
+            block.Add(bonus.param, bonus.magnitude);
+        }
+    }
+
+    /// <summary>
+    /// A set proc's chance after Resonance.
+    ///
+    /// Resonance exists to make set bonuses a build axis rather than a fixed roll, so
+    /// it belongs on the chance rather than the effect — a player who invests in it
+    /// sees their set fire more often, which is what the stat's description promises.
+    /// </summary>
+    private static float EffectiveChance(ItemSetBonus bonus)
+    {
+        float resonance = GameManager.Stats?.Current.resonance ?? 0f;
+        return Mathf.Clamp01(bonus.chance * (1f + resonance));
+    }
+
     /// <summary>
     /// Durability a wear tick should actually cost, after durabilityGuard.
     ///
@@ -73,6 +98,12 @@ public static class SetBonusResolver
 
         foreach (var bonus in ItemSetManager.ActiveBonuses())
             if (bonus.action == DurabilityGuard) guard *= Mathf.Max(0f, bonus.magnitude);
+
+        // Tenacity does the same job as a durabilityGuard set bonus, from the stat
+        // side. Multiplied together rather than added, so a player with both does not
+        // reach zero wear and make durability decorative.
+        float tenacity = GameManager.Stats?.Current.tenacity ?? 0f;
+        guard *= 1f / (1f + Mathf.Max(0f, tenacity));
 
         return Mathf.Max(0, Mathf.RoundToInt(points * guard));
     }
@@ -293,7 +324,7 @@ public static class SetBonusResolver
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static bool Roll(ItemSetBonus bonus) =>
-        bonus.chance <= 0f ? false : Random.value <= bonus.chance;
+        bonus.chance > 0f && Random.value <= EffectiveChance(bonus);
 
     private static string WeakestSlot(EquipmentManager equipment)
     {

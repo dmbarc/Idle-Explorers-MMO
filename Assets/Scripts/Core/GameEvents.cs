@@ -53,6 +53,9 @@ public static class GameEvents
     /// <summary>The character's body, hair, eyes or held weapon changed.</summary>
     public static Action                  OnAppearanceChanged;
 
+    /// <summary>Something feeding the stat block changed, so displays should re-read it.</summary>
+    public static Action                  OnStatsChanged;
+
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex
     public static Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
@@ -66,6 +69,9 @@ public static class GameEvents
     public static Action<string>          OnMonsterKilled;        // monsterId
     public static Action<double>          OnPlayerDamageTaken;
     public static Action<double, double>  OnPlayerHealthChanged;  // current, max
+
+    /// <summary>current mana, max mana, current stamina, max stamina.</summary>
+    public static Action<float, float, float, float> OnPlayerResourcesChanged;
     public static Action                  OnPlayerDied;
 
     // ── Economy ──────────────────────────────────────────────────────────────
@@ -140,6 +146,7 @@ public static class GameEvents
         OnDurabilityChanged      = null;
         OnAutoModeChanged        = null;
         OnAppearanceChanged      = null;
+        OnStatsChanged           = null;
         OnRelicCoinsChanged      = null;
 
         OnMergeSlotChanged       = null;
@@ -152,6 +159,7 @@ public static class GameEvents
         OnMonsterKilled          = null;
         OnPlayerDamageTaken      = null;
         OnPlayerHealthChanged    = null;
+        OnPlayerResourcesChanged = null;
         OnPlayerDied             = null;
 
         OnCoinsChanged           = null;

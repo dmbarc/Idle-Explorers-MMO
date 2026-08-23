@@ -643,6 +643,33 @@ public class EquipmentManager : MonoBehaviour
     // ── Stat aggregation ──────────────────────────────────────────────────────
 
     /// <summary>
+    /// Pours everything worn into a stat block.
+    ///
+    /// The push counterpart to AggregateStat's pull. StatsManager needs every stat at
+    /// once, and asking per stat would walk the whole wardrobe two dozen times.
+    ///
+    /// Broken pieces are excluded by EquippedItems, so a shattered helmet stops
+    /// granting its health the moment it breaks and gets it back on repair.
+    /// </summary>
+    public void ContributeTo(StatBlock block)
+    {
+        if (block == null) return;
+
+        foreach (var item in EquippedItems())
+        {
+            if (item.effects == null) continue;
+
+            foreach (var effect in item.effects)
+            {
+                if (effect == null) continue;
+                if (effect.trigger != "onEquipPassive" || effect.action != "statBonus") continue;
+
+                block.Add(effect.param, effect.magnitude);
+            }
+        }
+    }
+
+    /// <summary>
     /// Summed flat bonus for a stat across everything worn, from onEquipPassive
     /// effects whose param names the stat — plus whatever active armour sets add.
     ///

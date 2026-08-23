@@ -17,6 +17,7 @@ public class GameHUD : UIScreen
     private TMP_Text _coinsLabel;
     private Image    _hpFill;
     private Image    _mpFill;
+    private Image    _spFill;
     private TMP_Text _hpText;
 
     private readonly List<Image>    _abilityCooldownOverlays = new();
@@ -49,6 +50,7 @@ public class GameHUD : UIScreen
 
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
+        GameEvents.OnPlayerResourcesChanged += OnResourcesChanged;
         GameEvents.OnCoinsChanged        += RefreshCoins;
         GameEvents.OnPlayerDied          += OnPlayerDied;
         GameEvents.OnTalentsChanged      += RefreshTalentBadge;
@@ -60,6 +62,7 @@ public class GameHUD : UIScreen
     {
         GameEvents.OnCharacterLevelUp    -= OnLevelUp;
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
+        GameEvents.OnPlayerResourcesChanged -= OnResourcesChanged;
         GameEvents.OnCoinsChanged        -= RefreshCoins;
         GameEvents.OnPlayerDied          -= OnPlayerDied;
         GameEvents.OnTalentsChanged      -= RefreshTalentBadge;
@@ -120,6 +123,9 @@ public class GameHUD : UIScreen
                                    theme.textPrimary, TextAlignmentOptions.Center);
         UIFactory.At(_hpText, 0.255f, 0.56f, 0.60f, 0.92f);
 
+        // Mana and stamina share the lower row. Both are real now — the MP bar sat
+        // permanently full for the whole project's life because baseMp was declared
+        // and never read by anything.
         var mpLbl = UIFactory.Label(bar.transform, "MP", theme.fontSizeLabel,
                                      theme.textSecondary, TextAlignmentOptions.MidlineRight);
         UIFactory.At(mpLbl, 0.21f, 0.08f, 0.245f, 0.46f);
@@ -127,7 +133,16 @@ public class GameHUD : UIScreen
         var (mpRoot, mpFill) = UIFactory.ProgressBar(bar.transform, "MPBar", theme.mpFill);
         _mpFill = mpFill;
         _mpFill.fillAmount = 1f;
-        UIFactory.At(mpRoot.transform, 0.255f, 0.10f, 0.60f, 0.44f);
+        UIFactory.At(mpRoot.transform, 0.255f, 0.10f, 0.42f, 0.44f);
+
+        var spLbl = UIFactory.Label(bar.transform, "SP", theme.fontSizeLabel,
+                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(spLbl, 0.425f, 0.08f, 0.46f, 0.46f);
+
+        var (spRoot, spFill) = UIFactory.ProgressBar(bar.transform, "SPBar", theme.accentGreen);
+        _spFill = spFill;
+        _spFill.fillAmount = 1f;
+        UIFactory.At(spRoot.transform, 0.47f, 0.10f, 0.60f, 0.44f);
 
         // Coins live in the top bar because they are a currency, not an inventory item
         _coinsLabel = UIFactory.Label(bar.transform, "0", theme.fontSizeSmall,
@@ -151,9 +166,10 @@ public class GameHUD : UIScreen
 
         // Right side nav
         var navStack = UIFactory.HStack(bar.transform, theme.spacing, "NavButtons");
-        UIFactory.At(navStack.transform, 0.70f, 0.10f, 0.99f, 0.90f);
+        UIFactory.At(navStack.transform, 0.655f, 0.10f, 0.99f, 0.90f);
 
         BuildAutoToggle(navStack.transform);
+        UIFactory.Button(navStack.transform, "CHR", () => GameManager.UI?.Push<CharacterSheet>(),  width: 54f);
         UIFactory.Button(navStack.transform, "INV", () => GameManager.UI?.Push<InventoryPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "EQP", () => GameManager.UI?.Push<EquipmentPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "SKL", () => GameManager.UI?.Push<SkillsPanel>(),    width: 54f);
@@ -436,6 +452,20 @@ public class GameHUD : UIScreen
         if (max <= 0) return;
         if (_hpFill != null) _hpFill.fillAmount = Mathf.Clamp01((float)(current / max));
         if (_hpText != null) _hpText.text = $"{(long)current} / {(long)max}";
+    }
+
+    /// <summary>
+    /// Mana and stamina. A pool a class does not use shows empty rather than being
+    /// hidden — a Sorcerer glancing at a flat stamina bar learns something true about
+    /// their character, where a missing bar would just look like a layout bug.
+    /// </summary>
+    private void OnResourcesChanged(float mana, float maxMana, float stamina, float maxStamina)
+    {
+        if (_mpFill != null)
+            _mpFill.fillAmount = maxMana > 0f ? Mathf.Clamp01(mana / maxMana) : 0f;
+
+        if (_spFill != null)
+            _spFill.fillAmount = maxStamina > 0f ? Mathf.Clamp01(stamina / maxStamina) : 0f;
     }
 
     private void OnPlayerDied() => GameManager.UI?.Push<DeathScreen>();

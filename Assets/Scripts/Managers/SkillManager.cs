@@ -21,6 +21,16 @@ public class SkillManager : MonoBehaviour
         // accrual alike. Applying it at the call sites would mean finding all of them
         // again every time a new one appears.
         float xpMultiplier = TalentManager.Multiplier(TalentManager.SkillXpPercent);
+
+        // Class affinity for THIS skill. A Warrior smiths faster than a Sorcerer does,
+        // and with cross-speccing a Warrior/Tinkerer smiths faster than either — which
+        // is the point of letting affinities stack.
+        xpMultiplier *= GameManager.Stats?.SkillMultiplier(skillId) ?? 1f;
+
+        // Momentum: the reward for staying on one thing rather than flitting between
+        // them. Zero for the first minutes after a switch, full after ten.
+        xpMultiplier *= 1f + (GameManager.Activity?.MomentumBonus ?? 0f);
+
         if (xpMultiplier > 1f) amount = (long)(amount * xpMultiplier);
 
         var progress = ch.GetOrCreateSkill(skillId);

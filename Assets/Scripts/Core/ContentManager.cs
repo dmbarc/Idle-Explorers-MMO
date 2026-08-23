@@ -30,6 +30,15 @@ public class ContentManager : MonoBehaviour
     public List<RelicCoinPack>             CoinPacks    { get; } = new List<RelicCoinPack>();
     public List<ShopProduct>               ShopProducts { get; } = new List<ShopProduct>();
     public Dictionary<string, ItemSetData> ItemSets     { get; } = new Dictionary<string, ItemSetData>();
+    public List<SpecCombo>                 SpecCombos   { get; } = new List<SpecCombo>();
+
+    /// <summary>
+    /// The stat baseline every character starts from, before any class.
+    ///
+    /// Never null: a missing or malformed base_stats.json leaves an empty block rather
+    /// than a null reference, so combat still runs — badly, and loudly, but it runs.
+    /// </summary>
+    public StatBlock BaseStats { get; private set; } = new StatBlock();
 
     public bool IsLoaded { get; private set; }
 
@@ -46,12 +55,13 @@ public class ContentManager : MonoBehaviour
     [Serializable] private class SlotList    { public SlotUnlockRequirement[] slots;   }
     [Serializable] private class CraftList   { public CraftRecipe[]          recipes;  }
     [Serializable] private class SetList     { public ItemSetData[]          sets;     }
+    [Serializable] private class SpecList    { public SpecCombo[]            specs;    }
 
     // ── Public API ────────────────────────────────────────────────────────────
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 10;
+        _pendingLoads = 12;
 
         LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
         LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
@@ -72,6 +82,11 @@ public class ContentManager : MonoBehaviour
         LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
         LoadJson<CraftList>  ("recipe_data",   "recipes",  j => CraftRecipes.AddRange(j.recipes));
         LoadJson<SetList>    ("set_data",      "sets",     j => { foreach (var x in j.sets) ItemSets[x.id] = x; });
+
+        // A root OBJECT, like shop_data.json — it is one stat block, not a list, so the
+        // array wrapper below is bypassed and wrapField goes unused.
+        LoadJson<StatBlock>  ("base_stats",    "",         j => { if (j != null) BaseStats = j; });
+        LoadJson<SpecList>   ("spec_data",     "specs",    j => { if (j.specs != null) SpecCombos.AddRange(j.specs); });
 
         // shop_data.json is a root OBJECT, not an array — it carries two lists, and
         // the array wrapper below only handles one. The wrapField is unused for it.

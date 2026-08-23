@@ -19,7 +19,6 @@ public class PlayerController : MonoBehaviour
     public float healthRegenSpeed = 1f;
     public float attackDistance = 2f;
     public float attackSpeed = 2f;
-    public double attackDamage = 10d;
     public bool autoAttack = false;
     public double dropMultiplier = 1;
 
@@ -29,6 +28,23 @@ public class PlayerController : MonoBehaviour
     private double currentHealthPoints = 100;
     private float regenTimer = 0f;
     private float attackTimer = 0f;
+
+    // ── Mana and stamina ──────────────────────────────────────────────────────
+    //
+    // baseMp existed in class_data.json from the beginning and nothing ever read it —
+    // the HUD's MP bar sat permanently full. Both pools now have a job: abilities
+    // declare which they cost, so a caster is limited by mana and a fighter by
+    // stamina, and the two are distinguishable rather than decorative.
+
+    private float maxMana;
+    private float currentMana;
+    private float maxStamina;
+    private float currentStamina;
+
+    public float CurrentMana    => currentMana;
+    public float MaxMana        => maxMana;
+    public float CurrentStamina => currentStamina;
+    public float MaxStamina     => maxStamina;
 
     private MonsterController currentTarget;
     private DropPickup currentItemTarget;
@@ -71,107 +87,80 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private void ApplyClassStats()
     {
-        var character = CharacterManager.Current;
-        if (character == null)
-        {
-            Debug.LogWarning("[PlayerController] No active character — using Inspector stat defaults.");
-            currentHealthPoints = maxHealthPoints;
-            GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
-            return;
-        }
+        RefreshFromStats(preserveVitals: false);
 
-        var cls = GameManager.Content?.GetClass(character.classId);
-        if (cls != null)
+        if (CharacterManager.Current == null)
+            Debug.LogWarning("[PlayerController] No active character — running on the baseline stat block.");
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────────────────
+    //
+    // Four separate methods used to layer class, gear and talents onto each other by
+    // hand, each carefully written to avoid compounding into itself — including a
+    // captured "base regen" whose only job was to stop one of them doing so. All of
+    // that is now StatsManager's problem: it sums every source from scratch and this
+    // reads the answer.
+
+    /// <summary>
+    /// The character's live stats. Never null, so nothing downstream needs a guard —
+    /// a character with no class still has the shared baseline.
+    /// </summary>
+    private StatBlock Stats => GameManager.Stats?.Current ?? _fallbackStats;
+
+    /// <summary>
+    /// Used only when the scene is played directly with no GameManager, which happens
+    /// while iterating on a map. Numbers are deliberately dull; this is not balance.
+    /// </summary>
+    private static readonly StatBlock _fallbackStats = new StatBlock
+    {
+        health = 100, mana = 50, stamina = 50,
+        healthRegen = 1f, manaRegen = 1f, staminaRegen = 2f,
+        minHit = 4, maxHit = 8, critChance = 0.05f, critMultiplier = 0.5f,
+        attackSpeed = 2f,
+    };
+
+    /// <summary>
+    /// Re-reads the stat block into the pools.
+    ///
+    /// <paramref name="preserveVitals"/> keeps the character as hurt as they were,
+    /// proportionally. Without it, swapping a ring mid-fight would be a free heal.
+    /// </summary>
+    private void RefreshFromStats(bool preserveVitals)
+    {
+        var stats = Stats;
+
+        double healthFraction  = maxHealthPoints > 0 ? currentHealthPoints / maxHealthPoints : 1d;
+        float  manaFraction    = maxMana    > 0f ? currentMana    / maxMana    : 1f;
+        float  staminaFraction = maxStamina > 0f ? currentStamina / maxStamina : 1f;
+
+        maxHealthPoints   = stats.EffectiveHealth;
+        maxMana           = Mathf.Max(0f, stats.mana);
+        maxStamina        = Mathf.Max(0f, stats.stamina);
+        healthRegenAmount = stats.healthRegen;
+        attackSpeed       = stats.EffectiveAttackSpeed;
+
+        // MonsterController reads this off the player when it rolls its loot table.
+        dropMultiplier = 1d + stats.dropRateMultiplier;
+
+        if (preserveVitals)
         {
-            maxHealthPoints = cls.baseHp;
-            attackSpeed     = cls.attackSpeedSeconds;
-            attackDamage    = Random.Range(cls.baseAttackMin, cls.baseAttackMax + 1);
+            currentHealthPoints = System.Math.Max(1d, maxHealthPoints * healthFraction);
+            currentMana         = maxMana    * manaFraction;
+            currentStamina      = maxStamina * staminaFraction;
         }
         else
         {
-            Debug.LogWarning($"[PlayerController] Unknown classId '{character.classId}' — using Inspector defaults.");
+            currentHealthPoints = maxHealthPoints;
+            currentMana         = maxMana;
+            currentStamina      = maxStamina;
         }
 
-        ApplyEquipmentBonuses();
-        ApplyTalentBonuses();
-
-        currentHealthPoints = maxHealthPoints;
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+        GameEvents.OnPlayerResourcesChanged?.Invoke(currentMana, maxMana, currentStamina, maxStamina);
     }
 
-    /// <summary>
-    /// Layers talents on top of the class baseline and worn gear.
-    ///
-    /// Applied last and multiplicatively, so a talent that reads "+12% damage" is 12%
-    /// of what the character actually hits for rather than 12% of a naked class stat
-    /// they stopped having twenty levels ago.
-    /// </summary>
-    private void ApplyTalentBonuses()
-    {
-        maxHealthPoints *= TalentManager.Multiplier(TalentManager.MaxHpPercent);
-        attackDamage    *= TalentManager.Multiplier(TalentManager.AttackDamagePercent);
-
-        // Attack speed is an interval: faster means a smaller number.
-        attackSpeed = Mathf.Max(0.2f,
-            attackSpeed * TalentManager.ReductionMultiplier(TalentManager.AttackSpeedPercent));
-
-        healthRegenAmount = BaseHealthRegen + TalentManager.Bonus(TalentManager.HealthRegenFlat);
-
-        // MonsterController reads this off the player when it rolls its loot table.
-        dropMultiplier = TalentManager.Multiplier(TalentManager.DropQuantityPercent);
-    }
-
-    /// <summary>
-    /// Regeneration before talents. Captured once, because ApplyTalentBonuses runs
-    /// again on every equipment and talent change — reading the current value would
-    /// compound the bonus into itself each time.
-    /// </summary>
-    private double BaseHealthRegen
-    {
-        get
-        {
-            if (!_baseRegenCaptured)
-            {
-                _baseHealthRegen   = healthRegenAmount;
-                _baseRegenCaptured = true;
-            }
-            return _baseHealthRegen;
-        }
-    }
-
-    private double _baseHealthRegen;
-    private bool   _baseRegenCaptured;
-
-    /// <summary>
-    /// Layers worn gear on top of the class baseline. Re-runs whenever equipment
-    /// changes, so the class stats are recomputed from scratch each time rather than
-    /// the bonuses compounding on themselves.
-    /// </summary>
-    private void ApplyEquipmentBonuses()
-    {
-        var equipment = GameManager.Equipment;
-        if (equipment == null) return;
-
-        maxHealthPoints += equipment.AggregateStat("maxHp");
-        attackDamage    += equipment.AggregateStat("attackDamage");
-
-        // Attack speed is an interval, so a bonus makes it SMALLER. Clamped so gear
-        // can never drive it to zero and produce an infinite attack rate.
-        attackSpeed = Mathf.Max(0.2f, attackSpeed - equipment.AggregateStat("attackSpeed"));
-    }
-
-    /// <summary>Recomputes stats from the class baseline plus current gear.</summary>
-    private void OnEquipmentChanged()
-    {
-        double healthFraction = maxHealthPoints > 0 ? currentHealthPoints / maxHealthPoints : 1d;
-
-        ApplyClassStats();
-
-        // Preserve how hurt the player was rather than refilling them — otherwise
-        // swapping a ring mid-fight is a free heal.
-        currentHealthPoints = System.Math.Max(1d, maxHealthPoints * healthFraction);
-        GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
-    }
+    /// <summary>Recomputes from the stat block whenever anything feeding it changes.</summary>
+    private void OnEquipmentChanged() => RefreshFromStats(preserveVitals: true);
 
     void Update()
     {
@@ -553,7 +542,8 @@ public class PlayerController : MonoBehaviour
             if (attackTimer >= EffectiveAttackSpeed)
             {
                 var struck = currentTarget;
-                struck.TakeDamage(attackDamage);
+                double dealt = StrikeMonster(struck);
+
                 GameManager.Audio?.PlayHit();
                 anim.SetBool("1_Move", false);
                 anim.SetBool("2_Attack", true);
@@ -563,10 +553,10 @@ public class PlayerController : MonoBehaviour
                 // separate and lives on AbilityData.lifestealFraction — Soul Drain
                 // should still be Soul Drain on a character who has taken none.
                 float lifesteal = TalentManager.Bonus(TalentManager.LifestealPercent);
-                if (lifesteal > 0f) Heal(attackDamage * lifesteal);
+                if (lifesteal > 0f) Heal(dealt * lifesteal);
 
                 ItemEffectResolver.Fire("onHit", null);
-                SetBonusResolver.OnDamageDealt(this, struck, attackDamage);
+                SetBonusResolver.OnDamageDealt(this, struck, dealt);
             }
             return;
         }
@@ -758,6 +748,89 @@ public class PlayerController : MonoBehaviour
             RegenHealth();
             regenTimer = 0f;
         }
+
+        RegenResources(Time.deltaTime);
+    }
+
+    /// <summary>
+    /// Mana and stamina tick continuously rather than on the health timer, because
+    /// they gate abilities: a one-second granularity would make an ability that is
+    /// almost affordable feel like it was refusing at random.
+    /// </summary>
+    private void RegenResources(float deltaTime)
+    {
+        if (maxMana <= 0f && maxStamina <= 0f) return;
+
+        var stats = Stats;
+
+        float mana    = Mathf.Min(maxMana,    currentMana    + stats.manaRegen    * deltaTime);
+        float stamina = Mathf.Min(maxStamina, currentStamina + stats.staminaRegen * deltaTime);
+
+        // Only announce on a visible change — this runs every frame, and the HUD bars
+        // do not need a rebuild for a hundredth of a point.
+        bool changed = Mathf.Abs(mana - currentMana) > 0.01f ||
+                       Mathf.Abs(stamina - currentStamina) > 0.01f;
+
+        currentMana    = mana;
+        currentStamina = stamina;
+
+        if (changed)
+            GameEvents.OnPlayerResourcesChanged?.Invoke(currentMana, maxMana, currentStamina, maxStamina);
+    }
+
+    /// <summary>Whether the pool covers an ability, without spending anything.</summary>
+    private bool CanAffordCost(AbilityData ability, bool announce)
+    {
+        if (ability == null || ability.cost <= 0f) return true;
+
+        float have = ability.costType switch
+        {
+            "mana"    => currentMana,
+            "stamina" => currentStamina,
+            _         => float.MaxValue,
+        };
+
+        if (have >= ability.cost) return true;
+
+        if (announce)
+            GameEvents.FireToast($"Not enough {ability.costType} for {ability.name}.");
+        return false;
+    }
+
+    /// <summary>
+    /// Spends an ability's cost. Returns false — and spends nothing — when the pool is
+    /// short, which is what stops a caster chain-casting their most expensive spell.
+    /// </summary>
+    private bool TrySpendCost(AbilityData ability, bool announce)
+    {
+        if (ability == null || ability.cost <= 0f) return true;
+
+        switch (ability.costType)
+        {
+            case "mana":
+                if (currentMana < ability.cost)
+                {
+                    if (announce) GameEvents.FireToast($"Not enough mana for {ability.name}.");
+                    return false;
+                }
+                currentMana -= ability.cost;
+                break;
+
+            case "stamina":
+                if (currentStamina < ability.cost)
+                {
+                    if (announce) GameEvents.FireToast($"Not enough stamina for {ability.name}.");
+                    return false;
+                }
+                currentStamina -= ability.cost;
+                break;
+
+            default:
+                return true;   // "none", or an unrecognised pool: free
+        }
+
+        GameEvents.OnPlayerResourcesChanged?.Invoke(currentMana, maxMana, currentStamina, maxStamina);
+        return true;
     }
 
     /// <summary>
@@ -772,6 +845,11 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(double damageAmount)
     {
+        // Armour applies here rather than at the attacker, so every source of damage
+        // to the player is reduced by it — a monster's swing, a trap, anything added
+        // later. A floor of 1 keeps armour from ever making the player untouchable.
+        damageAmount = System.Math.Max(1d, damageAmount * StatBlock.DamageThrough(Stats.EffectiveArmor));
+
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
         DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerTook, "-");
         GameManager.Audio?.Play(Sfx.PlayerHurt);
@@ -988,7 +1066,13 @@ public class PlayerController : MonoBehaviour
             return false;
         }
 
+        // Cost is checked BEFORE the effect but spent only if the effect took hold —
+        // otherwise a heal refused at full health would still empty the mana bar.
+        if (!CanAffordCost(ability, announce)) return false;
+
         if (!ApplyAbilityEffect(ability, announce)) return false;
+
+        TrySpendCost(ability, announce: false);
 
         _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds *
             TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
@@ -1103,7 +1187,7 @@ public class PlayerController : MonoBehaviour
 
                 for (int i = 0; i < strikes && currentTarget != null && currentTarget.IsAlive(); i++)
                 {
-                    double blow = attackDamage * power;
+                    double blow = AttackDamage * power;
                     currentTarget.TakeDamage(blow);
                     dealt += blow;
                 }
@@ -1122,7 +1206,7 @@ public class PlayerController : MonoBehaviour
                 {
                     if (!m.IsAlive()) continue;
                     if (Vector3.Distance(transform.position, m.transform.position) > ability.aoeRadius) continue;
-                    m.TakeDamage(attackDamage * power);
+                    m.TakeDamage(AttackDamage * power);
                     hits++;
                 }
                 if (hits == 0) { Explain("Nothing in range."); return false; }
@@ -1157,7 +1241,7 @@ public class PlayerController : MonoBehaviour
                 int slowed = 0;
                 foreach (var m in InRange(ability.aoeRadius))
                 {
-                    m.TakeDamage(attackDamage * power);
+                    m.TakeDamage(AttackDamage * power);
                     m.ApplySlow(0.4f, ability.durationSeconds);
                     slowed++;
                 }
@@ -1194,7 +1278,7 @@ public class PlayerController : MonoBehaviour
 
             case "summon":
             {
-                TurretController.Deploy(transform.position, attackDamage * power,
+                TurretController.Deploy(transform.position, AttackDamage * power,
                                          ability.aoeRadius, ability.durationSeconds);
                 return true;
             }
@@ -1248,10 +1332,41 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// What one swing hits for, after class, gear and talents. Read by set bonuses
-    /// that scale off the character's own damage rather than a flat number.
+    /// Rolls one attack and applies it, returning what actually landed.
+    ///
+    /// The whole combat model in one place. Damage used to be a single number rolled
+    /// ONCE when the character spawned and then never again, so every swing for the
+    /// rest of the session hit for exactly the same amount. Now each swing rolls
+    /// between the character's minimum and maximum hit, can crit, and is reduced by
+    /// the target's armour.
     /// </summary>
-    public double AttackDamage => attackDamage;
+    private double StrikeMonster(MonsterController target)
+    {
+        if (target == null) return 0d;
+
+        double dealt = Stats.Resolve().Roll(out bool wasCrit);
+        dealt *= StatBlock.DamageThrough(target.Armor);
+        dealt  = System.Math.Max(1d, dealt);
+
+        target.TakeDamage(dealt, wasCrit);
+        return dealt;
+    }
+
+    /// <summary>
+    /// A representative swing, for effects that scale off the character's damage
+    /// rather than rolling their own — set bonuses and abilities.
+    ///
+    /// The midpoint of the band rather than a fresh roll, so an ability that reads
+    /// "5x your damage" is not itself a gamble on top of the gamble it already is.
+    /// </summary>
+    public double AttackDamage
+    {
+        get
+        {
+            var profile = Stats.Resolve();
+            return (profile.Min + profile.Max) * 0.5d;
+        }
+    }
 
     /// <summary>Attack interval after any active haste buff.</summary>
     private float EffectiveAttackSpeed =>

@@ -299,6 +299,17 @@ public class AbilityData
     /// <summary>Fraction of damage dealt returned as healing. Soul Drain uses this.</summary>
     public float    lifestealFraction;
 
+    /// <summary>
+    /// Which pool this ability spends: "mana", "stamina", or empty for free.
+    ///
+    /// This is what makes mana and stamina two different resources rather than two
+    /// identical bars — a Sorcerer is limited by mana and a Warrior by stamina, so the
+    /// same number on a piece of gear means different things to each.
+    /// </summary>
+    public string   costType;
+
+    public float    cost;
+
     public bool IsActivatable => !isPassive && effect != "passive";
 }
 
@@ -313,6 +324,16 @@ public class ClassData
     public int           baseAttackMin;
     public int           baseAttackMax;
     public float         attackSpeedSeconds;
+    /// <summary>
+    /// What this class ADDS to the shared baseline in base_stats.json.
+    ///
+    /// A contribution rather than a complete stat line, because a character can carry
+    /// up to three classes and they stack. The legacy baseHp/baseMp/baseAttack fields
+    /// above are kept only so the character-select card can show a familiar summary;
+    /// nothing in combat reads them any more.
+    /// </summary>
+    public StatBlock     stats;
+
     public AbilityData[] abilities;
     public TalentNode[]  talentTree;
 
@@ -386,6 +407,22 @@ public class SlotUnlockRequirement
     public int slot;
     public int reqAccountLevel;
     public int reqAnyCharLevel;
+}
+
+/// <summary>
+/// A named combination of classes — Warrior + Sorcerer is a Paladin.
+///
+/// Matched order-insensitively by ClassManager, so the file lists each combination
+/// once rather than once per ordering.
+/// </summary>
+[Serializable]
+public class SpecCombo
+{
+    public string[] classIds;
+    public string   name;
+    public string   description;
+
+    public string DisplayName => string.IsNullOrEmpty(name) ? "" : name;
 }
 
 // ── Armour sets ───────────────────────────────────────────────────────────────
@@ -596,6 +633,51 @@ public class CharacterData
     /// </summary>
     public int      classChangeCount;
 
+    /// <summary>
+    /// Every class this character has specced into, primary first.
+    ///
+    /// `classId` above is kept in sync as a legacy mirror — GhostSnapshot reads it and
+    /// so does every save written before cross-speccing — but THIS is authoritative.
+    /// CharacterManager is the only place both are written, so they cannot drift.
+    ///
+    /// Use ClassIds() rather than this field directly: a save from before cross-spec
+    /// has an empty list and a populated classId, and the helper covers that.
+    /// </summary>
+    public List<string> classIds;
+
+    /// <summary>
+    /// The classes this character has, in order. Never null, never empty for a
+    /// character that has a class at all.
+    /// </summary>
+    public List<string> ClassIds()
+    {
+        classIds ??= new List<string>();
+
+        // Migration in the accessor rather than a load pass, so it also covers a
+        // CharacterData built in code or arriving from a future server.
+        if (classIds.Count == 0 && !string.IsNullOrEmpty(classId))
+            classIds.Add(classId);
+
+        return classIds;
+    }
+
+    /// <summary>How many classes this character may have, from their level.</summary>
+    public int ClassSlots()
+    {
+        if (level >= ClassSlotThreeLevel) return 3;
+        if (level >= ClassSlotTwoLevel)   return 2;
+        return 1;
+    }
+
+    /// <summary>Character level at which a second class unlocks.</summary>
+    public const int ClassSlotTwoLevel = 50;
+
+    /// <summary>Character level at which a third class unlocks.</summary>
+    public const int ClassSlotThreeLevel = 100;
+
+    /// <summary>True when a class slot is unlocked and still empty.</summary>
+    public bool HasUnusedClassSlot() => ClassIds().Count < ClassSlots();
+
     public CharacterData()
     {
         skills              = new List<SkillProgress>();
@@ -608,6 +690,8 @@ public class CharacterData
         collectedSpiritIds  = new string[0];
         collectedRelicIds   = new string[0];
         talents             = new List<TalentRank>();
+        classIds            = new List<string>();
+        storedDurability    = new List<ItemDurability>();
         allowGhostDisplay   = true;
     }
 

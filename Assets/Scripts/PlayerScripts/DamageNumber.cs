@@ -23,6 +23,13 @@ public class DamageNumber : MonoBehaviour
     public static readonly Color Healed      = new(0.35f, 0.90f, 0.45f);
 
     /// <summary>
+    /// A critical hit. Deliberately far from the ordinary damage colour — a crit that
+    /// looks like a slightly brighter normal hit is a stat the player cannot see
+    /// working, and critical chance is meant to be felt.
+    /// </summary>
+    public static readonly Color PlayerCrit  = new(1.00f, 0.45f, 0.10f);
+
+    /// <summary>
     /// Spawns a number above a point. Amounts below 1 are skipped — a stream of "0"s
     /// over a heavily armoured target is noise, not feedback.
     /// </summary>

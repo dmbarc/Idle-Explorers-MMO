@@ -124,6 +124,28 @@ public static class ItemTooltip
     }
 
     /// <summary>
+    /// Fills a card with plain title-and-body text.
+    ///
+    /// For anything that wants the same hover card without being an item — the stat
+    /// sheet's explanations, a talent's description. Sharing the card rather than
+    /// building a second tooltip is what keeps every hover in the game looking and
+    /// behaving the same.
+    /// </summary>
+    public static void ShowText(Card card, RectTransform canvas, string title, string body,
+                                Vector2 screenPos)
+    {
+        if (card?.Root == null) return;
+
+        card.Title.text = title ?? "";
+        card.Body.text  = body ?? "";
+
+        card.Root.SetActive(true);
+        card.Root.transform.SetAsLastSibling();
+
+        Position(card, canvas, screenPos);
+    }
+
+    /// <summary>
     /// Keeps the card on screen. A slot near the right edge would otherwise open a
     /// 360px card off the side of the display, and one near the bottom would run off
     /// the end of the set list.
@@ -246,7 +268,9 @@ public static class ItemTooltip
             if (effect.trigger != "onEquipPassive" || effect.action != "statBonus") continue;
 
             if (!any) { sb.AppendLine(); any = true; }
-            sb.AppendLine(Colour($"+{effect.magnitude:0.##} {StatName(effect.param)}", StatHex));
+
+            string statId = Stats.Canonical(effect.param);
+            sb.AppendLine(Colour($"{Stats.Render(statId, effect.magnitude)} {StatName(statId)}", StatHex));
         }
     }
 
@@ -268,14 +292,14 @@ public static class ItemTooltip
         }
     }
 
-    /// <summary>Human name for a stat id, so tooltips never print "maxHp".</summary>
-    private static string StatName(string statId) => statId switch
-    {
-        "maxHp"        => "Maximum Health",
-        "attackDamage" => "Attack Damage",
-        "attackSpeed"  => "Attack Speed",
-        _              => string.IsNullOrEmpty(statId) ? "Unknown" : statId,
-    };
+    /// <summary>
+    /// Human name for a stat id, so tooltips never print "maxHp".
+    ///
+    /// Through the Stats registry rather than a local table, so an item and the
+    /// character sheet cannot end up calling the same stat two different things.
+    /// </summary>
+    private static string StatName(string statId) =>
+        string.IsNullOrEmpty(statId) ? "Unknown" : Stats.NameOf(Stats.Canonical(statId));
 
     // ── The set block ─────────────────────────────────────────────────────────
 
@@ -358,12 +382,15 @@ public static class ItemTooltip
 
         var rows = new List<string>();
 
-        foreach (var statId in new[] { "maxHp", "attackDamage", "attackSpeed" })
+        // Every stat, not a hardcoded three: gear can now grant any of them, and a
+        // list that has to be edited whenever a new stat appears is a list that will
+        // silently stop showing one.
+        foreach (var info in Stats.All)
         {
-            float total = equipment.AggregateStat(statId);
+            float total = equipment.AggregateStat(info.Id);
             if (Mathf.Abs(total) < 0.001f) continue;
 
-            rows.Add(Colour($"+{total:0.##} {StatName(statId)}", StatHex));
+            rows.Add(Colour($"{Stats.Render(info.Id, total)} {info.Name}", StatHex));
         }
 
         return rows.Count == 0 ? Colour("No stats from gear yet.", GreyHex) : string.Join("   ", rows);

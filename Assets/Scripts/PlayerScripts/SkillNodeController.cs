@@ -265,7 +265,8 @@ public class SkillNodeController : MonoBehaviour
 
         // Speed talents are applied through the same helper offline accrual uses, so
         // a talent cannot make active play faster than the AFK figure it advertises.
-        perAction = ActivityManager.TalentAdjustedSeconds(perAction, crafting: _recipe != null);
+        string workedSkill = _recipe != null ? _recipe.skillId : _entry.skillId;
+        perAction = ActivityManager.AdjustedSeconds(perAction, crafting: _recipe != null, workedSkill);
 
         float secondsPerAction = perAction / Mathf.Max(0.01f, _entry.activeRateMulti);
         _actionTimer += deltaTime;
@@ -304,8 +305,12 @@ public class SkillNodeController : MonoBehaviour
         {
             long qty = 1;
 
-            // Special roll — the bird's nest / treasure casket moment
-            if (_entry.specialChance > 0f && Random.value <= _entry.specialChance)
+            // Special roll — the bird's nest / treasure casket moment. Insight is what
+            // makes it happen more often; drop quantity would only make it bigger.
+            float insight = GameManager.Stats?.Current.insight ?? 0f;
+            float chance  = _entry.specialChance * (1f + insight);
+
+            if (_entry.specialChance > 0f && Random.value <= chance)
             {
                 qty += 1;
                 if (!string.IsNullOrEmpty(_entry.specialLabel))

@@ -5,6 +5,20 @@
     "flavorText": "Steel and fury. Outlasts everything by refusing to fall.",
     "baseHp": 120, "baseMp": 40, "baseAttackMin": 8, "baseAttackMax": 14,
     "attackSpeedSeconds": 2.8,
+    "stats": {
+      "health": 60, "mana": 20, "stamina": 60,
+      "healthRegen": 0.6, "manaRegen": 0, "staminaRegen": 0.8,
+      "minHit": 7, "maxHit": 11,
+      "critChance": 0.01, "critMultiplier": 0,
+      "attackSpeedMultiplier": 0.07,
+      "armor": 25,
+      "resonance": 0.10, "tenacity": 0.15,
+      "skillAffinity": [
+        { "skillId": "smithing", "value": 0.25 },
+        { "skillId": "mining",   "value": 0.12 },
+        { "skillId": "combat",   "value": 0.12 }
+      ]
+    },
     "previewLook": {
       "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Human_2",
       "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_1",
@@ -15,10 +29,10 @@
       "hairColor": "#2B2118", "eyeColor": "", "skinTint": ""
     },
     "abilities": [
-      { "id": "cleave",         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.",              "isPassive": false, "effect": "aoe",     "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0 },
-      { "id": "shield_bash",    "name": "Shield Bash",    "description": "A brutal shove that staggers what it hits.",           "isPassive": false, "effect": "damage",  "power": 2.0, "cooldownSeconds": 6 },
-      { "id": "battlecry",      "name": "Battlecry",      "description": "Swing faster for a short while.",                      "isPassive": false, "effect": "haste",   "power": 1.5, "cooldownSeconds": 20, "durationSeconds": 8 },
-      { "id": "reckless_strike","name": "Reckless Strike","description": "Massive damage. You will feel it too.",                "isPassive": false, "effect": "damage",  "power": 3.5, "cooldownSeconds": 12 },
+      { "id": "cleave", "costType": "stamina", "cost": 25,         "name": "Cleave",         "description": "Heavy sweep hitting all nearby enemies.",              "isPassive": false, "effect": "aoe",     "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0 },
+      { "id": "shield_bash", "costType": "stamina", "cost": 15,    "name": "Shield Bash",    "description": "A brutal shove that staggers what it hits.",           "isPassive": false, "effect": "damage",  "power": 2.0, "cooldownSeconds": 6 },
+      { "id": "battlecry", "costType": "stamina", "cost": 30,      "name": "Battlecry",      "description": "Swing faster for a short while.",                      "isPassive": false, "effect": "haste",   "power": 1.5, "cooldownSeconds": 20, "durationSeconds": 8 },
+      { "id": "reckless_strike", "costType": "stamina", "cost": 35,"name": "Reckless Strike","description": "Massive damage. You will feel it too.",                "isPassive": false, "effect": "damage",  "power": 3.5, "cooldownSeconds": 12 },
       { "id": "endure",         "name": "Endure",         "description": "Passive: you simply refuse to go down.",               "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": [
@@ -43,6 +57,21 @@
     "flavorText": "Rapid and ruthless. A dozen arrows while you raise your sword.",
     "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
     "attackSpeedSeconds": 1.6,
+    "stats": {
+      "health": 20, "mana": 40, "stamina": 50,
+      "healthRegen": 0.3, "manaRegen": 0.3, "staminaRegen": 0.7,
+      "minHit": 4, "maxHit": 7,
+      "critChance": 0.05, "critMultiplier": 0.1,
+      "attackSpeedMultiplier": 0.875,
+      "armor": 10,
+      "dropRateMultiplier": 0.05,
+      "insight": 0.06,
+      "skillAffinity": [
+        { "skillId": "woodcutting", "value": 0.25 },
+        { "skillId": "fishing",     "value": 0.12 },
+        { "skillId": "cooking",     "value": 0.12 }
+      ]
+    },
     "previewLook": {
       "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Elf_1",
       "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_4",
@@ -53,10 +82,10 @@
       "hairColor": "#C08A3E", "eyeColor": "#2F7A4F", "skinTint": ""
     },
     "abilities": [
-      { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",                          "isPassive": false, "effect": "damage",  "power": 0.8, "hits": 3, "cooldownSeconds": 5 },
-      { "id": "marked_target", "name": "Marked Target", "description": "Line up the shot. It lands hard.",                       "isPassive": false, "effect": "damage",  "power": 3.0, "cooldownSeconds": 10 },
-      { "id": "barrage",       "name": "Barrage",       "description": "Arrow rain across a wide area.",                         "isPassive": false, "effect": "aoe",     "power": 1.2, "cooldownSeconds": 12, "aoeRadius": 7.0 },
-      { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Roll clear and catch your breath.",                      "isPassive": false, "effect": "heal",    "power": 0.2, "cooldownSeconds": 18 },
+      { "id": "rapid_shot", "costType": "stamina", "cost": 15,    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",                          "isPassive": false, "effect": "damage",  "power": 0.8, "hits": 3, "cooldownSeconds": 5 },
+      { "id": "marked_target", "costType": "stamina", "cost": 20, "name": "Marked Target", "description": "Line up the shot. It lands hard.",                       "isPassive": false, "effect": "damage",  "power": 3.0, "cooldownSeconds": 10 },
+      { "id": "barrage", "costType": "stamina", "cost": 30,       "name": "Barrage",       "description": "Arrow rain across a wide area.",                         "isPassive": false, "effect": "aoe",     "power": 1.2, "cooldownSeconds": 12, "aoeRadius": 7.0 },
+      { "id": "evasion_roll", "costType": "stamina", "cost": 25,  "name": "Evasion Roll",  "description": "Roll clear and catch your breath.",                      "isPassive": false, "effect": "heal",    "power": 0.2, "cooldownSeconds": 18 },
       { "id": "eagle_eye",     "name": "Eagle Eye",     "description": "Passive: you see the gaps in everything.",               "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": [
@@ -81,6 +110,20 @@
     "flavorText": "Glass cannon. You will die constantly and kill everything first.",
     "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
     "attackSpeedSeconds": 3.5,
+    "stats": {
+      "health": -5, "mana": 100, "stamina": 5,
+      "healthRegen": 0, "manaRegen": 1.4, "staminaRegen": 0,
+      "minHit": 19, "maxHit": 32,
+      "critChance": 0.02, "critMultiplier": 0.15,
+      "attackSpeedMultiplier": -0.143,
+      "armor": 2,
+      "insight": 0.04,
+      "skillAffinity": [
+        { "skillId": "infusion",    "value": 0.25 },
+        { "skillId": "convergence", "value": 0.12 },
+        { "skillId": "chronicle",   "value": 0.12 }
+      ]
+    },
     "previewLook": {
       "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Human_3",
       "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_9",
@@ -91,10 +134,10 @@
       "hairColor": "#8C8C93", "eyeColor": "#5E3B7A", "skinTint": ""
     },
     "abilities": [
-      { "id": "fireball",      "name": "Fireball",       "description": "It goes where you point and everything nearby regrets it.", "isPassive": false, "effect": "aoe",    "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0 },
-      { "id": "frost_nova",    "name": "Frost Nova",     "description": "Everything close by stops moving quite so confidently.",    "isPassive": false, "effect": "slow",   "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0, "durationSeconds": 5 },
-      { "id": "arcane_surge",  "name": "Arcane Surge",   "description": "Cast considerably faster for a moment.",                    "isPassive": false, "effect": "haste",  "power": 1.8, "cooldownSeconds": 24, "durationSeconds": 6 },
-      { "id": "blink",         "name": "Blink",          "description": "Be somewhere else. Recover slightly.",                      "isPassive": false, "effect": "blink",  "power": 0.15, "cooldownSeconds": 15, "aoeRadius": 8.0 },
+      { "id": "fireball", "costType": "mana", "cost": 25,      "name": "Fireball",       "description": "It goes where you point and everything nearby regrets it.", "isPassive": false, "effect": "aoe",    "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0 },
+      { "id": "frost_nova", "costType": "mana", "cost": 30,    "name": "Frost Nova",     "description": "Everything close by stops moving quite so confidently.",    "isPassive": false, "effect": "slow",   "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0, "durationSeconds": 5 },
+      { "id": "arcane_surge", "costType": "mana", "cost": 45,  "name": "Arcane Surge",   "description": "Cast considerably faster for a moment.",                    "isPassive": false, "effect": "haste",  "power": 1.8, "cooldownSeconds": 24, "durationSeconds": 6 },
+      { "id": "blink", "costType": "mana", "cost": 20,         "name": "Blink",          "description": "Be somewhere else. Recover slightly.",                      "isPassive": false, "effect": "blink",  "power": 0.15, "cooldownSeconds": 15, "aoeRadius": 8.0 },
       { "id": "mana_eff",      "name": "Mana Efficiency","description": "Passive: the magic costs you less than it should.",         "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": [
@@ -119,6 +162,21 @@
     "flavorText": "Gadget-fuelled chaos. Your Fabrication skill makes you absurdly powerful.",
     "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
     "attackSpeedSeconds": 2.2,
+    "stats": {
+      "health": 15, "mana": 60, "stamina": 35,
+      "healthRegen": 0.4, "manaRegen": 0.6, "staminaRegen": 0.5,
+      "minHit": 5, "maxHit": 9,
+      "critChance": 0.02, "critMultiplier": 0,
+      "attackSpeedMultiplier": 0.364,
+      "armor": 15,
+      "dropRate": 1, "dropRateMultiplier": 0.08,
+      "momentum": 0.10, "diligence": 0.05, "tenacity": 0.10,
+      "skillAffinity": [
+        { "skillId": "fabrication", "value": 0.25 },
+        { "skillId": "smithing",    "value": 0.12 },
+        { "skillId": "brokerage",   "value": 0.12 }
+      ]
+    },
     "previewLook": {
       "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Orc_2",
       "hairAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Hair/Hair_6",
@@ -129,10 +187,10 @@
       "hairColor": "#A33B22", "eyeColor": "#C08A3E", "skinTint": ""
     },
     "abilities": [
-      { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "It fires at whatever is closest. It is not fussy.",     "isPassive": false, "effect": "summon", "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0, "durationSeconds": 12 },
-      { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "Everything nearby loses track of you, briefly.",        "isPassive": false, "effect": "stealth","power": 0.8, "cooldownSeconds": 12, "aoeRadius": 5.0, "durationSeconds": 6 },
-      { "id": "overclock",      "name": "Overclock",      "description": "Push the machinery past its rated tolerances.",         "isPassive": false, "effect": "haste",  "power": 1.6, "cooldownSeconds": 20, "durationSeconds": 8 },
-      { "id": "salvage_strike", "name": "Salvage Strike", "description": "Hit it hard, take the useful parts.",                   "isPassive": false, "effect": "damage", "power": 2.4, "cooldownSeconds": 7 },
+      { "id": "deploy_turret", "costType": "mana", "cost": 30,  "name": "Deploy Turret",  "description": "It fires at whatever is closest. It is not fussy.",     "isPassive": false, "effect": "summon", "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0, "durationSeconds": 12 },
+      { "id": "smoke_bomb", "costType": "stamina", "cost": 20,     "name": "Smoke Bomb",     "description": "Everything nearby loses track of you, briefly.",        "isPassive": false, "effect": "stealth","power": 0.8, "cooldownSeconds": 12, "aoeRadius": 5.0, "durationSeconds": 6 },
+      { "id": "overclock", "costType": "mana", "cost": 35,      "name": "Overclock",      "description": "Push the machinery past its rated tolerances.",         "isPassive": false, "effect": "haste",  "power": 1.6, "cooldownSeconds": 20, "durationSeconds": 8 },
+      { "id": "salvage_strike", "costType": "stamina", "cost": 15, "name": "Salvage Strike", "description": "Hit it hard, take the useful parts.",                   "isPassive": false, "effect": "damage", "power": 2.4, "cooldownSeconds": 7 },
       { "id": "jury_rig",       "name": "Jury-Rig",       "description": "Passive: an improvised solution to being nearly dead.",  "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": [
@@ -157,6 +215,20 @@
     "flavorText": "Ghost-energy combat. Half here, half not. Synergises with Spectral Work.",
     "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
     "attackSpeedSeconds": 2.0,
+    "stats": {
+      "health": 5, "mana": 70, "stamina": 30,
+      "healthRegen": 0.2, "manaRegen": 0.9, "staminaRegen": 0.4,
+      "minHit": 9, "maxHit": 15,
+      "critChance": 0.08, "critMultiplier": 0.25,
+      "attackSpeedMultiplier": 0.5,
+      "armor": 8,
+      "diligence": 0.08, "insight": 0.03,
+      "skillAffinity": [
+        { "skillId": "spectralwork", "value": 0.25 },
+        { "skillId": "gleaning",     "value": 0.12 },
+        { "skillId": "negotiation",  "value": 0.12 }
+      ]
+    },
     "previewLook": {
       "bodyAddress": "Addons/Legacy/0_Unit/0_Sprite/1_Body/Skelton_1",
       "hairAddress": "",
@@ -167,10 +239,10 @@
       "hairColor": "", "eyeColor": "#3E6B8C", "skinTint": ""
     },
     "abilities": [
-      { "id": "spectral_strike","name": "Spectral Strike","description": "Goes straight through armour as though it were a suggestion.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6 },
-      { "id": "phase_shift",    "name": "Phase Shift",    "description": "Be briefly less present. It helps.",                              "isPassive": false, "effect": "heal",   "power": 0.25, "cooldownSeconds": 20 },
-      { "id": "haunt",          "name": "Haunt",          "description": "Everything nearby takes it personally.",                          "isPassive": false, "effect": "aoe",    "power": 1.5, "cooldownSeconds": 11, "aoeRadius": 6.0 },
-      { "id": "soul_drain",     "name": "Soul Drain",     "description": "What it loses, you gain.",                                        "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 9, "lifestealFraction": 0.5 },
+      { "id": "spectral_strike", "costType": "mana", "cost": 20,"name": "Spectral Strike","description": "Goes straight through armour as though it were a suggestion.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6 },
+      { "id": "phase_shift", "costType": "mana", "cost": 30,    "name": "Phase Shift",    "description": "Be briefly less present. It helps.",                              "isPassive": false, "effect": "heal",   "power": 0.25, "cooldownSeconds": 20 },
+      { "id": "haunt", "costType": "mana", "cost": 25,          "name": "Haunt",          "description": "Everything nearby takes it personally.",                          "isPassive": false, "effect": "aoe",    "power": 1.5, "cooldownSeconds": 11, "aoeRadius": 6.0 },
+      { "id": "soul_drain", "costType": "mana", "cost": 25,     "name": "Soul Drain",     "description": "What it loses, you gain.",                                        "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 9, "lifestealFraction": 0.5 },
       { "id": "liminal",        "name": "Liminal",        "description": "Passive: the first blow against anything new lands hardest.",     "isPassive": true,  "effect": "passive" }
     ],
     "talentTree": [

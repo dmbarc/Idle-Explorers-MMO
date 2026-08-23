@@ -44,6 +44,7 @@ public class GameManager : MonoBehaviour
     public static SlayerManager     Slayer      { get; private set; }
     public static SaveManager       Save        { get; private set; }
     public static ShopManager       Shop        { get; private set; }
+    public static StatsManager      Stats       { get; private set; }
 
     void Awake()
     {
@@ -88,6 +89,10 @@ public class GameManager : MonoBehaviour
         Quests     = Require<QuestManager>();
         Slayer     = Require<SlayerManager>();
         Shop       = Require<ShopManager>();
+
+        // Last: it reads from equipment, talents and the content catalogue, so every
+        // one of those has to exist before its first recompute.
+        Stats      = Require<StatsManager>();
     }
 
     /// <summary>
