@@ -56,8 +56,10 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        agent.speed = movementSpeed;
         agent.stoppingDistance = 0.1f;
+
+        // Speed is not set here. ApplyClassStats below assigns it from the stat block,
+        // and doing it twice would mean the Inspector value briefly won.
 
         _spawnPoint    = transform.position;
         _spawnPointSet = true;
@@ -117,6 +119,7 @@ public class PlayerController : MonoBehaviour
         healthRegen = 1f, manaRegen = 1f, staminaRegen = 2f,
         minHit = 4, maxHit = 8, critChance = 0.05f, critMultiplier = 0.5f,
         attackSpeed = 2f,
+        moveSpeed = 5f,
     };
 
     /// <summary>
@@ -141,6 +144,14 @@ public class PlayerController : MonoBehaviour
 
         // MonsterController reads this off the player when it rolls its loot table.
         dropMultiplier = 1d + stats.dropRateMultiplier;
+
+        // How fast the character walks was an Inspector field read once in Start and
+        // never again, so no class, item or talent could ever affect it. It comes from
+        // the stat block now, which means it recomputes whenever anything that feeds
+        // the block changes. Floored well above zero: a stack of negative modifiers
+        // must never produce a character who cannot leave the spawn point.
+        movementSpeed = Mathf.Max(1f, stats.moveSpeed);
+        if (agent != null) agent.speed = movementSpeed;
 
         if (preserveVitals)
         {

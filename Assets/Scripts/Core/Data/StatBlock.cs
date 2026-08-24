@@ -84,6 +84,16 @@ public class StatBlock
     /// <summary>Reduces how fast equipment wears out.</summary>
     public float tenacity;
 
+    /// <summary>
+    /// How fast the character walks, in world units per second.
+    ///
+    /// A flat value rather than a bonus fraction, because it is the one stat here the
+    /// NavMeshAgent reads directly and an agent speed of 0.15 would be a character who
+    /// cannot leave the spawn point. base_stats.json supplies the floor; classes and
+    /// gear add to it.
+    /// </summary>
+    public float moveSpeed;
+
     // ── Per-skill ─────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -127,6 +137,7 @@ public class StatBlock
         insight   += other.insight;
         resonance += other.resonance;
         tenacity  += other.tenacity;
+        moveSpeed += other.moveSpeed;
 
         if (other.skillAffinity == null) return;
         foreach (var entry in other.skillAffinity)
@@ -185,6 +196,7 @@ public class StatBlock
             case Stats.Insight:   insight   += value; return;
             case Stats.Resonance: resonance += value; return;
             case Stats.Tenacity:  tenacity  += value; return;
+            case Stats.MoveSpeed: moveSpeed += value; return;
         }
 
         Debug.LogWarning($"[StatBlock] Nothing applies a stat called '{statId}'. " +
@@ -221,6 +233,7 @@ public class StatBlock
         Stats.Insight   => insight,
         Stats.Resonance => resonance,
         Stats.Tenacity  => tenacity,
+        Stats.MoveSpeed => moveSpeed,
 
         _ => 0f,
     };

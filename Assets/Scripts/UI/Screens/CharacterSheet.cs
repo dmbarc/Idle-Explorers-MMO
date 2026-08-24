@@ -222,7 +222,7 @@ public class CharacterSheet : UIScreen
             "Seconds between attacks, after every speed bonus.");
 
         Row("Damage taken", $"{StatBlock.DamageThrough(block.EffectiveArmor) * 100f:0.#}%",
-            $"The share of incoming damage that gets past {block.EffectiveArmor:0} armour.");
+            $"The share of incoming damage that gets past {block.EffectiveArmor:0} armor.");
 
         Row("Effective health", $"{block.EffectiveHealth:0}",
             "Your health after percentage bonuses.");

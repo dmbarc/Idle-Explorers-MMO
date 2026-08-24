@@ -5,7 +5,7 @@
   { "id": "hollowcap",    "name": "Hollowcap",       "description": "A mushroom that grew far too well, like everything else down there.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
   { "id": "skull",        "name": "Skull",           "description": "It's looking at you. Don't make it weird.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
   { "id": "copper_ore",   "name": "Copper Ore",      "description": "Unassuming. Unbothered. Already in a union.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
-  { "id": "tin_ore",      "name": "Tin Ore",         "description": "Copper's quiet neighbour.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
+  { "id": "tin_ore",      "name": "Tin Ore",         "description": "Copper's quiet neighbor.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
   { "id": "iron_ore",     "name": "Iron Ore",        "description": "Heavier than its problems.", "iconAddress": "", "stackable": true, "levelReq": 15, "sourceSkill": "mining" },
   { "id": "coal",         "name": "Coal",            "description": "Compressed time and pressure, much like you.", "iconAddress": "", "stackable": true, "levelReq": 30, "sourceSkill": "mining" },
   { "id": "mithril_ore",  "name": "Mithril Ore",     "description": "Glows faintly. Refuses to explain why.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "mining" },

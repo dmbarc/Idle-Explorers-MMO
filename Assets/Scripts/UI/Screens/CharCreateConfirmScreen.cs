@@ -29,30 +29,65 @@ public class CharCreateConfirmScreen : UIScreen
         cardRt.anchorMax = new Vector2(0.80f, 0.85f);
         cardRt.offsetMin = cardRt.offsetMax = Vector2.zero;
 
-        var vstack = UIFactory.VStack(card.transform, UIManager.Theme.spacing * 2, true, "Summary");
-        UIFactory.FillParent(vstack.GetComponent<RectTransform>());
+        var theme = UIManager.Theme;
 
-        // Character name
+        // ── The character themselves ──────────────────────────────────────────
+        //
+        // This said "(Appearance: default — customise in Phase 2)" for the whole life
+        // of the project, including after the appearance editor shipped: the last
+        // thing you saw before creating a character was a line of text telling you
+        // their appearance did not exist yet. It is the one screen where showing them
+        // matters most.
+        var portrait = UIFactory.Panel(card.transform, "Portrait", theme.slotBg, false);
+        UIFactory.At(portrait.transform, 0.06f, 0.08f, 0.44f, 0.92f);
+
+        var cls = GameManager.Content?.GetClass(CharCreateState.PendingClassId);
+
+        var preview = CharacterPreview.Create(portrait.transform,
+                                               CharCreateState.PendingSpum ?? SpumAppearance.Default(),
+                                               "Preview_Confirm");
+        if (preview != null && cls?.previewEquipment != null)
+        {
+            // Dressed the way their class's card was, so the character they picked and
+            // the character they are about to make look like the same person.
+            foreach (var piece in cls.previewEquipment)
+            {
+                if (piece == null || string.IsNullOrEmpty(piece.slot)) continue;
+                preview.SetEquipment(piece.slot, piece.sprite);
+            }
+        }
+
+        // ── Who they are ──────────────────────────────────────────────────────
+        var vstack = UIFactory.VStack(card.transform, theme.spacing * 2, true, "Summary");
+        UIFactory.At(vstack.transform, 0.48f, 0.08f, 0.94f, 0.92f);
+
         UIFactory.Label(vstack.transform, CharCreateState.PendingName ?? "Unknown",
-                         UIManager.Theme.fontSizeTitle, UIManager.Theme.textPrimary,
+                         theme.fontSizeTitle, theme.textPrimary,
                          TMPro.TextAlignmentOptions.Center);
 
-        // Class
-        string classDisplay = CharCreateState.PendingClassId ?? "None";
+        // The class's display name, not its id. They happen to match today, and an id
+        // is not a thing to show a player on the strength of a coincidence.
+        string classDisplay = cls?.DisplayName ?? CharCreateState.PendingClassId ?? "None";
         UIFactory.Label(vstack.transform, $"Class: {classDisplay.ToUpper()}",
-                         UIManager.Theme.fontSizeBody, UIManager.Theme.accentGold,
+                         theme.fontSizeBody, theme.accentGold,
                          TMPro.TextAlignmentOptions.Center);
 
-        // Level 1 badge
         UIFactory.Label(vstack.transform, "Level 1 — Fresh Explorer",
-                         UIManager.Theme.fontSizeSmall, UIManager.Theme.textSecondary,
+                         theme.fontSizeSmall, theme.textSecondary,
                          TMPro.TextAlignmentOptions.Center);
 
         UIFactory.HorizontalDivider(vstack.transform);
 
-        // Appearance summary placeholder
-        UIFactory.Label(vstack.transform, "(Appearance: default — customise in Phase 2)",
-                         UIManager.Theme.fontSizeLabel, UIManager.Theme.textDisabled,
+        if (!string.IsNullOrEmpty(cls?.flavorText))
+        {
+            var flavor = UIFactory.Label(vstack.transform, cls.flavorText,
+                                          theme.fontSizeSmall, theme.textSecondary,
+                                          TMPro.TextAlignmentOptions.Top);
+            flavor.textWrappingMode = TMPro.TextWrappingModes.Normal;
+        }
+
+        UIFactory.Label(vstack.transform, "You can change how they look later with a Mirror of Faces.",
+                         theme.fontSizeLabel, theme.textDisabled,
                          TMPro.TextAlignmentOptions.Center);
 
         // Navigation

@@ -85,12 +85,28 @@ public class DropPickup : MonoBehaviour
         BeginToss();
     }
 
+    /// <summary>How tall a single dropped item stands, in world units.</summary>
+    private const float TargetWorldHeight = 0.7f;
+
     /// <summary>
     /// Scales the SPRITE, never the root.
     ///
     /// The root carries the pickup trigger, so scaling it changed how close you had to
     /// walk to collect something — a single item had a smaller pickup radius than a
     /// stack of a thousand. Keeping the root at 1 makes pickup range constant.
+    ///
+    /// ══ WHY A GIANT BONE WAS LYING IN THE FIELD ═══════════════════════════════
+    ///
+    /// The scale used to be a bare multiplier applied to whatever size the icon
+    /// happened to be, and an icon's world size is its pixel height divided by its
+    /// pixels-per-unit — a property of the art pack it came from, not a decision
+    /// anyone made. bone_white.png is 512x512 at 100 PPU, so a single bone was a
+    /// 5.12-unit sprite scaled up from there: nearly twice the height of the player.
+    /// Kenney's voxel icons are a fraction of that, so drop sizes across the game
+    /// differed by roughly eight times for no reason a player could see.
+    ///
+    /// Measured now, not assumed. Every drop stands the same height whatever pack its
+    /// icon came from, and the stack bonus scales that rather than the raw texture.
     /// </summary>
     private void UpdateVisualSize()
     {
@@ -98,10 +114,16 @@ public class DropPickup : MonoBehaviour
 
         // Bigger piles read as bigger stacks. Log-scaled because quantities run to
         // the billions — a linear scale would make anything past ~30 identical.
-        float magnitude = Mathf.Log10(Mathf.Max(1f, quantity)) / 6f;   // 1 → 0, 1M → 1
-        float scale     = 0.75f + Mathf.Clamp01(magnitude) * 0.55f;
+        float magnitude  = Mathf.Log10(Mathf.Max(1f, quantity)) / 6f;   // 1 → 0, 1M → 1
+        float stackBonus = 1f + Mathf.Clamp01(magnitude) * 0.7f;
 
-        spriteRenderer.transform.localScale = Vector3.one * scale;
+        float spriteHeight = spriteRenderer.sprite != null
+            ? spriteRenderer.sprite.bounds.size.y
+            : 1f;
+
+        float normalise = spriteHeight > 0.0001f ? TargetWorldHeight / spriteHeight : TargetWorldHeight;
+
+        spriteRenderer.transform.localScale = Vector3.one * (normalise * stackBonus);
     }
 
     // ── The toss ──────────────────────────────────────────────────────────────
@@ -297,10 +319,18 @@ public class DropPickup : MonoBehaviour
         {
             // Said once per drop, not once per attempt — the player controller retries
             // this while standing on a pile it has no room for.
+            //
+            // Names what was left. "Inventory full — some was left behind" told you
+            // there was a problem and nothing about which of the thirty things in your
+            // bag to drop, or whether what you were missing mattered.
             if (!_warnedFull)
             {
                 _warnedFull = true;
-                GameEvents.FireToast("Inventory full — some was left behind.");
+
+                var missed = GameManager.Content?.GetItem(itemId);
+                GameEvents.FireToast($"Inventory full — left behind " +
+                                     $"{NumberFormatter.Format(quantity)} × " +
+                                     $"{missed?.DisplayName ?? itemId}.");
             }
             return false;
         }

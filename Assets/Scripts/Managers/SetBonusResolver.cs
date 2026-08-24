@@ -216,7 +216,7 @@ public static class SetBonusResolver
 
         AbilityVFX.Play("aoe_burst", player.transform.position);
         GameManager.Audio?.Play(Sfx.SetProc);
-        GameEvents.FireToast($"✦ Tin shards — your {item?.DisplayName ?? "armour"} is destroyed" +
+        GameEvents.FireToast($"✦ Tin shards — your {item?.DisplayName ?? "armor"} is destroyed" +
                              (hits > 0 ? $", {hits} caught in the blast." : "."));
     }
 
@@ -281,7 +281,7 @@ public static class SetBonusResolver
         if (stolen <= 0) return;
 
         equipment.RepairSlot(weakest, stolen);
-        GameEvents.FireToast($"✦ Your armour redistributes {stolen} point(s) of wear.");
+        GameEvents.FireToast($"✦ Your armor redistributes {stolen} point(s) of wear.");
     }
 
     /// <summary>
@@ -365,7 +365,7 @@ public static class SetBonusResolver
         var prefab = Resources.Load<GameObject>("ItemDrops/GenericDrop");
         if (prefab == null)
         {
-            Debug.LogWarning("[SetBonus] No ItemDrops/GenericDrop prefab — armour throw cancelled " +
+            Debug.LogWarning("[SetBonus] No ItemDrops/GenericDrop prefab — armor throw cancelled " +
                              $"rather than destroying '{itemId}'. " +
                              "Run: Idle Explorers → Rebuild Item Drop Prefab.");
             return false;

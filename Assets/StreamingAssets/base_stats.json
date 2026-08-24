@@ -32,5 +32,8 @@
   "resonance": 0,
   "tenacity": 0,
 
+  "_comment_moveSpeed": "World units per second. 5.0 is what PlayerController hardcoded before this was a stat, so nothing changes on day one; classes adjust from here.",
+  "moveSpeed": 5.0,
+
   "skillAffinity": []
 }

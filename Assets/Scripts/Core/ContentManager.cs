@@ -310,7 +310,7 @@ public class ContentManager : MonoBehaviour
             IsLoaded = true;
             Debug.Log($"[ContentManager] Loaded: {Items.Count} items, {Monsters.Count} monsters, " +
                       $"{Zones.Count} zones, {Maps.Count} maps, {Skills.Count} skills, " +
-                      $"{Classes.Count} classes, {ItemSets.Count} armour sets.");
+                      $"{Classes.Count} classes, {ItemSets.Count} armor sets.");
 
             // Checked once, here, rather than discovered in a playtest: a set bonus
             // that names an action nothing implements costs the player six armour

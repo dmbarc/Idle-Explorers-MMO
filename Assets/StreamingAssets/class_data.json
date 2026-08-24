@@ -13,6 +13,7 @@
       "attackSpeedMultiplier": 0.07,
       "armor": 25,
       "resonance": 0.10, "tenacity": 0.15,
+      "moveSpeed": -0.4,
       "skillAffinity": [
         { "skillId": "smithing", "value": 0.25 },
         { "skillId": "mining",   "value": 0.12 },
@@ -28,6 +29,13 @@
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_2",
       "hairColor": "#2B2118", "eyeColor": "", "skinTint": ""
     },
+    "previewEquipment": [
+      { "slot": "chest", "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3" },
+      { "slot": "shoulders", "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3" },
+      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_2" },
+      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2" },
+      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1" }
+    ],
     "abilities": [
       { "id": "shield_bash",     "name": "Shield Bash",     "description": "A brutal shove that staggers what it hits.", "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 6,  "costType": "stamina", "cost": 15 },
       { "id": "cleave",          "name": "Cleave",          "description": "Heavy sweep hitting all nearby enemies.",     "isPassive": false, "effect": "aoe",    "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0, "costType": "stamina", "cost": 25 },
@@ -58,6 +66,7 @@
     "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
     "attackSpeedSeconds": 1.6,
     "stats": {
+      "moveSpeed": 0.7,
       "health": 20, "mana": 40, "stamina": 50,
       "healthRegen": 0.3, "manaRegen": 0.3, "staminaRegen": 0.7,
       "minHit": 4, "maxHit": 7,
@@ -81,6 +90,12 @@
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/BowBack_1",
       "hairColor": "#C08A3E", "eyeColor": "#2F7A4F", "skinTint": ""
     },
+    "previewEquipment": [
+      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_4" },
+      { "slot": "bracers", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5" },
+      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3" },
+      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3" }
+    ],
     "abilities": [
       { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",     "isPassive": false, "effect": "damage", "power": 0.8, "hits": 3, "cooldownSeconds": 5,  "costType": "stamina", "cost": 15 },
       { "id": "marked_target", "name": "Marked Target", "description": "Line up the shot. It lands hard.",  "isPassive": false, "effect": "damage", "power": 3.0, "cooldownSeconds": 10, "costType": "stamina", "cost": 20 },
@@ -111,6 +126,7 @@
     "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
     "attackSpeedSeconds": 3.5,
     "stats": {
+      "moveSpeed": -0.2,
       "health": -5, "mana": 100, "stamina": 5,
       "healthRegen": 0, "manaRegen": 1.4, "staminaRegen": 0,
       "minHit": 19, "maxHit": 32,
@@ -133,6 +149,11 @@
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_3",
       "hairColor": "#8C8C93", "eyeColor": "#5E3B7A", "skinTint": ""
     },
+    "previewEquipment": [
+      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_7" },
+      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_5" },
+      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4" }
+    ],
     "abilities": [
       { "id": "fireball",     "name": "Fireball",     "description": "A bloom of fire across everything nearby.", "isPassive": false, "effect": "aoe",   "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0, "costType": "mana", "cost": 25 },
       { "id": "frost_nova",   "name": "Frost Nova",   "description": "Chills and slows everything around you.",   "isPassive": false, "effect": "slow",  "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0, "durationSeconds": 5, "costType": "mana", "cost": 30 },
@@ -163,6 +184,7 @@
     "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
     "attackSpeedSeconds": 2.2,
     "stats": {
+      "moveSpeed": -0.3,
       "health": 15, "mana": 60, "stamina": 35,
       "healthRegen": 0.4, "manaRegen": 0.6, "staminaRegen": 0.5,
       "minHit": 5, "maxHit": 9,
@@ -186,6 +208,12 @@
       "backAddress": "",
       "hairColor": "#A33B22", "eyeColor": "#C08A3E", "skinTint": ""
     },
+    "previewEquipment": [
+      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_10" },
+      { "slot": "bracers", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8" },
+      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_7" },
+      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1" }
+    ],
     "abilities": [
       { "id": "salvage_strike", "name": "Salvage Strike", "description": "Hits where it will come apart.",        "isPassive": false, "effect": "damage",  "power": 2.4, "cooldownSeconds": 7,  "costType": "stamina", "cost": 15 },
       { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "Leaves something behind to keep firing.", "isPassive": false, "effect": "summon", "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0, "durationSeconds": 12, "costType": "mana", "cost": 30 },
@@ -216,6 +244,7 @@
     "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
     "attackSpeedSeconds": 2.0,
     "stats": {
+      "moveSpeed": 0.9,
       "health": 5, "mana": 70, "stamina": 30,
       "healthRegen": 0.2, "manaRegen": 0.9, "staminaRegen": 0.4,
       "minHit": 9, "maxHit": 15,
@@ -238,6 +267,11 @@
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1",
       "hairColor": "", "eyeColor": "#3E6B8C", "skinTint": ""
     },
+    "previewEquipment": [
+      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_12" },
+      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_9" },
+      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4" }
+    ],
     "abilities": [
       { "id": "spectral_strike", "name": "Spectral Strike", "description": "A blow that ignores most of what is in the way.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6,  "costType": "mana", "cost": 20 },
       { "id": "haunt",           "name": "Haunt",           "description": "Dread spreads through everything nearby.",        "isPassive": false, "effect": "aoe",    "power": 1.5, "cooldownSeconds": 11, "aoeRadius": 6.0, "costType": "mana", "cost": 25 },

@@ -48,6 +48,7 @@ public static class Stats
     public const string Insight   = "insight";
     public const string Resonance = "resonance";
     public const string Tenacity  = "tenacity";
+    public const string MoveSpeed = "moveSpeed";
 
     /// <summary>How a stat's number should be written.</summary>
     public enum Format
@@ -77,8 +78,8 @@ public static class Stats
     }
 
     public const string GroupVitals   = "VITALS";
-    public const string GroupOffence  = "OFFENCE";
-    public const string GroupDefence  = "DEFENCE";
+    public const string GroupOffence  = "OFFENSE";
+    public const string GroupDefence  = "DEFENSE";
     public const string GroupYield    = "YIELD";
     public const string GroupExplorer = "EXPLORER";
 
@@ -96,7 +97,7 @@ public static class Stats
 
         new Info { Id = HealthMultiplier, Name = "Health Bonus", Group = GroupVitals, Display = Format.Percent,
             Description = "Scales your total health. Stacks with the flat health from gear, so it " +
-                          "is worth more the better armoured you already are." },
+                          "is worth more the better armored you already are." },
 
         new Info { Id = Mana, Name = "Mana", Group = GroupVitals, Display = Format.Whole,
             Description = "Spent by arcane abilities. An ability you cannot pay for will not fire, " +
@@ -149,12 +150,12 @@ public static class Stats
                           "same time." },
 
         // ── Defence ───────────────────────────────────────────────────────────
-        new Info { Id = Armor, Name = "Armour", Group = GroupDefence, Display = Format.Whole,
-            Description = "Reduces incoming damage on a curve that never reaches zero, so armour " +
+        new Info { Id = Armor, Name = "Armor", Group = GroupDefence, Display = Format.Whole,
+            Description = "Reduces incoming damage on a curve that never reaches zero, so armor " +
                           "always helps and never makes you invulnerable." },
 
-        new Info { Id = ArmorMultiplier, Name = "Armour Bonus", Group = GroupDefence, Display = Format.Percent,
-            Description = "Scales your armour before it is applied." },
+        new Info { Id = ArmorMultiplier, Name = "Armor Bonus", Group = GroupDefence, Display = Format.Percent,
+            Description = "Scales your armor before it is applied." },
 
         // ── Yield ─────────────────────────────────────────────────────────────
         new Info { Id = DropRate, Name = "Drop Quantity", Group = GroupYield, Display = Format.Decimal,
@@ -179,12 +180,17 @@ public static class Stats
                           "a node only sometimes gives up. Rarity, where Drop Quantity is volume." },
 
         new Info { Id = Resonance, Name = "Resonance", Group = GroupExplorer, Display = Format.Percent,
-            Description = "How often your armour set bonuses trigger. Worthless without a set, and " +
+            Description = "How often your armor set bonuses trigger. Worthless without a set, and " +
                           "one of the strongest stats in the game with a full one." },
 
         new Info { Id = Tenacity, Name = "Tenacity", Group = GroupExplorer, Display = Format.Percent,
             Description = "Slows how fast your equipment wears out, so you spend less time and coin " +
                           "at the anvil and more time using the gear." },
+
+        new Info { Id = MoveSpeed, Name = "Movement Speed", Group = GroupExplorer, Display = Format.Decimal,
+            Description = "How fast you walk, in world units per second. It shortens every trip " +
+                          "between a node, a corpse and the bank, which is most of what an idle " +
+                          "character spends its time doing." },
     };
 
     private static Dictionary<string, Info> _byId;

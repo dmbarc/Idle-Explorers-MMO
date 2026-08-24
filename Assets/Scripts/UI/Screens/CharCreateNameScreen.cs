@@ -30,7 +30,7 @@ public class CharCreateNameScreen : UIScreen
         // Says what actually happens next. The old copy promised the appearance
         // editor, but GoNext pushes the CLASS picker — appearance is the screen after
         // that, and a first-run player following the sentence hit the wrong screen.
-        var subtitle = UIFactory.Label(transform, "Choose a class and customise your look next.",
+        var subtitle = UIFactory.Label(transform, "Choose a class and customize your look next.",
                                         theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
         UIFactory.At(subtitle, 0.25f, 0.68f, 0.75f, 0.73f);
 

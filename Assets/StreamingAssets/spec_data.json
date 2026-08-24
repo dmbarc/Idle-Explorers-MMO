@@ -1,7 +1,7 @@
 [
   { "classIds": ["warrior", "sorcerer"],  "name": "Paladin",        "description": "Steel that prays, and is answered." },
   { "classIds": ["warrior", "ranger"],    "name": "Vanguard",       "description": "First through the door and first to see the trap." },
-  { "classIds": ["warrior", "tinkerer"],  "name": "Juggernaut",     "description": "Armour with opinions and a maintenance schedule." },
+  { "classIds": ["warrior", "tinkerer"],  "name": "Juggernaut",     "description": "Armor with opinions and a maintenance schedule." },
   { "classIds": ["warrior", "specter"],   "name": "Revenant",       "description": "Refuses to fall, and has stopped being asked to." },
   { "classIds": ["ranger", "sorcerer"],   "name": "Arcane Archer",  "description": "Every arrow arrives already having been somewhere else." },
   { "classIds": ["ranger", "tinkerer"],   "name": "Trapper",        "description": "The fight was over before either of you arrived." },

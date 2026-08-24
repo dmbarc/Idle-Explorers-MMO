@@ -36,6 +36,12 @@ public class CharCreateClassScreen : UIScreen
 
     private const float CardWidth = 300f;
 
+    /// <summary>
+    /// Portrait height. Taller than wide, because the render texture is — a shorter
+    /// panel letterboxes the character into a strip through the middle of it.
+    /// </summary>
+    private const float PortraitHeight = 220f;
+
     /// <summary>Cards reflect the current selection, which changes between visits.</summary>
     public override bool RebuildOnShow => true;
 
@@ -110,6 +116,57 @@ public class CharCreateClassScreen : UIScreen
 
         foreach (var kv in classes)
             BuildClassCard(kv.Value);
+
+        BuildComingSoonCard();
+    }
+
+    /// <summary>
+    /// A sixth card, unselectable, promising more.
+    ///
+    /// The strip ended in dead space with five cards in it, which reads as the roster
+    /// being finished. It is not, and a silhouette says so in the place a player is
+    /// already looking.
+    /// </summary>
+    private void BuildComingSoonCard()
+    {
+        var theme = UIManager.Theme;
+
+        var card = UIFactory.Panel(_cardContent, "Card_ComingSoon", theme.cardBg, false);
+
+        var cardLe = card.AddComponent<LayoutElement>();
+        cardLe.minWidth = cardLe.preferredWidth = CardWidth;
+
+        var vlg = card.AddComponent<VerticalLayoutGroup>();
+        vlg.padding                = new RectOffset(12, 12, 12, 12);
+        vlg.spacing                = 6f;
+        vlg.childForceExpandWidth  = true;
+        vlg.childForceExpandHeight = false;
+        vlg.childControlWidth      = true;
+        vlg.childControlHeight     = true;
+        vlg.childAlignment         = TextAnchor.UpperCenter;
+
+        var portrait = UIFactory.Panel(card.transform, "Portrait", theme.slotBg, false);
+        Fixed(portrait, PortraitHeight);
+
+        // The same rig every other card uses, blacked out. A drawn silhouette would
+        // be a second art dependency for a card that exists to say "not yet".
+        var preview = CharacterPreview.Create(portrait.transform, SpumAppearance.Default(), "Preview_Soon");
+        preview?.SetSilhouette(new Color(0.06f, 0.07f, 0.10f, 1f));
+
+        var name = UIFactory.Label(card.transform, "?", theme.fontSizeTitle,
+                                    theme.textDisabled, TextAlignmentOptions.Center);
+        Fixed(name, 30f);
+
+        var soon = UIFactory.Label(card.transform, "COMING SOON", theme.fontSizeBody,
+                                    theme.textSecondary, TextAlignmentOptions.Center);
+        Fixed(soon, 26f);
+
+        var blurb = UIFactory.Label(card.transform,
+                                     "More ways to explore are on the way. Your first character " +
+                                     "will still be here when they arrive.",
+                                     theme.fontSizeSmall, theme.textDisabled, TextAlignmentOptions.Top);
+        blurb.textWrappingMode = TextWrappingModes.Normal;
+        Fixed(blurb, 72f);
     }
 
     /// <summary>
@@ -145,7 +202,7 @@ public class CharCreateClassScreen : UIScreen
 
         // ── Portrait ──────────────────────────────────────────────────────────
         var portrait = UIFactory.Panel(card.transform, "Portrait", theme.slotBg, false);
-        Fixed(portrait, 170f);
+        Fixed(portrait, PortraitHeight);
 
         var preview = CharacterPreview.Create(portrait.transform, PreviewLookFor(cls), $"Preview_{cls.id}");
         if (preview == null)
@@ -155,6 +212,14 @@ public class CharCreateClassScreen : UIScreen
             var fallback = UIFactory.Label(portrait.transform, cls.DisplayName.ToUpper(),
                                             theme.fontSizeBody, body, TextAlignmentOptions.Center);
             UIFactory.FillParent(fallback.rectTransform);
+        }
+        else
+        {
+            // Dress it. Every class used to show the same plate and helmet — not a
+            // choice anyone made, but the SPUM rig's own clothing, which nothing took
+            // off. SpumAppearance.Apply strips it now, so what a card wears is what
+            // class_data.json says it wears.
+            DressPreview(preview, cls);
         }
 
         // ── Name ──────────────────────────────────────────────────────────────
@@ -166,19 +231,26 @@ public class CharCreateClassScreen : UIScreen
         var flavor = UIFactory.Label(card.transform, cls.flavorText, theme.fontSizeSmall,
                                       body, TextAlignmentOptions.Top);
         flavor.textWrappingMode = TextWrappingModes.Normal;
-        Fixed(flavor, 62f);
+        Fixed(flavor, 56f);
 
-        // ── What it is good at ────────────────────────────────────────────────
+        // ── How it fights ─────────────────────────────────────────────────────
         var stats = UIFactory.Label(card.transform, StatLine(cls), theme.fontSizeLabel,
                                      detail, TextAlignmentOptions.Center);
         Fixed(stats, 34f);
 
         Fixed(UIFactory.HorizontalDivider(card.transform), 8f);
 
-        // ── Abilities ─────────────────────────────────────────────────────────
-        var abilities = UIFactory.Label(card.transform, FormatAbilities(cls), theme.fontSizeLabel,
-                                         detail, TextAlignmentOptions.TopLeft);
-        Fixed(abilities, 92f);
+        // ── What it is actually good at ───────────────────────────────────────
+        //
+        // This replaced the ability list, which had become misleading: abilities are
+        // earned from the talent tree now, so a level 1 character of any class has
+        // none of the four a card used to promise. Skill affinities are the thing that
+        // makes classes feel different over a long session, and nothing else showed
+        // them before the character existed.
+        var role = UIFactory.Label(card.transform, RoleLine(cls), theme.fontSizeLabel,
+                                    detail, TextAlignmentOptions.TopLeft);
+        role.textWrappingMode = TextWrappingModes.Normal;
+        Fixed(role, 96f);
 
         // ── Select ────────────────────────────────────────────────────────────
         var selectBtn = UIFactory.Button(card.transform, isSelected ? "✓ SELECTED" : "SELECT", () =>
@@ -209,24 +281,85 @@ public class CharCreateClassScreen : UIScreen
         return SpumAppearance.Default();
     }
 
+    /// <summary>Puts a class's signature armour on its preview.</summary>
+    private static void DressPreview(CharacterPreview preview, ClassData cls)
+    {
+        if (cls.previewEquipment == null) return;
+
+        foreach (var piece in cls.previewEquipment)
+        {
+            if (piece == null || string.IsNullOrEmpty(piece.slot)) continue;
+            preview.SetEquipment(piece.slot, piece.sprite);
+        }
+    }
+
     private static string StatLine(ClassData cls) =>
         $"HP {cls.baseHp}   MP {cls.baseMp}\n" +
         $"Damage {cls.baseAttackMin}–{cls.baseAttackMax}   Speed {cls.attackSpeedSeconds:0.0}s";
 
-    private static string FormatAbilities(ClassData cls)
+    /// <summary>
+    /// What a class is for, in the two terms that actually differ between them: which
+    /// resource its abilities spend, and which skills it advances faster.
+    ///
+    /// The affinities come from the class's own stat block rather than from
+    /// StatsManager, which answers for the LIVE character — and on this screen there
+    /// is no character yet.
+    /// </summary>
+    private static string RoleLine(ClassData cls)
     {
-        if (cls.abilities == null || cls.abilities.Length == 0) return "";
-
         var sb = new StringBuilder();
-        for (int i = 0; i < cls.abilities.Length; i++)
+
+        sb.Append("Spends: ").Append(ResourceName(cls)).Append('\n');
+
+        var affinities = TopAffinities(cls, 3);
+        if (affinities.Count == 0) return sb.ToString();
+
+        sb.Append("Learns faster:\n");
+        foreach (var (skillId, bonus) in affinities)
         {
-            var a = cls.abilities[i];
-            sb.Append(a.isPassive ? "⬦ " : "• ");
-            sb.Append(a.name);
-            if (a.isPassive) sb.Append("  (passive)");
-            if (i < cls.abilities.Length - 1) sb.Append('\n');
+            string skillName = GameManager.Content?.GetSkill(skillId)?.DisplayName
+                               ?? char.ToUpper(skillId[0]) + skillId.Substring(1);
+            sb.Append("  • ").Append(skillName)
+              .Append("  +").Append(Mathf.RoundToInt(bonus * 100f)).Append("%\n");
         }
-        return sb.ToString();
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
+    /// Which pool this class's abilities draw on. Read from the abilities themselves
+    /// rather than declared separately, so it cannot disagree with what they cost.
+    /// </summary>
+    private static string ResourceName(ClassData cls)
+    {
+        if (cls.abilities == null) return "nothing";
+
+        int mana = 0, stamina = 0;
+        foreach (var ability in cls.abilities)
+        {
+            if (ability == null || ability.cost <= 0f) continue;
+            if (ability.costType == "mana")    mana++;
+            if (ability.costType == "stamina") stamina++;
+        }
+
+        if (mana == 0 && stamina == 0) return "nothing";
+        if (mana > 0 && stamina > 0)   return "mana and stamina";
+        return mana > 0 ? "mana" : "stamina";
+    }
+
+    private static List<(string SkillId, float Bonus)> TopAffinities(ClassData cls, int count)
+    {
+        var results = new List<(string, float)>();
+
+        var affinities = cls.stats?.skillAffinity;
+        if (affinities == null) return results;
+
+        foreach (var entry in affinities)
+            if (entry != null && entry.value > 0.001f) results.Add((entry.skillId, entry.value));
+
+        results.Sort((a, b) => b.Item2.CompareTo(a.Item2));
+        if (results.Count > count) results.RemoveRange(count, results.Count - count);
+        return results;
     }
 
     private void RefreshNextState()

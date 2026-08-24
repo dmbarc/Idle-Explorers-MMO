@@ -53,13 +53,13 @@ public class AppearanceEditor
                               () => look.bodyAddress,     v => look.bodyAddress = v);
         editor.BuildCategory(content, theme, "Hair",      SpumAppearance.Hairs,
                               () => look.hairAddress,     v => look.hairAddress = v);
-        editor.BuildSwatches(content, theme, "Hair Colour",
+        editor.BuildSwatches(content, theme, "Hair Color",
                               () => look.hairColor,       v => look.hairColor = v);
         editor.BuildCategory(content, theme, "Facial Hair", SpumAppearance.FaceHairs,
                               () => look.faceHairAddress, v => look.faceHairAddress = v);
         editor.BuildCategory(content, theme, "Eyes",      SpumAppearance.Eyes,
                               () => look.eyeAddress,      v => look.eyeAddress = v);
-        editor.BuildSwatches(content, theme, "Eye Colour",
+        editor.BuildSwatches(content, theme, "Eye Color",
                               () => look.eyeColor,        v => look.eyeColor = v);
         editor.BuildCategory(content, theme, "Weapon",    SpumAppearance.Weapons,
                               () => look.weaponAddress,   v => look.weaponAddress = v);

@@ -6,7 +6,7 @@
     "bonuses": [
       {
         "piecesRequired": 2,
-        "description": "When taking damage, has a chance to explode into tin shards — one piece of your armour is destroyed outright, but everything nearby takes a great deal of damage.",
+        "description": "When taking damage, has a chance to explode into tin shards — one piece of your armor is destroyed outright, but everything nearby takes a great deal of damage.",
         "action": "shardBurst",
         "chance": 0.07,
         "magnitude": 5.0,
@@ -14,14 +14,14 @@
       },
       {
         "piecesRequired": 4,
-        "description": "When dealing damage, has a chance to hurl a piece of your armour at the enemy. It hits very hard and lands on the ground where it fell.",
+        "description": "When dealing damage, has a chance to hurl a piece of your armor at the enemy. It hits very hard and lands on the ground where it fell.",
         "action": "armorThrow",
         "chance": 0.05,
         "magnitude": 7.0
       },
       {
         "piecesRequired": 6,
-        "description": "When taking damage, has a chance to steal durability from the rest of your armour and pour it into whichever piece is worst off. When dealing damage, has a chance to scoop up and re-equip armour lying on the ground.",
+        "description": "When taking damage, has a chance to steal durability from the rest of your armor and pour it into whichever piece is worst off. When dealing damage, has a chance to scoop up and re-equip armor lying on the ground.",
         "action": "durabilitySiphon",
         "chance": 0.20
       },
@@ -56,7 +56,7 @@
       },
       {
         "piecesRequired": 6,
-        "description": "Every kill has a chance to mend two points of wear on whichever piece of your armour is in the worst condition.",
+        "description": "Every kill has a chance to mend two points of wear on whichever piece of your armor is in the worst condition.",
         "action": "mend",
         "chance": 0.30,
         "magnitude": 2.0
@@ -84,7 +84,7 @@
       },
       {
         "piecesRequired": 6,
-        "description": "Bronze endures. Your armour wears out at half the usual rate.",
+        "description": "Bronze endures. Your armor wears out at half the usual rate.",
         "action": "durabilityGuard",
         "magnitude": 0.5
       }

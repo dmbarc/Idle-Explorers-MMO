@@ -55,6 +55,21 @@ public class CharacterPreview : MonoBehaviour
         host.transform.SetParent(parent, false);
         UIFactory.FillParent(host.GetComponent<RectTransform>());
 
+        // ══ WHY THE CHARACTERS LOOKED SQUASHED ═══════════════════════════════════
+        //
+        // The render texture is 256x320 — taller than it is wide, because characters
+        // are. A RawImage filling its parent stretches whatever it is given to
+        // whatever shape the parent happens to be, and a class card's portrait panel
+        // is 276x170: wider than tall. The character was being stretched to roughly
+        // twice its width with nothing in the code saying so.
+        //
+        // Letterboxing inside the panel instead. The alternative — sizing the render
+        // texture to the panel — cannot work here, because the layout that decides
+        // the panel's size has not run yet when this is built.
+        var fitter = host.AddComponent<AspectRatioFitter>();
+        fitter.aspectMode  = AspectRatioFitter.AspectMode.FitInParent;
+        fitter.aspectRatio = TextureWidth / (float)TextureHeight;
+
         var preview = host.GetComponent<CharacterPreview>();
         preview.Build(prefab, look);
         return preview;
@@ -140,6 +155,28 @@ public class CharacterPreview : MonoBehaviour
                 var sprite = SpriteLoader.Load(equipSpriteAddress, layer.Side);
                 if (sprite != null) SpumRig.Show(layer, sprite);
             }
+        }
+    }
+
+    /// <summary>
+    /// Flattens the whole figure to one colour, keeping its shape and its animation.
+    ///
+    /// For the "coming soon" card: a recognisable person-shaped absence reads as a
+    /// class that has not arrived, where an empty panel reads as a bug. Applied to
+    /// every renderer rather than through SpumAppearance, because the point is that
+    /// none of the detail shows.
+    /// </summary>
+    public void SetSilhouette(Color color)
+    {
+        if (_rig == null) return;
+
+        foreach (var renderer in _rig.GetComponentsInChildren<SpriteRenderer>(includeInactive: true))
+        {
+            if (renderer == null) continue;
+
+            // Keep the alpha the layer already had, so hidden layers stay hidden and
+            // the silhouette is the character's outline rather than a filled box.
+            renderer.color = new Color(color.r, color.g, color.b, renderer.color.a);
         }
     }
 

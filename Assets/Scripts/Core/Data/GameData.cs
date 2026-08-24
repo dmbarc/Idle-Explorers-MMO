@@ -359,7 +359,29 @@ public class ClassData
     /// </summary>
     public SpumSaveData previewLook;
 
+    /// <summary>
+    /// Armour worn on the preview, on top of previewLook.
+    ///
+    /// Separate from previewLook because SpumSaveData describes a BODY — race, hair,
+    /// eyes, weapon — and these are equipment slots, addressed exactly the way worn
+    /// items are. Every class used to show the same plate and helmet, which was not a
+    /// choice anyone had made: it was the SPUM prefab's own clothing, which nothing
+    /// ever took off.
+    /// </summary>
+    public PreviewEquipment[] previewEquipment;
+
     public string DisplayName => name;
+}
+
+/// <summary>One piece of armour on a class card, by equipment slot and sprite sheet.</summary>
+[Serializable]
+public class PreviewEquipment
+{
+    /// <summary>An EquipmentSlots id: "chest", "helmet", "legs", "boots"…</summary>
+    public string slot;
+
+    /// <summary>A Resources address, the same form items use for equipSpriteAddress.</summary>
+    public string sprite;
 }
 
 [Serializable]

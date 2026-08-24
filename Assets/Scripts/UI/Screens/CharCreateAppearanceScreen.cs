@@ -24,7 +24,7 @@ public class CharCreateAppearanceScreen : UIScreen
 
         UIFactory.Panel(transform, "Bg", theme.panelBg, true);
 
-        var title = UIFactory.Label(transform, "CUSTOMISE APPEARANCE", theme.fontSizeTitle,
+        var title = UIFactory.Label(transform, "CUSTOMIZE APPEARANCE", theme.fontSizeTitle,
                                      theme.accentGold, TextAlignmentOptions.Center);
         UIFactory.At(title, 0.05f, 0.90f, 0.95f, 0.98f);
 
