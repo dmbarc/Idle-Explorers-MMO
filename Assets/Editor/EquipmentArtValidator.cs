@@ -171,6 +171,26 @@ public static class EquipmentArtValidator
                         CheckOne($"class '{cls.id}' eyes",   look.eyeAddress, "Front", "Back");
                         CheckOne($"class '{cls.id}' weapon", look.weaponAddress);
                         CheckOne($"class '{cls.id}' cloak",  look.backAddress);
+
+                        // The armour each class card wears. Same silent failure as
+                        // everything else here: an address that resolves to nothing
+                        // leaves the class looking undressed, which is now a valid
+                        // look and therefore indistinguishable from working.
+                        if (cls.previewEquipment == null) continue;
+
+                        foreach (var piece in cls.previewEquipment)
+                        {
+                            if (piece == null) continue;
+
+                            if (!EquipmentSlots.Exists(piece.slot))
+                            {
+                                broken.Add($"class '{cls.id}' previewEquipment names slot " +
+                                           $"'{piece.slot}', which is not a real slot");
+                                continue;
+                            }
+
+                            CheckOne($"class '{cls.id}' {piece.slot}", piece.sprite);
+                        }
                     }
                 }
             }
