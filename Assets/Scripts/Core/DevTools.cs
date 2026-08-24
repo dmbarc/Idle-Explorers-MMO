@@ -45,6 +45,10 @@ public static class DevTools
         // Puts every skill back to level 1, for re-testing level gates.
         ("resetting_draught", 2),
 
+        // Reopens the appearance editor. Two, because the interesting test is
+        // changing race twice with boots on, to check the feet follow the body.
+        ("mirror_of_faces", 2),
+
         // A complete Weak Tin Man set. Set bonuses and durability are only testable
         // with six matching pieces on at once, and reaching that by smithing means
         // mining ore first — a long way to go before you can look at the feature.

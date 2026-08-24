@@ -33,6 +33,8 @@
     "effects": [ { "trigger": "onConsume", "action": "grantAfkTime", "chance": 1.0, "magnitude": 259200 } ] },
   { "id": "shifting_sigil", "name": "Shifting Sigil", "description": "Break the sigil to become something else entirely. Your levels, skills and belongings come with you; your talents are refunded and the tree emptied.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
     "effects": [ { "trigger": "onConsume", "action": "changeClass", "chance": 1.0, "magnitude": 1 } ] },
+  { "id": "mirror_of_faces", "name": "Mirror of Faces", "description": "Look into it and decide what looks back. Changes only your appearance — level, skills, equipment and talents are untouched.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
+    "effects": [ { "trigger": "onConsume", "action": "changeAppearance", "chance": 1.0, "magnitude": 1 } ] },
   { "id": "resetting_draught", "name": "Draught of Unlearning", "description": "TESTING TOOL. Sets every skill back to level 1 with no experience. Character level, talents and equipment are untouched. Does nothing outside a development build.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
     "effects": [ { "trigger": "onConsume", "action": "resetSkills", "chance": 1.0, "magnitude": 1 } ] },
   { "id": "tin_bar",      "name": "Tin Bar",         "description": "Soft, dull, and honest about both. Everyone starts here.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "smithing" },

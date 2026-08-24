@@ -15,6 +15,8 @@
     { "id": "buy_gem_medium",   "name": "Medium Mystic Gem",   "description": "Skip forward 4 hours of your current activity.", "itemId": "mystic_gem_medium",   "quantity": 1, "relicCoinCost": 75 },
     { "id": "buy_gem_large",    "name": "Large Mystic Gem",    "description": "Skip forward 12 hours of your current activity.","itemId": "mystic_gem_large",    "quantity": 1, "relicCoinCost": 200 },
     { "id": "buy_gem_massive",  "name": "Massive Mystic Gem",  "description": "Skip forward 24 hours of your current activity.","itemId": "mystic_gem_massive",  "quantity": 1, "relicCoinCost": 350 },
-    { "id": "buy_gem_gigantic", "name": "Gigantic Mystic Gem", "description": "Skip forward 72 hours of your current activity.","itemId": "mystic_gem_gigantic", "quantity": 1, "relicCoinCost": 1000 }
+    { "id": "buy_gem_gigantic", "name": "Gigantic Mystic Gem", "description": "Skip forward 72 hours of your current activity.","itemId": "mystic_gem_gigantic", "quantity": 1, "relicCoinCost": 1000 },
+
+    { "id": "buy_mirror",       "name": "Mirror of Faces",     "description": "Reopen the appearance editor for one character. Nothing but how you look changes.", "itemId": "mirror_of_faces", "quantity": 1, "relicCoinCost": 60 }
   ]
 }

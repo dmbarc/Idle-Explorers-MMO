@@ -95,7 +95,100 @@ public static class EquipmentArtValidator
 
         Report(ok, broken, noArt, noLayer);
         ValidateSets(items);
+        ValidateAppearance();
     }
+
+    /// <summary>
+    /// Checks the appearance catalogue and every class's preview look.
+    ///
+    /// The same class of bug as the equipment art, and just as silent: an address that
+    /// resolves to nothing produces a character with no hair, or a class card showing
+    /// a blank rig, with no error anywhere. Multiple-mode sheets are the usual cause —
+    /// Resources.Load returns null for them without complaint.
+    /// </summary>
+    private static void ValidateAppearance()
+    {
+        var broken = new List<string>();
+        int checkedAddresses = 0;
+
+        void CheckOne(string owner, string address, params string[] requiredSubs)
+        {
+            if (string.IsNullOrEmpty(address)) return;   // empty is a real choice
+            checkedAddresses++;
+
+            var names = SpriteLoader.SubSpriteNames(address);
+            if (names.Length == 0)
+            {
+                broken.Add($"{owner}: '{address}' resolves to nothing");
+                return;
+            }
+
+            foreach (var sub in requiredSubs)
+            {
+                if (System.Array.Exists(names, n =>
+                        string.Equals(n, sub, System.StringComparison.OrdinalIgnoreCase)))
+                    continue;
+
+                broken.Add($"{owner}: '{address}' has no '{sub}' sub-sprite " +
+                           $"(it has: {string.Join("/", names)})");
+            }
+        }
+
+        // Bodies must supply all six pieces, or a character loses an arm.
+        foreach (var (address, name) in SpumAppearance.Bodies)
+            CheckOne($"body '{name}'", address, "Head", "Body", "Arm_L", "Arm_R", "Foot_L", "Foot_R");
+
+        foreach (var (address, name) in SpumAppearance.Eyes)
+            CheckOne($"eyes '{name}'", address, "Front", "Back");
+
+        foreach (var (address, name) in SpumAppearance.Hairs)     CheckOne($"hair '{name}'", address);
+        foreach (var (address, name) in SpumAppearance.FaceHairs) CheckOne($"facial hair '{name}'", address);
+        foreach (var (address, name) in SpumAppearance.Weapons)   CheckOne($"weapon '{name}'", address);
+        foreach (var (address, name) in SpumAppearance.Backs)     CheckOne($"cloak '{name}'", address);
+
+        // Every class's card preview.
+        string path = "Assets/StreamingAssets/class_data.json";
+        if (File.Exists(path))
+        {
+            string raw = File.ReadAllText(path).Trim();
+            if (raw.StartsWith("["))
+            {
+                var parsed = JsonUtility.FromJson<ClassFile>("{\"classes\":" + raw + "}");
+                if (parsed?.classes != null)
+                {
+                    foreach (var cls in parsed.classes)
+                    {
+                        var look = cls?.previewLook;
+                        if (look == null || look.IsEmpty)
+                        {
+                            broken.Add($"class '{cls?.id}' has no previewLook — its card shows a default figure");
+                            continue;
+                        }
+
+                        CheckOne($"class '{cls.id}' body", look.bodyAddress,
+                                 "Head", "Body", "Arm_L", "Arm_R", "Foot_L", "Foot_R");
+                        CheckOne($"class '{cls.id}' hair",   look.hairAddress);
+                        CheckOne($"class '{cls.id}' eyes",   look.eyeAddress, "Front", "Back");
+                        CheckOne($"class '{cls.id}' weapon", look.weaponAddress);
+                        CheckOne($"class '{cls.id}' cloak",  look.backAddress);
+                    }
+                }
+            }
+        }
+
+        // The rig the previews instantiate. Without it every preview silently falls
+        // back to a text label.
+        if (Resources.Load<GameObject>(CharacterPreview.PlayerRigAddress) == null)
+            broken.Add($"no preview rig at Resources/{CharacterPreview.PlayerRigAddress}");
+
+        if (broken.Count == 0)
+            Debug.Log($"[ArtCheck] {checkedAddresses} appearance address(es) all resolve.");
+        else
+            Debug.LogError($"[ArtCheck] {broken.Count} appearance problem(s):\n  • " +
+                           string.Join("\n  • ", broken));
+    }
+
+    [System.Serializable] private class ClassFile { public ClassData[] classes; }
 
     private static bool Has(string[] names, string wanted)
     {

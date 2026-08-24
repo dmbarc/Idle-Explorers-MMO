@@ -54,6 +54,9 @@ public static class ItemEffectResolver
             case "changeClass":
                 return ApplyChangeClass();
 
+            case "changeAppearance":
+                return ApplyChangeAppearance();
+
             case "resetSkills":
                 return ApplyResetSkills();
 
@@ -164,6 +167,33 @@ public static class ItemEffectResolver
         }
 
         ui.Push<ClassChangeModal>();
+        return true;
+    }
+
+    /// <summary>
+    /// Opens the appearance editor on the current character.
+    ///
+    /// Consumes on open, exactly like the Shifting Sigil and for the same reason: an
+    /// item held back until a choice is made needs a modal that cannot be escaped by
+    /// any route, including a screen change, a death or a logout. The modal states the
+    /// trade on its cancel button rather than hiding it.
+    /// </summary>
+    private static bool ApplyChangeAppearance()
+    {
+        if (CharacterManager.Current == null)
+        {
+            GameEvents.FireToast("No character selected.");
+            return false;
+        }
+
+        var ui = GameManager.UI;
+        if (ui == null)
+        {
+            GameEvents.FireToast("Cannot open the mirror right now.");
+            return false;
+        }
+
+        ui.Push<AppearanceModal>();
         return true;
     }
 
