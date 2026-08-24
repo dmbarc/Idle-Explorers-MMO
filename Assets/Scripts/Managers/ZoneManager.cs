@@ -62,7 +62,7 @@ public class ZoneManager : MonoBehaviour
         if (load == null)
         {
             Debug.LogError($"[ZoneManager] Scene '{sceneName}' is not in Build Settings. " +
-                           "Run: Idle Explorers → Prepare Map Scene");
+                           "Run: Idle Explorers → Setup Everything");
             IsLoading = false;
             yield break;
         }

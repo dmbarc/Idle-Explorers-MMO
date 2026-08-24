@@ -1,194 +1,29 @@
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Editor utility: turns SampleScene into the Goblin Camp map scene.
+/// The parts of building a map scene that every map shares.
 ///
-/// The project rule is that no UI or scene content is hand-placed, so this does the
-/// scene surgery in code: strips the legacy inventory UI (whose scripts were
-/// deleted in the refit), places the five skill nodes zone_data.json defines for
-/// goblin_camp, and registers the result in Build Settings.
+/// The player and their tag, the camera and its controller, the lighting, the monster
+/// spawner, the NavMesh bake, the build-settings entry, and the checks that refuse to
+/// call a map finished when it cannot be seen or stood on.
 ///
-/// SampleScene is used as the base because its baked terrain NavMesh is the only
-/// playable ground in the project.
+/// ══ THIS USED TO BE THE GOBLIN CAMP ═══════════════════════════════════════════
 ///
-/// Menu: Idle Explorers → Prepare Map Scene
+/// It built that map itself, out of SampleScene's terrain with seven skill nodes on a
+/// 7.5-unit circle around a hand-typed spawn point. The Goblin Camp is now a real
+/// hand-authored map like the Hollow — see GoblinCampSetup — so everything specific to
+/// the terrain version has gone: the node ring, the spawn constant, the primitive
+/// fallback shapes and the terrain ground-snap. What is left is what both maps call.
+///
+/// No menu item of its own. GoblinCampSetup and HollowMapSetup have those, and
+/// BootstrapSetup drives both from "Setup Everything".
 /// </summary>
 public static class MapSceneSetup
 {
-    private const string SOURCE_SCENE = "Assets/Scenes/SampleScene.unity";
-    private const string MAP_SCENE    = "Assets/Scenes/Map_GoblinCamp.unity";
-
-    // Node placements, chosen to sit inside the baked NavMesh area (X/Z 400-500)
-    // that MonsterSpawner also spawns into.
-    private struct NodePlacement
-    {
-        public string  NodeId;
-        public string  Label;
-        public Vector3 Position;
-
-        /// <summary>Kenney FBX to instantiate. Falls back to the primitive when absent.</summary>
-        public string  Model;
-
-        /// <summary>Uniform scale for the model — the kits are authored at ~1 unit.</summary>
-        public float   Scale;
-
-        // Fallback appearance, used only when the model cannot be loaded so a missing
-        // asset leaves a visible coloured marker rather than an invisible node.
-        public Color   Color;
-        public PrimitiveType Shape;
-    }
-
-    private const string KenneyModels = "Assets/Kenney Game Assets All-in-1 3.7.0/3D assets/";
-
-    // The player prefab spawns at roughly (438, 432), so nodes ring that point
-    // closely enough to be on screen the moment the map loads. A previous pass
-    // scattered them up to 13 units away and they were off-camera.
-    private static readonly Vector3 PlayerSpawn = new Vector3(438f, 0f, 432f);
-
-    // A ring around the spawn point, evenly spaced so every node — the bank chest
-    // included — is visible and reachable the moment the map loads. The chest used to
-    // sit alone behind the player.
-    //
-    // Seven nodes now, so they sit on a circle rather than a hand-placed cross:
-    // adding an eighth is a new entry, not a re-plotting of every position.
-    private static readonly NodePlacement[] GoblinCampNodes =
-    {
-        new NodePlacement { NodeId = "tin_rock_1",    Position = RingPosition(0, 7),
-                            Label = "Tin Rock", Scale = 2.2f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-c.fbx",
-                            Color = new Color(0.70f, 0.72f, 0.78f), Shape = PrimitiveType.Cube },
-
-        new NodePlacement { NodeId = "copper_rock_1", Position = RingPosition(1, 7),
-                            Label = "Copper Rock", Scale = 2.2f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/rock-a.fbx",
-                            Color = new Color(0.85f, 0.45f, 0.15f), Shape = PrimitiveType.Cube },
-
-        new NodePlacement { NodeId = "normal_tree_1", Position = RingPosition(2, 7),
-                            Label = "Tree", Scale = 2.0f,
-                            Model = KenneyModels + "Nature Kit/Models/FBX format/tree_oak.fbx",
-                            Color = new Color(0.20f, 0.60f, 0.22f), Shape = PrimitiveType.Cylinder },
-
-        new NodePlacement { NodeId = "shrimp_pool_1", Position = RingPosition(3, 7),
-                            Label = "Shrimp Pool", Scale = 2.0f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/campfire-fishing-stand.fbx",
-                            Color = new Color(0.25f, 0.55f, 0.90f), Shape = PrimitiveType.Cylinder },
-
-        new NodePlacement { NodeId = "campfire_1",    Position = RingPosition(4, 7),
-                            Label = "Campfire", Scale = 2.0f,
-                            Model = KenneyModels + "Nature Kit/Models/FBX format/campfire_stones.fbx",
-                            Color = new Color(0.95f, 0.50f, 0.12f), Shape = PrimitiveType.Sphere },
-
-        new NodePlacement { NodeId = "anvil_1",       Position = RingPosition(5, 7),
-                            Label = "Anvil", Scale = 2.0f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/workbench-anvil.fbx",
-                            Color = new Color(0.45f, 0.45f, 0.50f), Shape = PrimitiveType.Cube },
-
-        new NodePlacement { NodeId = "bank_chest_1",  Position = RingPosition(6, 7),
-                            Label = "Bank Chest", Scale = 2.4f,
-                            Model = KenneyModels + "Survival Kit/Models/FBX format/chest.fbx",
-                            Color = new Color(0.85f, 0.75f, 0.30f), Shape = PrimitiveType.Cube },
-    };
-
-    /// <summary>Radius of the node ring around the spawn point, in world units.</summary>
-    private const float RingRadius = 7.5f;
-
-    /// <summary>
-    /// Evenly spaces nodes on a circle around the player spawn, so the layout stays
-    /// balanced as nodes are added instead of needing every offset re-tuned by hand.
-    /// </summary>
-    private static Vector3 RingPosition(int index, int total)
-    {
-        float angle = (index / (float)Mathf.Max(1, total)) * Mathf.PI * 2f;
-        return PlayerSpawn + new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle)) * RingRadius;
-    }
-
-    [MenuItem("Idle Explorers/Prepare Map Scene")]
-    public static void PrepareMapScene()
-    {
-        if (!File.Exists(SOURCE_SCENE))
-        {
-            EditorUtility.DisplayDialog("Source scene missing",
-                $"Expected to find:\n{SOURCE_SCENE}\n\nCannot build the map scene without it.", "OK");
-            return;
-        }
-
-        if (!EditorUtility.DisplayDialog("Prepare Map Scene",
-                $"This will open {Path.GetFileName(SOURCE_SCENE)}, strip the legacy inventory UI, " +
-                $"add the Goblin Camp skill nodes, and save the result as " +
-                $"{Path.GetFileName(MAP_SCENE)}.\n\nSampleScene itself is left unmodified.",
-                "Go ahead", "Cancel"))
-            return;
-
-        Execute(showDialog: true);
-    }
-
-    /// <summary>
-    /// Does the work without any dialogs, so it can also be driven headlessly
-    /// via -executeMethod.
-    /// </summary>
-    public static void Execute(bool showDialog)
-    {
-        if (!File.Exists(SOURCE_SCENE))
-        {
-            Debug.LogError($"[MapSetup] Source scene missing: {SOURCE_SCENE}");
-            return;
-        }
-
-        var scene = EditorSceneManager.OpenScene(SOURCE_SCENE, OpenSceneMode.Single);
-
-        int stripped = StripLegacyObjects(scene);
-        int nodes    = PlaceSkillNodes();
-
-        // Placed deliberately rather than left wherever SampleScene happened to have
-        // it. It landed on the terrain by luck, which is not a property to rely on:
-        // the same inherited position put the Hollow's player outside its map.
-        EnsurePlayer(SnapToGround(PlayerSpawn, 0.5f));
-
-        EnsurePlayerTag();
-        EnsureCameraController();
-        ConfigureMonsterSpawner();
-
-        // After the nodes exist, so the bake sees the finished scene. Placing geometry
-        // and leaving the NavMesh stale is what forced a manual rebuild every time.
-        bool baked = BakeNavMesh(MAP_SCENE);
-
-        // After the bake — before it there is no mesh to stand on and the check
-        // would fail on every map.
-        VerifyPlayerPlacement("Goblin Camp");
-
-        // Before the save, not after: a map nobody can see is not a map, and the only
-        // sign last time was one warning in a thirteen-step log.
-        VerifyCamera("Goblin Camp");
-
-        EditorSceneManager.MarkSceneDirty(scene);
-        bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
-        if (!saved)
-        {
-            Debug.LogError("[MapSetup] Failed to save the map scene.");
-            return;
-        }
-
-        AssetDatabase.Refresh();
-        AddSceneToBuildSettings(MAP_SCENE);
-
-        Debug.Log($"[MapSetup] {MAP_SCENE} saved. Stripped {stripped} legacy object(s), " +
-                  $"placed {nodes} skill node(s), NavMesh {(baked ? "rebuilt" : "NOT rebuilt")}.");
-
-        if (showDialog)
-            EditorUtility.DisplayDialog("Map Scene Ready",
-                $"Saved: {MAP_SCENE}\n\n" +
-                $"• Legacy objects removed: {stripped}\n" +
-                $"• Skill nodes placed: {nodes}\n" +
-                $"• NavMesh: {(baked ? "rebuilt automatically" : "could not be rebuilt — see Console")}\n\n" +
-                "Bootstrap remains the scene you press Play on — this map loads additively.",
-                "OK");
-    }
-
     // ── NavMesh ───────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -501,6 +336,141 @@ public static class MapSceneSetup
     /// Points the monster spawner at the playable area and gives it a sane rate.
     ///
     /// The values saved in the scene were spawnInterval 0.01 over a 2000x2000 box with
+    // ── Lighting ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// What a map looks like when the sun is on it.
+    ///
+    /// A struct rather than a set of arguments because these numbers only make sense
+    /// together — a warm sun over a cold ambient is a specific, deliberate look, and
+    /// half of one mood mixed with half of another is nobody's.
+    /// </summary>
+    public struct MapMood
+    {
+        public string Name;
+
+        public Color   SunColor;
+        public float   SunIntensity;
+
+        /// <summary>Euler angles for the sun. X is how high it sits; low is late.</summary>
+        public Vector3 SunAngles;
+
+        public Color AmbientSky;
+        public Color AmbientEquator;
+        public Color AmbientGround;
+
+        public Color FogColor;
+        public float FogStart;
+        public float FogEnd;
+    }
+
+    /// <summary>
+    /// Gives a map a sun, an ambient and a horizon.
+    ///
+    /// ══ WHY BOTH MAPS LOOKED FLAT AND BLEACHED ════════════════════════════════
+    ///
+    /// Neither map had lighting of its own. Both inherited SampleScene's, which is a
+    /// white directional light at intensity 2 — double the default — over ambient
+    /// taken from Unity's stock procedural sky. Two full suns of white and a strong
+    /// blue skybox bounce is close to the worst case for saturated flat-shaded
+    /// models: the light blows the tops of every colour channel out toward white and
+    /// the ambient tips what survives toward blue, which is why grass read as pale
+    /// cyan and stone as white. It looked like a material fault and was an exposure
+    /// one.
+    ///
+    /// Gradient ambient rather than skybox ambient is the load-bearing half. Sky
+    /// ambient is generated from the skybox and cannot be turned down without turning
+    /// the sky down with it; three explicit colours can be as dark as the map wants,
+    /// and a darker ground bounce than sky is what stops everything reading as evenly
+    /// lit from all sides at once.
+    ///
+    /// Fog does the rest. It gives the flat kits some depth, hides the edge of the
+    /// world where the cliffs stop, and — set to the same colour the camera clears to
+    /// — turns the horizon into distance instead of a hard line against a skybox.
+    /// </summary>
+    internal static void ConfigureLighting(MapMood mood)
+    {
+        if (string.IsNullOrEmpty(mood.Name))
+        {
+            Debug.LogWarning("[MapSetup] No mood for this map — leaving SampleScene's lighting, " +
+                             "which is a white sun at double intensity and will look bleached.");
+            return;
+        }
+
+        var sun = EnsureSun();
+        if (sun != null)
+        {
+            sun.color       = mood.SunColor;
+            sun.intensity   = mood.SunIntensity;
+            sun.shadows     = LightShadows.Soft;
+            sun.shadowStrength = 0.75f;
+            sun.transform.rotation = Quaternion.Euler(mood.SunAngles);
+
+            RenderSettings.sun = sun;
+            EditorUtility.SetDirty(sun);
+        }
+
+        RenderSettings.ambientMode          = UnityEngine.Rendering.AmbientMode.Trilight;
+        RenderSettings.ambientSkyColor      = mood.AmbientSky;
+        RenderSettings.ambientEquatorColor  = mood.AmbientEquator;
+        RenderSettings.ambientGroundColor   = mood.AmbientGround;
+
+        RenderSettings.fog        = true;
+        RenderSettings.fogMode    = FogMode.Linear;
+        RenderSettings.fogColor   = mood.FogColor;
+        RenderSettings.fogStartDistance = mood.FogStart;
+        RenderSettings.fogEndDistance   = mood.FogEnd;
+
+        // The camera clears to the fog colour rather than to a skybox. A stock
+        // procedural sky under a deliberately dim map is a bright blue band along the
+        // top of the screen that nothing else in the scene agrees with.
+        var camera = Camera.main;
+        if (camera != null)
+        {
+            camera.clearFlags      = CameraClearFlags.SolidColor;
+            camera.backgroundColor = mood.FogColor;
+            EditorUtility.SetDirty(camera);
+        }
+
+        // Cleared, or Unity keeps generating sky ambient from it and adds that to the
+        // gradient above — which is the bleaching this method exists to stop.
+        RenderSettings.skybox = null;
+
+        Debug.Log($"[MapSetup] Lighting: {mood.Name} — sun {mood.SunIntensity:0.00} at " +
+                  $"{mood.SunAngles.x:0}° above the horizon, gradient ambient, fog " +
+                  $"{mood.FogStart:0}–{mood.FogEnd:0}.");
+    }
+
+    /// <summary>
+    /// The scene's directional light, built if SampleScene did not hand one over.
+    ///
+    /// A map with no sun is lit only by ambient, which is flat by definition — no
+    /// shadows, no shading on any face, every model a silhouette of its own colour.
+    /// That is what "the map has no lighting" describes.
+    /// </summary>
+    private static Light EnsureSun()
+    {
+        foreach (var light in Object.FindObjectsByType<Light>(FindObjectsInactive.Include))
+            if (light != null && light.type == LightType.Directional) return light;
+
+        Debug.Log("[MapSetup] No directional light in the scene — building one.");
+
+        var go = new GameObject("Sun");
+        var sun = go.AddComponent<Light>();
+        if (sun == null)
+        {
+            Debug.LogError("[MapSetup] Could not add a Light to the new Sun object.");
+            return null;
+        }
+
+        sun.type = LightType.Directional;
+        return sun;
+    }
+
+    /// <summary>
+    /// Points the monster spawner at the playable area and gives it a sane rate.
+    ///
+    /// The values saved in the scene were spawnInterval 0.01 over a 2000x2000 box with
     /// a cap of 500 — one monster per frame, scattered across an area a hundred times
     /// larger than the baked NavMesh, most of them nowhere near any ground the player
     /// can reach. Five hundred NavMeshAgents is also enough to bury the frame rate on
@@ -737,112 +707,8 @@ public static class MapSceneSetup
         return true;
     }
 
-    // ── Skill nodes ───────────────────────────────────────────────────────────
+    // ── Shared scene helpers ──────────────────────────────────────────────────
 
-    private static int PlaceSkillNodes()
-    {
-        // Remove any previous run's nodes so this is safely re-runnable
-        var existing = GameObject.Find("SkillNodes");
-        if (existing != null) Object.DestroyImmediate(existing);
-
-        var parent = new GameObject("SkillNodes");
-        int placed = 0;
-
-        foreach (var placement in GoblinCampNodes)
-        {
-            bool isModel = !string.IsNullOrEmpty(placement.Model);
-
-            var go = BuildNodeVisual(placement);
-            go.name = $"Node_{placement.NodeId}";
-            go.transform.SetParent(parent.transform, false);
-
-            // Kenney models are authored with their pivot on the ground, so they sit
-            // flush. A primitive's pivot is its centre and needs lifting by half its
-            // height or it is buried in the terrain.
-            go.transform.position = SnapToGround(placement.Position, isModel ? 0f : 0.75f);
-
-            // PlayerController raycasts to find nodes. Kenney's FBX models carry no
-            // collider of their own, so without this the node is invisible to
-            // targeting and clicks pass straight through it.
-            EnsureCollider(go);
-
-            var node = go.AddComponent<SkillNodeController>();
-            node.nodeId = placement.NodeId;
-
-            // Keep nodes out of the NavMesh bake.
-            //
-            // The surface collects render meshes across the whole scene, so a node left
-            // in would carve a hole the size of its model — and the floating name tag
-            // above it is a mesh too, at roughly agent head height. Between them they
-            // can wall off the very node the player is walking to, which presents as
-            // pathfinding being broken rather than as a baking decision. Nodes are
-            // reached by interactionRange (2.5 units), not by standing inside them, so
-            // nothing is lost by letting the player walk over the footprint.
-            var modifier = go.AddComponent<Unity.AI.Navigation.NavMeshModifier>();
-            modifier.ignoreFromBuild = true;
-
-            AddFloatingLabel(go.transform, placement.Label);
-
-            placed++;
-        }
-
-        return placed;
-    }
-
-    /// <summary>
-    /// Instantiates the Kenney model for a node, falling back to the old coloured
-    /// primitive if it cannot be loaded — a missing asset should leave a visible
-    /// marker you can still click, not an invisible hole in the map.
-    /// </summary>
-    private static GameObject BuildNodeVisual(NodePlacement placement)
-    {
-        if (!string.IsNullOrEmpty(placement.Model))
-        {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(placement.Model);
-            if (prefab != null)
-            {
-                var model = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-
-                // Unpack so the node is a plain scene object; leaving it linked to the
-                // FBX would make every node an override of an imported asset.
-                PrefabUtility.UnpackPrefabInstance(model, PrefabUnpackMode.Completely,
-                                                    InteractionMode.AutomatedAction);
-
-                model.transform.localScale = Vector3.one * (placement.Scale > 0f ? placement.Scale : 1f);
-                EnsureUrpMaterials(model);
-                return model;
-            }
-
-            Debug.LogWarning($"[MapSetup] Model not found for '{placement.NodeId}': {placement.Model} — " +
-                             "using a coloured primitive instead.");
-        }
-
-        var go = GameObject.CreatePrimitive(placement.Shape);
-        go.transform.localScale = Vector3.one * 2f;
-
-        // Distinct colours so fallback nodes stay tellable apart. Emission keeps them
-        // visible under the map's fairly dim lighting.
-        var renderer = go.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
-            var mat = new Material(shader) { color = placement.Color };
-            mat.EnableKeyword("_EMISSION");
-            mat.SetColor("_EmissionColor", placement.Color * 0.55f);
-            renderer.sharedMaterial = mat;
-        }
-
-        return go;
-    }
-
-    /// <summary>
-    /// Re-points any material still on a Built-in shader at URP's Lit.
-    ///
-    /// This project renders with URP, where a Built-in-shader material draws as solid
-    /// magenta. Imported FBX materials usually come in correct, but a pack imported
-    /// before the pipeline was set — or copied in from elsewhere — will not, and a
-    /// field of magenta rocks is a worse outcome than a moment of defensive code.
-    /// </summary>
     internal static void EnsureUrpMaterials(GameObject root)
     {
         var urpLit = Shader.Find("Universal Render Pipeline/Lit");
@@ -949,16 +815,6 @@ public static class MapSceneSetup
     /// the surface, which centre-pivoted primitives need and ground-pivoted models
     /// do not.
     /// </summary>
-    private static Vector3 SnapToGround(Vector3 position, float lift)
-    {
-        var origin = new Vector3(position.x, 500f, position.z);
-        if (Physics.Raycast(origin, Vector3.down, out RaycastHit hit, 1000f))
-            return hit.point + Vector3.up * lift;
-
-        Debug.LogWarning($"[MapSetup] No ground under {position} — placing at y=1.");
-        return new Vector3(position.x, 1f, position.z);
-    }
-
     // ── Build settings ────────────────────────────────────────────────────────
 
     internal static void AddSceneToBuildSettings(string scenePath)

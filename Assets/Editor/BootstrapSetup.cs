@@ -115,7 +115,7 @@ public static class BootstrapSetup
 
         Debug.Log("[Setup] 10/13 Bootstrap scene");      CreateBootstrapScene(showDialog: false);
         // Last, and these rebake their own NavMesh — each map has to be final first.
-        Debug.Log("[Setup] 11/13 Goblin Camp + NavMesh");  MapSceneSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 11/13 Goblin Camp + NavMesh");  GoblinCampSetup.Execute(showDialog: false);
         Debug.Log("[Setup] 12/13 Fading Hollow + NavMesh"); HollowMapSetup.Execute(showDialog: false);
 
         // Reports rather than builds: it reads item_data.json and the SPUM rig and

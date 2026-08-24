@@ -46,22 +46,34 @@ public static class MonsterPrefabSetup
         public readonly string SkinTint;
         public readonly string Note;
 
-        public Recipe(string monsterId, string rigPath, string skinTint, string note)
+        /// <summary>
+        /// How tall this monster stands, as a fraction of a person.
+        ///
+        /// The absolute number lives in SpumRig.CharacterHeight, so a monster is
+        /// described the way anybody would describe one — "a head shorter than you" —
+        /// rather than in world units nobody can picture.
+        /// </summary>
+        public readonly float HeightVsPlayer;
+
+        public Recipe(string monsterId, string rigPath, string skinTint, float heightVsPlayer,
+                      string note)
         {
-            MonsterId = monsterId;
-            RigPath   = rigPath;
-            SkinTint  = skinTint;
-            Note      = note;
+            MonsterId      = monsterId;
+            RigPath        = rigPath;
+            SkinTint       = skinTint;
+            HeightVsPlayer = heightVsPlayer;
+            Note           = note;
         }
     }
 
     private static readonly Recipe[] Recipes =
     {
-        new Recipe("goblin", SpumRoot + "Devil/SPUM_20240911215637878.prefab", null,
+        new Recipe("goblin", SpumRoot + "Devil/SPUM_20240911215637878.prefab", null, 0.82f,
                    "Goblin Camp. The Devil race reads much closer to a goblin than the " +
-                   "Skeleton rig that stood in for it."),
+                   "Skeleton rig that stood in for it, and a goblin should be shorter " +
+                   "than the person fighting it."),
 
-        new Recipe("bramblekin", SpumRoot + "Elf/SPUM_20240911215638048.prefab", "#4E7A38",
+        new Recipe("bramblekin", SpumRoot + "Elf/SPUM_20240911215638048.prefab", "#4E7A38", 0.95f,
                    "Hollow of the Fading Light. An elf silhouette under a mossy green " +
                    "reads as something that grew rather than something that arrived."),
     };
@@ -133,6 +145,11 @@ public static class MonsterPrefabSetup
             // Monsters are the same flat artwork the player is, and turned edge-on for
             // the same reason: the agent rotates them to face where they are walking.
             Billboard.CoverArt(instance);
+
+            // Same reason the player is scaled: the sprite is authored at 32 pixels to
+            // the unit, and the world was built for a two-unit person.
+            SpumRig.NormaliseHeight(instance.transform,
+                                    SpumRig.CharacterHeight * recipe.HeightVsPlayer);
 
             int unbillboarded = Billboard.CountUnbillboardedSprites(instance);
             if (unbillboarded > 0)

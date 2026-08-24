@@ -127,7 +127,7 @@ public static class PlayerPrefabSetup
             if (showDialog)
                 EditorUtility.DisplayDialog("Player Prefab Built",
                     $"Saved {PREFAB_PATH}.\n\n" +
-                    "Rebuild the maps (Prepare Map Scene / Build Hollow Map, or Setup Everything) " +
+                    "Rebuild the maps (Build Goblin Camp / Build Hollow Map, or Setup Everything) " +
                     "so they instantiate it.",
                     "OK");
 
@@ -214,6 +214,14 @@ public static class PlayerPrefabSetup
         // rotates the character to face travel. This is what stops that; the root
         // keeps rotating, only the artwork is held toward the camera.
         Billboard.CoverArt(art);
+
+        // The rig is authored at 32 pixels to the unit and comes out well under a
+        // metre; the world around it was built for the two-unit person the agent
+        // describes. This is where the two are introduced.
+        float scale = SpumRig.NormaliseHeight(art.transform, SpumRig.CharacterHeight);
+        Debug.Log( Rig scaled x{scale:0.00} so the character stands " +
+                   units tall — the NavMeshAgent height the " +
+                  "camera, the walk speed and the map tiles were all sized against.");
     }
 
     /// <summary>

@@ -175,4 +175,120 @@ public static class SpumRig
         if (!layer.Renderer.gameObject.activeSelf)
             layer.Renderer.gameObject.SetActive(true);
     }
+
+    // ── Size ──────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// How tall a person is in this world, in world units.
+    ///
+    /// Not an arbitrary choice — it is the NavMeshAgent height the project has always
+    /// used, which is also what the camera distance, the walk speed and the Hollow's
+    /// four-unit floor tiles were all tuned against. The one thing that never agreed
+    /// with it was the artwork.
+    /// </summary>
+    public const float CharacterHeight = 2f;
+
+    /// <summary>
+    /// Scales a rig so the character stands <paramref name="targetHeight"/> units tall,
+    /// and returns the factor applied.
+    ///
+    /// ══ WHY THE ANVIL WAS TWICE THE SIZE OF THE PLAYER ════════════════════════
+    ///
+    /// A SPUM sprite is authored at 32 pixels to the unit and comes out well under a
+    /// metre tall, while everything around it was built for the two-unit person the
+    /// NavMeshAgent describes. Nothing was scaled wrongly on purpose; the art and the
+    /// world were simply never introduced to each other. The result is a character who
+    /// is a quarter of one floor tile and half the height of a blacksmith's anvil.
+    ///
+    /// Fixing it here rather than shrinking the map means one number decides it for
+    /// both maps, every monster and every prop at once — and the props can then be
+    /// authored as multiples of a person, which is how somebody actually thinks about
+    /// whether an anvil is the right size.
+    ///
+    /// Measured from the FEET to the TOP OF THE HEAD, not from the whole silhouette.
+    /// SPUM prefabs ship dressed, and a rig holding a spear has a bounding box half
+    /// again as tall as the character in it — so scaling to total bounds would make
+    /// every character a different height depending on what they happened to be
+    /// carrying when the prefab was built.
+    /// </summary>
+    public static float NormaliseHeight(Transform rigRoot, float targetHeight)
+    {
+        if (rigRoot == null || targetHeight <= 0f) return 1f;
+
+        var art = ArtRoot(rigRoot);
+
+        // Measured at a known scale, so re-running the builder on an already-scaled
+        // rig converges instead of compounding.
+        art.localScale = Vector3.one;
+
+        float measured = MeasureCharacterHeight(rigRoot);
+        if (measured <= 0.0001f)
+        {
+            Debug.LogWarning($"[SpumRig] Could not measure '{rigRoot.name}' — no sprite with " +
+                             "any height. Leaving it at its authored scale.");
+            return 1f;
+        }
+
+        float factor = targetHeight / measured;
+        art.localScale = Vector3.one * factor;
+        return factor;
+    }
+
+    /// <summary>
+    /// Foot to crown, in world units, at the rig's current scale.
+    ///
+    /// Falls back to the full sprite bounds when the named parts are missing, so a rig
+    /// that is not laid out the way SPUM lays one out still gets a sensible number
+    /// rather than zero.
+    /// </summary>
+    public static float MeasureCharacterHeight(Transform rigRoot)
+    {
+        if (rigRoot == null) return 0f;
+
+        float footBottom = float.MaxValue;
+        float headTop    = float.MinValue;
+
+        foreach (var part in new[] { "P_LFoot", "P_RFoot" })
+            foreach (var layer in Collect(rigRoot, part))
+                if (Drawable(layer.Renderer)) footBottom = Mathf.Min(footBottom, layer.Renderer.bounds.min.y);
+
+        foreach (var part in new[] { "P_Head", "P_Hair", "P_Helmet" })
+            foreach (var layer in Collect(rigRoot, part))
+                if (Drawable(layer.Renderer)) headTop = Mathf.Max(headTop, layer.Renderer.bounds.max.y);
+
+        if (footBottom < float.MaxValue && headTop > float.MinValue && headTop > footBottom)
+            return headTop - footBottom;
+
+        // Whole silhouette, as a last resort.
+        Bounds? total = null;
+        foreach (var renderer in rigRoot.GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (!Drawable(renderer)) continue;
+
+            if (total == null) { total = renderer.bounds; continue; }
+
+            var grown = total.Value;
+            grown.Encapsulate(renderer.bounds);
+            total = grown;
+        }
+
+        return total?.size.y ?? 0f;
+    }
+
+    private static bool Drawable(SpriteRenderer renderer)
+        => renderer != null && renderer.sprite != null && renderer.enabled;
+
+    /// <summary>
+    /// The node holding the artwork — UnitRoot inside a SPUM prefab, or the rig root
+    /// when there is none.
+    ///
+    /// Scaling this rather than the prefab root matters for monsters, whose root
+    /// carries the NavMeshAgent AND the art: scaling that would take the capsule
+    /// collider with it and quietly change what the player can click on.
+    /// </summary>
+    private static Transform ArtRoot(Transform rigRoot)
+    {
+        var art = FindDeep(rigRoot, "UnitRoot");
+        return art == null ? rigRoot : art;
+    }
 }
