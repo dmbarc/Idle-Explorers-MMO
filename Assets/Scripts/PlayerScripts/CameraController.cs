@@ -91,9 +91,23 @@ public class CameraController : MonoBehaviour
             if (target == null) return;
         }
 
-        HandleZoom();
-        HandleOrbit();
-        HandlePan();
+        // A panel is open, or the player is typing. Zoom, orbit and pan all read
+        // their devices directly and would otherwise fire THROUGH the interface: the
+        // scroll wheel zoomed the map while scrolling a crafting list at the anvil,
+        // and WASD would walk the view off the character mid-sentence. The follow
+        // below still runs, so the camera keeps tracking a character who is moving.
+        if (!UIManager.WorldInputBlocked)
+        {
+            HandleZoom();
+            HandleOrbit();
+            HandlePan();
+        }
+        else
+        {
+            // Without this the offset counts as "held" for the whole time a panel is
+            // open and then snaps back the instant it closes.
+            RecentreAfterPanning();
+        }
 
         _lastKnownTargetPos = target.position;
 

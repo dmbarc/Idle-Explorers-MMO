@@ -46,10 +46,10 @@ public class MenuModal : UIScreen
 
         AddOption(stack.transform, "RESUME",   () => GameManager.UI?.Pop());
 
-        int talentPoints = TalentManager.AvailablePoints(CharacterManager.Current);
-        AddOption(stack.transform,
-                  talentPoints > 0 ? $"TALENTS  ({talentPoints})" : "TALENTS",
-                  () => GameManager.UI?.Push<TalentPanel>());
+        // No TALENTS option here. The HUD carries a permanent TAL button that already
+        // shows the unspent-point badge, so this was a second door to the same room —
+        // and the worse one, because reaching it meant opening a menu that covers the
+        // action bar an ability has to be dragged onto.
 
         AddOption(stack.transform, "SHOP",     () => GameManager.UI?.Push<ShopPanel>());
         AddOption(stack.transform, "SETTINGS", () => GameManager.UI?.Push<SettingsPanel>());

@@ -81,6 +81,11 @@ public class CharacterSheet : UIScreen
 
         _preview = CharacterPreview.Create(portrait.transform, character?.spumConfig, "SheetPreview");
 
+        // The sheet is a picture of who you are, so it wears what you are wearing.
+        // Create can return null when the rig prefab is missing, and a sheet with no
+        // portrait still shows every stat — so this is a null check, not a guard.
+        if (_preview != null) _preview.ShowEquippedGear();
+
         // Level and class
         var levelCard = TextCard(content, theme, "STANDING", out var levelBody);
         levelBody.text = BuildStanding(character);

@@ -345,6 +345,41 @@ public static class SpumAppearance
         return written;
     }
 
+    /// <summary>
+    /// Hides hair under a helmet, and puts it back when the helmet comes off.
+    ///
+    /// SPUM draws P_Hair and P_Helmet as separate layers with the helmet in front, so
+    /// a character in a full helm wore their hair sticking out through the metal. The
+    /// rig has no notion of one part occluding another — sorting order is all it has —
+    /// so somebody has to decide, and this is the whole of that decision.
+    ///
+    /// It takes the hair address rather than reading the save, because it is called
+    /// from previews as well as from the world character, and a preview is showing a
+    /// look that may not be the saved one. It is also what makes "Bald" survive taking
+    /// a helmet off: an empty address means there was never any hair to restore, and
+    /// re-enabling the renderer would show whatever sprite it happened to be holding.
+    ///
+    /// Returns the number of renderers changed, so a caller can tell "no hair to hide"
+    /// from "this is not a SPUM rig".
+    /// </summary>
+    public static int ApplyHelmetRule(Transform rig, string hairAddress, bool helmetWorn)
+    {
+        if (rig == null) return 0;
+
+        bool show = !helmetWorn && !string.IsNullOrEmpty(hairAddress);
+
+        int touched = 0;
+        foreach (var layer in SpumRig.Collect(rig, "P_Hair"))
+        {
+            if (layer.Renderer == null) continue;
+
+            layer.Renderer.enabled = show;
+            touched++;
+        }
+
+        return touched;
+    }
+
     private static void Tint(SpriteRenderer renderer, string hex)
     {
         if (renderer == null) return;

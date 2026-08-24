@@ -66,6 +66,15 @@ public class CharacterAppearance : MonoBehaviour
 
             ApplySlot(slot, item);
         }
+
+        // Last, because it depends on what the helmet slot just did. Hair is a layer
+        // of the CHARACTER, drawn by CharacterBaseAppearance, but whether it shows is
+        // a fact about their EQUIPMENT — so the decision has to live on this side.
+        var helmet = equipment.GetEquippedItem("helmet");
+        SpumAppearance.ApplyHelmetRule(
+            transform,
+            CharacterManager.Current?.spumConfig?.hairAddress,
+            helmet != null && !string.IsNullOrEmpty(helmet.equipSpriteAddress));
     }
 
     /// <summary>

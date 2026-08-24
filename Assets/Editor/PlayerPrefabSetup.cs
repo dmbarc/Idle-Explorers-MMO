@@ -162,6 +162,11 @@ public static class PlayerPrefabSetup
         if (root.GetComponentInChildren<Animator>(includeInactive: true) == null)
             problems.Add("no Animator anywhere in the rig — it will not animate");
 
+        int unbillboarded = Billboard.CountUnbillboardedSprites(root);
+        if (unbillboarded > 0)
+            problems.Add($"{unbillboarded} sprite(s) that no Billboard turns — they will go " +
+                         "edge-on whenever the character walks across the camera");
+
         if (problems.Count == 0) return true;
 
         Debug.LogError($"[PlayerPrefab] NOT saving {PREFAB_PATH} — the player would be broken:\n  • " +
@@ -202,6 +207,11 @@ public static class PlayerPrefabSetup
         art.transform.localScale    = Vector3.one;
 
         UnmaskRenderers(art);
+
+        // A flat sprite standing in a 3D world turns edge-on the moment the agent
+        // rotates the character to face travel. This is what stops that; the root
+        // keeps rotating, only the artwork is held toward the camera.
+        Billboard.CoverArt(art);
     }
 
     /// <summary>

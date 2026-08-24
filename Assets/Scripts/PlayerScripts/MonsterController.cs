@@ -43,6 +43,15 @@ public class MonsterController : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
 
+        // Flat artwork turns edge-on the moment the agent rotates to face travel, and
+        // the health bar is a WORLD-SPACE canvas with the same problem. CoverArt is
+        // idempotent, so a prefab the builder already billboarded pays nothing here —
+        // this is the net for _default and skeleton, which the builder never rebuilds.
+        Billboard.CoverArt(gameObject);
+
+        if (healthUI != null && healthUI.GetComponentInParent<Billboard>(true) == null)
+            healthUI.AddComponent<Billboard>();
+
         GameObject playerObj = GameObject.Find("PlayerCharacter");
         if (playerObj != null)
         {

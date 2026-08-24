@@ -130,6 +130,15 @@ public static class MonsterPrefabSetup
             ConfigureCollision(instance, source);
             ConfigureController(instance, sourceController);
 
+            // Monsters are the same flat artwork the player is, and turned edge-on for
+            // the same reason: the agent rotates them to face where they are walking.
+            Billboard.CoverArt(instance);
+
+            int unbillboarded = Billboard.CountUnbillboardedSprites(instance);
+            if (unbillboarded > 0)
+                Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + unbillboarded +
+                                 " sprite(s) no Billboard turns — they will go edge-on as it walks.");
+
             if (!string.IsNullOrEmpty(recipe.SkinTint))
             {
                 int tinted = SpumAppearance.TintBody(instance.transform, recipe.SkinTint);

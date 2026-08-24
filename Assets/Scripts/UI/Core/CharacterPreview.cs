@@ -129,7 +129,65 @@ public class CharacterPreview : MonoBehaviour
     public void SetLook(SpumSaveData look)
     {
         if (_rig == null) return;
-        SpumAppearance.Apply(_rig.transform, look ?? SpumAppearance.Default());
+
+        _look = look ?? SpumAppearance.Default();
+        SpumAppearance.Apply(_rig.transform, _look);
+
+        // Apply writes the bare character, which puts hair back and strips whatever
+        // was worn over it. A preview that has been told to show equipment has to be
+        // re-dressed, or changing hair in the Mirror of Faces would quietly undress
+        // the character standing in it.
+        if (_showEquipped) ShowEquippedGear();
+    }
+
+    /// <summary>The look this preview is currently drawing.</summary>
+    private SpumSaveData _look;
+
+    /// <summary>Whether this preview tracks what the character is actually wearing.</summary>
+    private bool _showEquipped;
+
+    /// <summary>
+    /// Dresses the preview in the character's real equipment, and keeps it dressed
+    /// across later look changes.
+    ///
+    /// The character sheet is a picture of who you are, and it was showing a naked
+    /// body with the right hair — the same rig the class cards use, but with nothing
+    /// asking the equipment manager what was on it. The gear was never missing from
+    /// the data; nobody was reading it.
+    ///
+    /// Deliberately not a live CharacterAppearance component. That one subscribes to
+    /// OnEquipmentChanged and expects to own the rig for the rig's lifetime, and this
+    /// preview is torn down and rebuilt on every open of the sheet — a subscription
+    /// per open is exactly the leak UIManager's OnHide contract exists to prevent.
+    /// The sheet rebuilds on show, so a snapshot is current by construction.
+    /// </summary>
+    public void ShowEquippedGear()
+    {
+        if (_rig == null) return;
+
+        _showEquipped = true;
+
+        var equipment = GameManager.Equipment;
+        if (equipment == null) return;
+
+        bool helmetWorn = false;
+
+        foreach (var slot in EquipmentSlots.Cosmetic())
+        {
+            if (!slot.RendersOnCharacter) continue;   // gloves, tabard and aura have no layer
+
+            var item = equipment.GetEquippedItem(slot.SlotId);
+            if (item == null || string.IsNullOrEmpty(item.equipSpriteAddress)) continue;
+
+            SetEquipment(slot.SlotId, item.equipSpriteAddress);
+
+            if (slot.SlotId == "helmet") helmetWorn = true;
+        }
+
+        // The same rule the world character follows, from the same method — a helmet
+        // that hid hair in the world and not on the sheet would make the sheet a
+        // picture of somebody else.
+        SpumAppearance.ApplyHelmetRule(_rig.transform, _look?.hairAddress, helmetWorn);
     }
 
     /// <summary>
