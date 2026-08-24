@@ -219,6 +219,8 @@ public class CharacterManager : MonoBehaviour
     {
         if (Current == null) return;
         Current.xp += amount;
+
+        GameEvents.OnCharacterXPGained?.Invoke(amount);
         // Level formula: XP required for level L = L^2 * 83 (OSRS-like but scaled to 1-999)
         int newLevel = XPToLevel(Current.xp);
         if (newLevel > Current.level)

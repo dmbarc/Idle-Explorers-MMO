@@ -73,6 +73,12 @@ public class MonsterCamp : MonoBehaviour
     /// </summary>
     public static MonsterCamp PickRandom()
     {
+        // Drop anything destroyed without OnDisable running — a map unload normally
+        // cleans up after itself, but a destroyed Unity object still compares equal to
+        // null while dereferencing it throws, and this is called on a timer.
+        for (int i = Active.Count - 1; i >= 0; i--)
+            if (Active[i] == null) Active.RemoveAt(i);
+
         if (Active.Count == 0) return null;
         return Active[UnityEngine.Random.Range(0, Active.Count)];
     }

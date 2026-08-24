@@ -26,10 +26,12 @@ public class IconLibrary : ScriptableObject
     public List<Entry> itemIcons    = new();
     public List<Entry> skillIcons   = new();
     public List<Entry> abilityIcons = new();
+    public List<Entry> classIcons   = new();
 
     private Dictionary<string, Sprite> _itemLookup;
     private Dictionary<string, Sprite> _skillLookup;
     private Dictionary<string, Sprite> _abilityLookup;
+    private Dictionary<string, Sprite> _classLookup;
 
     public Sprite GetItemIcon(string itemId)
     {
@@ -47,6 +49,13 @@ public class IconLibrary : ScriptableObject
     {
         _abilityLookup ??= Build(abilityIcons);
         return abilityId != null && _abilityLookup.TryGetValue(abilityId, out var s) ? s : null;
+    }
+
+    /// <summary>The emblem shown beside a character name on the HUD.</summary>
+    public Sprite GetClassIcon(string classId)
+    {
+        _classLookup ??= Build(classIcons);
+        return classId != null && _classLookup.TryGetValue(classId, out var s) ? s : null;
     }
 
     private static Dictionary<string, Sprite> Build(List<Entry> entries)
@@ -67,5 +76,6 @@ public class IconLibrary : ScriptableObject
         _itemLookup    = null;
         _skillLookup   = null;
         _abilityLookup = null;
+        _classLookup   = null;
     }
 }

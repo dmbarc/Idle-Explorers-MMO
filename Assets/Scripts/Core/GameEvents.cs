@@ -20,6 +20,14 @@ public static class GameEvents
     public static Action<int>             OnCharacterLevelUp;     // new level
 
     /// <summary>
+    /// Character XP landed. Fired by CharacterManager.AddXP, which is fed a quarter
+    /// of ALL skill XP -- so this arrives while mining as readily as while fighting.
+    /// Without it the XP bar would only move on level-up, the one moment it is least
+    /// useful.
+    /// </summary>
+    public static Action<long>            OnCharacterXPGained;    // amount
+
+    /// <summary>
     /// A character was added, renamed or removed. Exists because overlays (the rename
     /// modal) never trigger OnHide/OnResume on the screen below, so character select
     /// has no lifecycle hook telling it a card went stale.
@@ -125,6 +133,7 @@ public static class GameEvents
         OnCharacterCreated       = null;
         OnAccountLevelUp         = null;
         OnCharacterLevelUp       = null;
+        OnCharacterXPGained      = null;
         OnCharacterRosterChanged = null;
 
         OnSkillLevelUp           = null;

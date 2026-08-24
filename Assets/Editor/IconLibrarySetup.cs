@@ -142,6 +142,20 @@ public static class IconLibrarySetup
     /// Unmapped abilities show their name alone, which is why this returns null
     /// rather than a placeholder.
     /// </summary>
+    /// <summary>
+    /// classId -> sprite file name. Shown beside the character name on the HUD in
+    /// place of the class name, so each has to be recognisable at 32 pixels and
+    /// unmistakable for its neighbours.
+    /// </summary>
+    private static readonly Dictionary<string, string> ClassIconNames = new()
+    {
+        { "warrior",  "shield_basic_metal" },
+        { "ranger",   "bow_wood1" },
+        { "sorcerer", "book_closed_red" },
+        { "tinkerer", "pickaxe_basic" },
+        { "specter",  "bone_skull" },
+    };
+
     private static readonly Dictionary<string, string> AbilityIconNames = new()
     {
         // Warrior
@@ -188,10 +202,12 @@ public static class IconLibrarySetup
         library.itemIcons.Clear();
         library.skillIcons.Clear();
         library.abilityIcons.Clear();
+        library.classIcons.Clear();
 
         int itemsFound     = Populate(ItemIconNames,    library.itemIcons,    "item");
         int skillsFound    = Populate(SkillIconNames,   library.skillIcons,   "skill");
         int abilitiesFound = Populate(AbilityIconNames, library.abilityIcons, "ability");
+        int classesFound   = Populate(ClassIconNames,   library.classIcons,   "class");
 
         if (isNew) AssetDatabase.CreateAsset(library, ASSET_PATH);
         else       EditorUtility.SetDirty(library);
@@ -202,7 +218,8 @@ public static class IconLibrarySetup
 
         Debug.Log($"[IconLibrary] {itemsFound}/{ItemIconNames.Count} item icons, " +
                   $"{skillsFound}/{SkillIconNames.Count} skill icons, " +
-                  $"{abilitiesFound}/{AbilityIconNames.Count} ability icons → {ASSET_PATH}");
+                  $"{abilitiesFound}/{AbilityIconNames.Count} ability icons, " +
+                  $"{classesFound}/{ClassIconNames.Count} class icons → {ASSET_PATH}");
 
         ReportUncoveredItems();
     }

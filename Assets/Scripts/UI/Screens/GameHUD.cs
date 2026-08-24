@@ -15,10 +15,13 @@ public class GameHUD : UIScreen
     private TMP_Text _charNameLabel;
     private TMP_Text _charLevelLabel;
     private TMP_Text _coinsLabel;
+    private Image    _classIcon;
     private Image    _hpFill;
     private Image    _mpFill;
     private Image    _spFill;
+    private Image    _xpFill;
     private TMP_Text _hpText;
+    private TMP_Text _xpText;
 
     private readonly List<Image>    _abilityCooldownOverlays = new();
     private readonly List<TMP_Text> _abilityLabels           = new();
@@ -43,11 +46,13 @@ public class GameHUD : UIScreen
         // inherits the first one's name, coins and activity.
         _player = null;
         RefreshCharInfo();
+        RefreshXp();
         RefreshCoins(GameManager.Inventory?.Coins ?? 0);
         RebuildAbilityBar();
         RefreshTalentBadge();
         SyncAutoMode();
 
+        GameEvents.OnCharacterXPGained   += OnXpGained;
         GameEvents.OnCharacterLevelUp    += OnLevelUp;
         GameEvents.OnPlayerHealthChanged += OnHealthChanged;
         GameEvents.OnPlayerResourcesChanged += OnResourcesChanged;
@@ -62,6 +67,7 @@ public class GameHUD : UIScreen
 
     public override void OnHide()
     {
+        GameEvents.OnCharacterXPGained   -= OnXpGained;
         GameEvents.OnCharacterLevelUp    -= OnLevelUp;
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
         GameEvents.OnPlayerResourcesChanged -= OnResourcesChanged;
@@ -92,85 +98,54 @@ public class GameHUD : UIScreen
         UpdateAbilityCooldowns();
     }
 
-    // ── Top bar ───────────────────────────────────────────────────────────────
+    // ── Corner ────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// All that is left at the top: the menu button and the coin count.
+    ///
+    /// The HUD used to run a full-width bar across the top holding the name, level,
+    /// three resource bars, coins and the menu — a second horizon above the play area,
+    /// on a game whose whole subject is the world in the middle. Everything except
+    /// these two moved down to sit beside the ability bar, where a player's eyes
+    /// already are. Coins stay up here because they are a number you glance at, not
+    /// something you act on mid-fight.
+    /// </summary>
     private void BuildTopBar()
     {
         var theme = UIManager.Theme;
-        var bar   = UIFactory.Panel(transform, "TopBar", theme.headerBg, false);
-        UIFactory.At(bar.transform, 0f, 0.92f, 1f, 1f);
+        var corner = UIFactory.Panel(transform, "TopCorner", theme.headerBg, false);
+        UIFactory.At(corner.transform, 0.80f, 0.925f, 1f, 1f);
 
-        var charData = CharacterManager.Current;
-        string name  = charData?.characterName ?? "Explorer";
-        int    level = charData?.level ?? 1;
-        string cls   = ClassManager.TitleFor(charData);
-
-        _charNameLabel = UIFactory.Label(bar.transform, $"{name}  •  {cls}",
-                                          theme.fontSizeSmall, theme.textPrimary, TextAlignmentOptions.MidlineLeft);
-        UIFactory.At(_charNameLabel, 0.01f, 0.52f, 0.20f, 0.96f);
-
-        _charLevelLabel = UIFactory.Label(bar.transform, $"Lv. {level}",
-                                           theme.fontSizeSmall, theme.accentGold, TextAlignmentOptions.MidlineLeft);
-        UIFactory.At(_charLevelLabel, 0.01f, 0.06f, 0.20f, 0.48f);
-
-        // HP / MP. The label sits inside its own column so it cannot overlap the bar.
-        var hpLbl = UIFactory.Label(bar.transform, "HP", theme.fontSizeLabel,
-                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
-        UIFactory.At(hpLbl, 0.21f, 0.54f, 0.245f, 0.94f);
-
-        var (hpRoot, hpFill) = UIFactory.ProgressBar(bar.transform, "HPBar", theme.hpFill);
-        _hpFill = hpFill;
-        _hpFill.fillAmount = 1f;
-        UIFactory.At(hpRoot.transform, 0.255f, 0.56f, 0.60f, 0.92f);
-
-        _hpText = UIFactory.Label(bar.transform, "", theme.fontSizeLabel,
-                                   theme.textPrimary, TextAlignmentOptions.Center);
-        UIFactory.At(_hpText, 0.255f, 0.56f, 0.60f, 0.92f);
-
-        // Mana and stamina share the lower row. Both are real now — the MP bar sat
-        // permanently full for the whole project's life because baseMp was declared
-        // and never read by anything.
-        var mpLbl = UIFactory.Label(bar.transform, "MP", theme.fontSizeLabel,
-                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
-        UIFactory.At(mpLbl, 0.21f, 0.08f, 0.245f, 0.46f);
-
-        var (mpRoot, mpFill) = UIFactory.ProgressBar(bar.transform, "MPBar", theme.mpFill);
-        _mpFill = mpFill;
-        _mpFill.fillAmount = 1f;
-        UIFactory.At(mpRoot.transform, 0.255f, 0.10f, 0.42f, 0.44f);
-
-        var spLbl = UIFactory.Label(bar.transform, "SP", theme.fontSizeLabel,
-                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
-        UIFactory.At(spLbl, 0.425f, 0.08f, 0.46f, 0.46f);
-
-        var (spRoot, spFill) = UIFactory.ProgressBar(bar.transform, "SPBar", theme.accentGreen);
-        _spFill = spFill;
-        _spFill.fillAmount = 1f;
-        UIFactory.At(spRoot.transform, 0.47f, 0.10f, 0.60f, 0.44f);
-
-        // Coins live in the top bar because they are a currency, not an inventory item
-        _coinsLabel = UIFactory.Label(bar.transform, "0", theme.fontSizeSmall,
+        _coinsLabel = UIFactory.Label(corner.transform, "0", theme.fontSizeSmall,
                                        theme.accentGold, TextAlignmentOptions.MidlineRight);
-        UIFactory.At(_coinsLabel, 0.62f, 0.25f, 0.90f, 0.75f);
+        UIFactory.At(_coinsLabel, 0.05f, 0.20f, 0.68f, 0.80f);
 
-        var menuBtn = UIFactory.Button(bar.transform, "≡", () => GameManager.UI?.Push<MenuModal>(),
+        var menuBtn = UIFactory.Button(corner.transform, "≡", () => GameManager.UI?.Push<MenuModal>(),
                                         width: 60f, height: 0f);
-        UIFactory.At(menuBtn, 0.945f, 0.12f, 0.995f, 0.88f);
+        UIFactory.At(menuBtn, 0.74f, 0.14f, 0.97f, 0.86f);
     }
 
     // ── Bottom bar ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Everything the player watches, in one band: who they are on the left, what they
+    /// can press in the middle, where they can go on the right.
+    /// </summary>
     private void BuildBottomBar()
     {
         var theme = UIManager.Theme;
         var bar   = UIFactory.Panel(transform, "BottomBar", theme.headerBg, false);
-        UIFactory.At(bar.transform, 0f, 0f, 1f, 0.09f);
 
+        // Taller than the old 0.09 because it now carries the character block and four
+        // bars as well as the buttons.
+        UIFactory.At(bar.transform, 0f, 0f, 1f, 0.145f);
+
+        BuildCharacterBlock(bar.transform);
         BuildAbilityBar(bar.transform);
 
         // Right side nav
         var navStack = UIFactory.HStack(bar.transform, theme.spacing, "NavButtons");
-        UIFactory.At(navStack.transform, 0.655f, 0.10f, 0.99f, 0.90f);
+        UIFactory.At(navStack.transform, 0.655f, 0.30f, 0.99f, 0.86f);
 
         BuildAutoToggle(navStack.transform);
         UIFactory.Button(navStack.transform, "CHR", () => GameManager.UI?.Push<CharacterSheet>(),  width: 54f);
@@ -184,13 +159,107 @@ public class GameHUD : UIScreen
     }
 
     /// <summary>
-    /// Action bar slots 1-5, populated from the character's class in class_data.json.
+    /// Who the character is, and how they are doing: class emblem, name, level, then
+    /// health, mana, stamina and experience.
+    ///
+    /// Laid out in fractions of the bar rather than a layout group because the rows
+    /// are different shapes — one emblem beside two lines of text, then four bars of
+    /// two different widths — and expressing that as nested layout groups is more
+    /// machinery than the arrangement is worth.
+    /// </summary>
+    private void BuildCharacterBlock(Transform parent)
+    {
+        var theme = UIManager.Theme;
+
+        var charData = CharacterManager.Current;
+        string name  = charData?.characterName ?? "Explorer";
+        int    level = charData?.level ?? 1;
+
+        // ── Identity ──────────────────────────────────────────────────────────
+        //
+        // The emblem replaces the class NAME, which is the change that makes room for
+        // all this: a cross-specced character's title runs to "Arcane Archer" or
+        // "Soulsmith", and at three classes the name and the title together were
+        // wider than the space either had.
+        _classIcon = UIFactory.Icon(parent, null, 0f, "ClassIcon");
+        UIFactory.At(_classIcon, 0.010f, 0.50f, 0.038f, 0.96f);
+        _classIcon.preserveAspect = true;
+        _classIcon.raycastTarget  = false;
+
+        _charNameLabel = UIFactory.Label(parent, name, theme.fontSizeSmall,
+                                          theme.textPrimary, TextAlignmentOptions.MidlineLeft);
+        UIFactory.At(_charNameLabel, 0.044f, 0.68f, 0.168f, 0.99f);
+
+        _charLevelLabel = UIFactory.Label(parent, $"Lv. {level}", theme.fontSizeLabel,
+                                           theme.accentGold, TextAlignmentOptions.MidlineLeft);
+        UIFactory.At(_charLevelLabel, 0.044f, 0.46f, 0.168f, 0.70f);
+
+        // ── Health ────────────────────────────────────────────────────────────
+        var hpLbl = UIFactory.Label(parent, "HP", theme.fontSizeLabel,
+                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(hpLbl, 0.172f, 0.66f, 0.198f, 0.94f);
+
+        var (hpRoot, hpFill) = UIFactory.ProgressBar(parent, "HPBar", theme.hpFill);
+        _hpFill = hpFill;
+        _hpFill.fillAmount = 1f;
+        UIFactory.At(hpRoot.transform, 0.203f, 0.68f, 0.415f, 0.92f);
+
+        _hpText = UIFactory.Label(parent, "", theme.fontSizeLabel,
+                                   theme.textPrimary, TextAlignmentOptions.Center);
+        UIFactory.At(_hpText, 0.203f, 0.68f, 0.415f, 0.92f);
+
+        // ── Mana and stamina ──────────────────────────────────────────────────
+        //
+        // Both are real: the MP bar sat permanently full for the whole project's life
+        // because baseMp was declared and never read by anything.
+        var mpLbl = UIFactory.Label(parent, "MP", theme.fontSizeLabel,
+                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(mpLbl, 0.172f, 0.38f, 0.198f, 0.64f);
+
+        var (mpRoot, mpFill) = UIFactory.ProgressBar(parent, "MPBar", theme.mpFill);
+        _mpFill = mpFill;
+        _mpFill.fillAmount = 1f;
+        UIFactory.At(mpRoot.transform, 0.203f, 0.40f, 0.300f, 0.62f);
+
+        var spLbl = UIFactory.Label(parent, "SP", theme.fontSizeLabel,
+                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(spLbl, 0.306f, 0.38f, 0.332f, 0.64f);
+
+        var (spRoot, spFill) = UIFactory.ProgressBar(parent, "SPBar", theme.accentGreen);
+        _spFill = spFill;
+        _spFill.fillAmount = 1f;
+        UIFactory.At(spRoot.transform, 0.337f, 0.40f, 0.415f, 0.62f);
+
+        // ── Experience ────────────────────────────────────────────────────────
+        //
+        // The XP system has existed since the start — a quarter of every skill's XP
+        // goes to the character — and nothing ever showed it. A level was something
+        // that happened to you with no sense of approach.
+        var xpLbl = UIFactory.Label(parent, "XP", theme.fontSizeLabel,
+                                     theme.textSecondary, TextAlignmentOptions.MidlineRight);
+        UIFactory.At(xpLbl, 0.172f, 0.10f, 0.198f, 0.36f);
+
+        var (xpRoot, xpFill) = UIFactory.ProgressBar(parent, "XPBar", theme.accentGold);
+        _xpFill = xpFill;
+        _xpFill.fillAmount = 0f;
+        UIFactory.At(xpRoot.transform, 0.203f, 0.12f, 0.415f, 0.34f);
+
+        _xpText = UIFactory.Label(parent, "", theme.fontSizeLabel,
+                                   theme.textPrimary, TextAlignmentOptions.Center);
+        UIFactory.At(_xpText, 0.203f, 0.12f, 0.415f, 0.34f);
+
+        RefreshCharInfo();
+        RefreshXp();
+    }
+
+    /// <summary>
+    /// Action bar slots 1-5, populated from the character's hotbar.
     /// Each slot shows its keybind, the ability name, and a radial cooldown sweep.
     /// </summary>
     private void BuildAbilityBar(Transform parent)
     {
         var stack = UIFactory.HStack(parent, UIManager.Theme.spacing, "AbilityBar");
-        UIFactory.At(stack.transform, 0.28f, 0.08f, 0.68f, 0.92f);
+        UIFactory.At(stack.transform, 0.435f, 0.10f, 0.635f, 0.90f);
         _abilityBarRoot = stack.transform;
 
         RebuildAbilityBar();
@@ -359,8 +428,10 @@ public class GameHUD : UIScreen
     {
         var theme = UIManager.Theme;
 
+        // Sits just above the bottom bar rather than under a top bar that no longer
+        // exists — it belongs with the rest of the HUD, not floating in the sky.
         var badge = UIFactory.Panel(transform, "AutoBanner", theme.cardBg, false, raycastTarget: false);
-        UIFactory.At(badge.transform, 0.40f, 0.865f, 0.60f, 0.915f);
+        UIFactory.At(badge.transform, 0.40f, 0.155f, 0.60f, 0.205f);
         _autoBanner = badge;
 
         _autoBannerLabel = UIFactory.Label(badge.transform, "", theme.fontSizeLabel,
@@ -453,10 +524,51 @@ public class GameHUD : UIScreen
         var charData = CharacterManager.Current;
         if (charData == null) return;
 
-        string cls = ClassManager.TitleFor(charData);
-        if (_charNameLabel  != null) _charNameLabel.text  = $"{charData.characterName}  •  {cls}";
+        if (_charNameLabel  != null) _charNameLabel.text  = charData.characterName;
         if (_charLevelLabel != null) _charLevelLabel.text = $"Lv. {charData.level}";
+
+        if (_classIcon != null)
+        {
+            // The PRIMARY class. A cross-specced character has a combined title —
+            // "Paladin", "Soulsmith" — and no combined emblem; the title itself is on
+            // the character sheet, which is where a player goes to read about
+            // themselves rather than to check their health.
+            var classIds = charData.ClassIds();
+            string primary = classIds != null && classIds.Count > 0 ? classIds[0] : charData.classId;
+
+            _classIcon.sprite = GameManager.Content?.GetClassIcon(primary);
+            _classIcon.enabled = _classIcon.sprite != null;
+        }
     }
+
+    /// <summary>
+    /// The experience bar: how far through the current level, and how much is left.
+    ///
+    /// Character XP is a quarter of every skill's XP, so this moves while mining as
+    /// readily as while fighting — which is the point of showing it on an idle game's
+    /// HUD rather than only on the character sheet.
+    /// </summary>
+    private void RefreshXp()
+    {
+        var charData = CharacterManager.Current;
+        if (charData == null) return;
+
+        long floor = CharacterManager.LevelToXP(charData.level);
+        long roof  = CharacterManager.LevelToXP(charData.level + 1);
+
+        long span = roof - floor;
+        long into = charData.xp - floor;
+
+        float progress = span > 0 ? Mathf.Clamp01(into / (float)span) : 1f;
+
+        if (_xpFill != null) _xpFill.fillAmount = progress;
+        if (_xpText != null)
+            _xpText.text = span > 0
+                ? $"{NumberFormatter.Format(System.Math.Max(0, into))} / {NumberFormatter.Format(span)}"
+                : "MAX";
+    }
+
+    private void OnXpGained(long amount) => RefreshXp();
 
     private void RefreshCoins(long total)
     {
@@ -468,6 +580,10 @@ public class GameHUD : UIScreen
         if (_charLevelLabel != null) _charLevelLabel.text = $"Lv. {newLevel}";
         GameEvents.FireToast($"⬆ Level {newLevel}!");
         GameManager.Audio?.PlayLevelUp();
+
+        // The bar's floor and ceiling both moved — without this it stays where the
+        // previous level left it until the next scrap of XP arrives.
+        RefreshXp();
 
         // Every level is a talent point, so the badge changes on every level-up.
         RefreshTalentBadge();

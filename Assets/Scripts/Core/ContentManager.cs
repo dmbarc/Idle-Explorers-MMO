@@ -201,6 +201,18 @@ public class ContentManager : MonoBehaviour
         return UIFactory.PlaceholderIcon(itemId);
     }
 
+    /// <summary>
+    /// Emblem for a class. Never null — the HUD shows it in place of the class name,
+    /// so a missing mapping has to be a shape rather than a gap.
+    /// </summary>
+    public Sprite GetClassIcon(string classId)
+    {
+        var mapped = Icons?.GetClassIcon(classId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(classId);
+    }
+
     /// <summary>Icon for a skill, with the same resolution order as items.</summary>
     public Sprite GetSkillIcon(string skillId)
     {
