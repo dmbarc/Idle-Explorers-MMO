@@ -219,8 +219,8 @@ public static class PlayerPrefabSetup
         // metre; the world around it was built for the two-unit person the agent
         // describes. This is where the two are introduced.
         float scale = SpumRig.NormaliseHeight(art.transform, SpumRig.CharacterHeight);
-        Debug.Log( Rig scaled x{scale:0.00} so the character stands " +
-                   units tall — the NavMeshAgent height the " +
+        Debug.Log($"[PlayerPrefab] Rig scaled x{scale:0.00} so the character stands " +
+                  $"{SpumRig.CharacterHeight} units tall — the NavMeshAgent height the " +
                   "camera, the walk speed and the map tiles were all sized against.");
     }
 
