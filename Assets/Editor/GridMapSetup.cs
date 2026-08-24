@@ -379,7 +379,11 @@ public class GridMapSetup
 
                 var go = PlaceByHeight(_recipe.ModelRoot + model + ".fbx", props.transform,
                                         CellToWorld(col, row) + jitter, yaw,
-                                        spec.HeightVsPlayer * variance);
+                                        spec.HeightVsPlayer * variance,
+                                        // A modular piece is stretched a hair past the cell so it
+                                        // overlaps its neighbour. Meeting exactly leaves a seam
+                                        // an agent can find even when the picture looks solid.
+                                        spec.AlignToRun ? _recipe.TileSize * 1.04f : 0f);
                 if (go == null) continue;
 
                 placed++;
@@ -522,19 +526,41 @@ public class GridMapSetup
     /// size of an object — "the anvil should be half the size of the player" is the
     /// sentence that produced this method. SpumRig.CharacterHeight is the same number
     /// the player rig is scaled to, so the two cannot drift apart.
+    ///
+    /// <paramref name="fillLength"/> is for MODULAR pieces — a fence is a segment
+    /// designed to meet the next one. Scaled to height alone, a two-metre palisade
+    /// post covers two metres of a four-metre cell and the wall is half gaps, which
+    /// an agent walks straight through and the player reads as a broken fence. So its
+    /// long axis is stretched to the cell instead, and only its height comes from the
+    /// number of people.
     /// </summary>
     private GameObject PlaceByHeight(string assetPath, Transform parent, Vector3 position,
-                                      float yaw, float heightVsPlayer)
+                                      float yaw, float heightVsPlayer, float fillLength = 0f)
     {
         var prefab = LoadModel(assetPath);
         if (prefab == null) return null;
 
-        var go = Instantiate(prefab, parent, position, yaw);
+        Vector3 size   = MeasureSize(prefab);
+        float   target = SpumRig.CharacterHeight * heightVsPlayer;
+        float   uniform = size.y > 0.001f ? target / size.y : target;
 
-        float measured = MeasureHeight(prefab);
-        float target   = SpumRig.CharacterHeight * heightVsPlayer;
-        go.transform.localScale = Vector3.one *
-                                  (measured > 0.001f ? target / measured : target);
+        var scale = Vector3.one * uniform;
+
+        if (fillLength > 0f)
+        {
+            // Which way the model is long decides both how to turn it and which axis
+            // to stretch. Kenney is consistent within a kit but not across them, and
+            // a fence stretched across its thickness is a wall of paving slabs.
+            bool alongX = size.x >= size.z;
+
+            if (alongX && size.x > 0.001f) scale.x = fillLength / size.x;
+            else if (size.z > 0.001f)      scale.z = fillLength / size.z;
+
+            if (!alongX) yaw += 90f;
+        }
+
+        var go = Instantiate(prefab, parent, position, yaw);
+        go.transform.localScale = scale;
 
         MapSceneSetup.EnsureUrpMaterials(go);
         return go;
@@ -560,9 +586,8 @@ public class GridMapSetup
 
     // ── Model loading and measurement ─────────────────────────────────────────
 
-    private static readonly Dictionary<string, GameObject> _modelCache     = new();
-    private static readonly Dictionary<GameObject, float>  _footprintCache = new();
-    private static readonly Dictionary<GameObject, float>  _heightCache    = new();
+    private static readonly Dictionary<string, GameObject> _modelCache = new();
+    private static readonly Dictionary<GameObject, Vector3> _sizeCache = new();
 
     private static GameObject LoadModel(string assetPath)
     {
@@ -576,37 +601,40 @@ public class GridMapSetup
         return prefab;
     }
 
+    /// <summary>
+    /// A model's extent along each axis, in its own units.
+    ///
+    /// Measured rather than assumed: Kenney's kits are mostly authored on a one-unit
+    /// grid but not uniformly, and a hardcoded multiplier would leave gaps between
+    /// ground tiles that are visible from the first frame.
+    ///
+    /// The combined extent of the meshes, not their union bounds — a model built
+    /// around an off-centre origin would otherwise measure as twice its own size.
+    /// </summary>
+    private static Vector3 MeasureSize(GameObject prefab)
+    {
+        if (_sizeCache.TryGetValue(prefab, out var cached)) return cached;
+
+        var size = Vector3.zero;
+        foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(includeInactive: true))
+        {
+            if (filter.sharedMesh == null) continue;
+
+            var mesh = filter.sharedMesh.bounds.size;
+            size = new Vector3(Mathf.Max(size.x, mesh.x),
+                               Mathf.Max(size.y, mesh.y),
+                               Mathf.Max(size.z, mesh.z));
+        }
+
+        _sizeCache[prefab] = size;
+        return size;
+    }
+
     /// <summary>Largest horizontal dimension of a model, in its own units.</summary>
     private static float MeasureFootprint(GameObject prefab)
     {
-        if (_footprintCache.TryGetValue(prefab, out float cached)) return cached;
-
-        float largest = 0f;
-        foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(includeInactive: true))
-        {
-            if (filter.sharedMesh == null) continue;
-            var size = filter.sharedMesh.bounds.size;
-            largest  = Mathf.Max(largest, size.x, size.z);
-        }
-
-        _footprintCache[prefab] = largest;
-        return largest;
-    }
-
-    /// <summary>Vertical extent of a model, in its own units.</summary>
-    private static float MeasureHeight(GameObject prefab)
-    {
-        if (_heightCache.TryGetValue(prefab, out float cached)) return cached;
-
-        float tallest = 0f;
-        foreach (var filter in prefab.GetComponentsInChildren<MeshFilter>(includeInactive: true))
-        {
-            if (filter.sharedMesh == null) continue;
-            tallest = Mathf.Max(tallest, filter.sharedMesh.bounds.size.y);
-        }
-
-        _heightCache[prefab] = tallest;
-        return tallest;
+        var size = MeasureSize(prefab);
+        return Mathf.Max(size.x, size.z);
     }
 
     // ── Scene housekeeping ────────────────────────────────────────────────────
