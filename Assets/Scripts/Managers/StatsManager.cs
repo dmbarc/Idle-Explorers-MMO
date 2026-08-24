@@ -37,10 +37,14 @@ public class StatsManager : MonoBehaviour
         }
     }
 
+    // Deliberately NOT subscribed to OnDurabilityChanged. Ordinary wear does not
+    // change any stat — only breaking or repairing a piece does, and both of those
+    // also raise OnEquipmentChanged. Listening to wear would invalidate the cache on
+    // roughly a third of every hit the player takes and rebuild the whole block for
+    // an answer that had not moved.
     void OnEnable()
     {
         GameEvents.OnEquipmentChanged  += MarkDirty;
-        GameEvents.OnDurabilityChanged += MarkDirty;
         GameEvents.OnTalentsChanged    += MarkDirty;
         GameEvents.OnClassChanged      += OnClassChanged;
         GameEvents.OnCharacterSelected += OnCharacterSelected;
@@ -49,7 +53,6 @@ public class StatsManager : MonoBehaviour
     void OnDisable()
     {
         GameEvents.OnEquipmentChanged  -= MarkDirty;
-        GameEvents.OnDurabilityChanged -= MarkDirty;
         GameEvents.OnTalentsChanged    -= MarkDirty;
         GameEvents.OnClassChanged      -= OnClassChanged;
         GameEvents.OnCharacterSelected -= OnCharacterSelected;
@@ -72,17 +75,45 @@ public class StatsManager : MonoBehaviour
 
     // ── Assembly ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Guards against a contributor reading Current while it is being built.
+    ///
+    /// Nothing does today, but the contributors reach into equipment, sets and
+    /// talents, and any of those growing a stat lookup would turn this into infinite
+    /// recursion and a stack overflow — a crash with a hundred identical frames and no
+    /// obvious cause. Serving the previous block instead is both safe and correct: the
+    /// value being asked for is the one from before this recompute.
+    /// </summary>
+    private bool _recomputing;
+
     private void Recompute()
     {
-        var block = GameManager.Content?.BaseStats?.Clone() ?? new StatBlock();
+        if (_recomputing)
+        {
+            Debug.LogWarning("[Stats] Something read the stat block while it was being " +
+                             "rebuilt. Serving the previous one. Check what a stat " +
+                             "contributor is reading.");
+            _current ??= new StatBlock();
+            return;
+        }
 
-        AddClasses(block);
-        GameManager.Equipment?.ContributeTo(block);
-        SetBonusResolver.ContributeTo(block);
-        AddTalents(block);
+        _recomputing = true;
+        try
+        {
+            var block = GameManager.Content?.BaseStats?.Clone() ?? new StatBlock();
 
-        _current = block;
-        _dirty   = false;
+            AddClasses(block);
+            GameManager.Equipment?.ContributeTo(block);
+            SetBonusResolver.ContributeTo(block);
+            AddTalents(block);
+
+            _current = block;
+            _dirty   = false;
+        }
+        finally
+        {
+            _recomputing = false;
+        }
     }
 
     private static void AddClasses(StatBlock block)
