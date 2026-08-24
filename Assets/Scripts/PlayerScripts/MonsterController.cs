@@ -103,8 +103,8 @@ public class MonsterController : MonoBehaviour
                         agent.SetDestination(player.position);
                     }
 
-                    anim.SetBool("1_Move", true);
-                    anim.SetBool("2_Attack", false);
+                    SpumAnim.SetMoving(anim, true);
+                    SpumAnim.CancelAttack(anim);
                 }
                 else if (dist <= attackDistance && playerController.IsAlive())
                 {
@@ -112,8 +112,7 @@ public class MonsterController : MonoBehaviour
                     if (attackTimer >= attackSpeed)
                     {
                         playerController.TakeDamage(attackDamage);
-                        anim.SetBool("1_Move", false);
-                        anim.SetBool("2_Attack", true);
+                        SpumAnim.PlayAttack(anim);
                         attackTimer = 0f;
                     }
                 }
@@ -130,8 +129,8 @@ public class MonsterController : MonoBehaviour
                     if (wanderTimer <= 0f || arrived)
                         PickNewWanderPoint();
 
-                    anim.SetBool("1_Move", agent.velocity.sqrMagnitude > 0.01f);
-                    anim.SetBool("2_Attack", false);
+                    SpumAnim.SetMoving(anim, agent.velocity.sqrMagnitude > 0.01f);
+                    SpumAnim.CancelAttack(anim);
                 }
             }
 
@@ -203,10 +202,7 @@ public class MonsterController : MonoBehaviour
             DropLoot();
             AwardKillRewards();
 
-            anim.SetBool("1_Move", false);
-            anim.SetBool("2_Attack", false);
-            anim.SetBool("3_Damaged", false);
-            anim.SetBool("4_Death", true);
+            SpumAnim.PlayDeath(anim);
 
             // Disable agent so the corpse doesn't slide
             agent.enabled = false;
@@ -215,39 +211,18 @@ public class MonsterController : MonoBehaviour
             if (spawner != null) spawner.MonsterDied();
             if (healthUI != null) healthUI.SetActive(true);
 
-            // Freeze the animator after the death clip finishes so it can't
-            // transition back to idle before the corpse despawns
-            StartCoroutine(FreezeAnimatorAfterDeath());
+            // The corpse holds its final frame because SpumAnim.PlayDeath sets the
+            // isDeath bool, which is the only condition on the transition out of the
+            // DEATH state. A coroutine used to try to do this by freezing the animator
+            // once the clip finished, and could not: it waited for a state called
+            // "4_Death", which is the name of the PARAMETER — the state is "DEATH".
+            // It never matched, so it never froze anything and simply polled every
+            // frame until the corpse despawned.
         }
         else
         {
-            anim.SetBool("1_Move", false);
-            anim.SetBool("3_Damaged", true);
+            SpumAnim.PlayHurt(anim);
         }
-    }
-
-    private System.Collections.IEnumerator FreezeAnimatorAfterDeath()
-    {
-        // Wait one frame so the death state transition has a chance to begin
-        yield return null;
-
-        // Poll frame-by-frame until the death animation has fully played through once
-        while (anim != null)
-        {
-            AnimatorStateInfo currentDeathStateInfo = anim.GetCurrentAnimatorStateInfo(0);
-            bool isPlayingDeathAnimation = currentDeathStateInfo.IsName("4_Death");
-            bool deathAnimationHasFinished = currentDeathStateInfo.normalizedTime >= 1f;
-
-            if (isPlayingDeathAnimation && deathAnimationHasFinished)
-                break;
-
-            yield return null;
-        }
-
-        // Zero the playback speed so the corpse holds on the final death frame
-        // until it despawns, rather than transitioning back to idle or looping.
-        if (anim != null)
-            anim.speed = 0f;
     }
 
     public void RegenHealth()
@@ -295,7 +270,7 @@ public class MonsterController : MonoBehaviour
         if (!alive) return;
 
         _aggroBlockedUntil = Mathf.Max(_aggroBlockedUntil, Time.time + duration);
-        anim?.SetBool("2_Attack", false);
+        SpumAnim.CancelAttack(anim);
         PickNewWanderPoint();
     }
 

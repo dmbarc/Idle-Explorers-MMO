@@ -34,7 +34,7 @@
         "reqCharLevel": 1,
         "reqAccountLevel": 0,
         "reqAnyCharLevel": 0,
-        "defaultMonsterId": "goblin",
+        "defaultMonsterId": "bramblekin",
         "sceneAddress": "Map_FadingHollow",
         "skillNodes": [
           { "nodeId": "hollow_tin_rock",    "skillId": "mining",      "targetItemId": "tin_ore",     "reqSkillLevel": 1,  "activeRateMulti": 1.1, "afkRateMulti": 0.65, "xpPerAction": 14, "specialChance": 0.0,  "specialLabel": "" },

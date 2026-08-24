@@ -38,6 +38,16 @@ public class SkillNodeController : MonoBehaviour
     /// </summary>
     public bool IsStation => _entry != null && !string.IsNullOrEmpty(_entry.stationType);
 
+    /// <summary>
+    /// True when standing here is standing at a container rather than working.
+    ///
+    /// The distinction exists for the animation: an anvil and a campfire are things a
+    /// character swings a hammer at or tends, and the player used to stand frozen at
+    /// both because every station was treated as furniture. A bank chest genuinely is.
+    /// </summary>
+    public bool IsPassiveStation =>
+        _entry != null && _entry.stationType == "bank";
+
     // ── Setup ─────────────────────────────────────────────────────────────────
 
     void Start()

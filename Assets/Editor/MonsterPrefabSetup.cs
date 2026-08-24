@@ -4,58 +4,121 @@ using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
-/// Builds Assets/Resources/Monsters/goblin.prefab from a SPUM character rig plus the
-/// component configuration already proven on _default.prefab.
+/// Builds one Resources/Monsters/{id}.prefab per entry in the table below, from a
+/// SPUM character rig plus the component configuration already proven on
+/// _default.prefab.
 ///
-/// goblin_camp's defaultMonsterId has always been "goblin", and MonsterSpawner
-/// already resolves Monsters/{id} before falling back to Monsters/_default — so
-/// simply ADDING this prefab makes goblins appear with no code change at all. The
-/// working _default is left untouched, which also makes this trivially reversible:
-/// delete the generated file and the fallback takes over again.
+/// MonsterSpawner resolves Monsters/{id} before falling back to Monsters/_default,
+/// so a monster appears purely by being built here. The working _default is left
+/// untouched, which makes this reversible: delete a generated file and the fallback
+/// takes over again.
 ///
-/// Menu: Idle Explorers → Build Goblin Prefab
+/// ══ THIS WAS A MENU ITEM NOBODY RAN ═══════════════════════════════════════════
+///
+/// It built exactly one prefab and was not part of Setup Everything, so
+/// Resources/Monsters held only _default and skeleton — meaning every goblin in the
+/// game since the day this file was written has actually been the fallback stand-in.
+/// A table plus a place in the setup sequence is what stops that recurring for the
+/// next monster.
+///
+/// The project's design rule is ONE MONSTER PER AREA: a map names a single
+/// defaultMonsterId, and a new map means authoring a new monster rather than reusing
+/// one. Every id below is the sole inhabitant of somewhere.
+///
+/// Menu: Idle Explorers → Build Monster Prefabs
 /// </summary>
 public static class MonsterPrefabSetup
 {
     private const string SOURCE_PREFAB = "Assets/Resources/Monsters/_default.prefab";
-    private const string OUTPUT_PREFAB = "Assets/Resources/Monsters/goblin.prefab";
+    private const string OUTPUT_DIR    = "Assets/Resources/Monsters";
+
+    private const string SpumRoot = "Assets/Imports/SPUM/Resources/Addons/BasicPack/2_Prefab/";
 
     /// <summary>
-    /// SPUM's Devil race reads much closer to a goblin than the Skeleton rig that has
-    /// been standing in. Any prefab from that folder works; this is simply the first.
+    /// One entry per monster: which rig it wears and, optionally, what colour its skin
+    /// is. The tint is applied to the body layers only — tinting the whole rig would
+    /// take the eyes and the weapon with it and read as a lighting fault.
     /// </summary>
-    private const string SPUM_RIG =
-        "Assets/Imports/SPUM/Resources/Addons/BasicPack/2_Prefab/Devil/SPUM_20240911215637878.prefab";
+    private readonly struct Recipe
+    {
+        public readonly string MonsterId;
+        public readonly string RigPath;
+        public readonly string SkinTint;
+        public readonly string Note;
 
-    [MenuItem("Idle Explorers/Build Goblin Prefab")]
-    public static void Build()
+        public Recipe(string monsterId, string rigPath, string skinTint, string note)
+        {
+            MonsterId = monsterId;
+            RigPath   = rigPath;
+            SkinTint  = skinTint;
+            Note      = note;
+        }
+    }
+
+    private static readonly Recipe[] Recipes =
+    {
+        new Recipe("goblin", SpumRoot + "Devil/SPUM_20240911215637878.prefab", null,
+                   "Goblin Camp. The Devil race reads much closer to a goblin than the " +
+                   "Skeleton rig that stood in for it."),
+
+        new Recipe("bramblekin", SpumRoot + "Elf/SPUM_20240911215638048.prefab", "#4E7A38",
+                   "Hollow of the Fading Light. An elf silhouette under a mossy green " +
+                   "reads as something that grew rather than something that arrived."),
+    };
+
+    [MenuItem("Idle Explorers/Build Monster Prefabs")]
+    public static void BuildMenu() => BuildAll(showDialog: true);
+
+    public static int BuildAll(bool showDialog)
     {
         var source = AssetDatabase.LoadAssetAtPath<GameObject>(SOURCE_PREFAB);
         if (source == null)
         {
-            EditorUtility.DisplayDialog("Missing source",
-                $"Expected {SOURCE_PREFAB}.\n\nIt supplies the component settings to copy.", "OK");
-            return;
-        }
-
-        var rig = AssetDatabase.LoadAssetAtPath<GameObject>(SPUM_RIG);
-        if (rig == null)
-        {
-            EditorUtility.DisplayDialog("Missing SPUM rig",
-                $"Expected {SPUM_RIG}.\n\nPick another prefab from the Devil folder if this one moved.", "OK");
-            return;
+            Debug.LogError($"[MonsterSetup] Missing {SOURCE_PREFAB} — it supplies the component " +
+                           "settings every monster copies.");
+            if (showDialog)
+                EditorUtility.DisplayDialog("Missing source",
+                    $"Expected {SOURCE_PREFAB}.\n\nIt supplies the component settings to copy.", "OK");
+            return 0;
         }
 
         var sourceController = source.GetComponent<MonsterController>();
         if (sourceController == null)
         {
             Debug.LogError("[MonsterSetup] _default.prefab has no MonsterController to copy.");
-            return;
+            return 0;
         }
+
+        int built = 0;
+        foreach (var recipe in Recipes)
+            if (Build(recipe, source, sourceController)) built++;
+
+        Debug.Log($"[MonsterSetup] Built {built} of {Recipes.Length} monster prefab(s) in {OUTPUT_DIR}.");
+
+        if (showDialog)
+            EditorUtility.DisplayDialog("Monster Prefabs Built",
+                $"{built} of {Recipes.Length} built in {OUTPUT_DIR}.\n\n" +
+                "MonsterSpawner resolves Monsters/{id} before falling back to _default, so each " +
+                "map picks its own up on the next Play with no code change.",
+                "OK");
+
+        return built;
+    }
+
+    private static bool Build(Recipe recipe, GameObject source, MonsterController sourceController)
+    {
+        var rig = AssetDatabase.LoadAssetAtPath<GameObject>(recipe.RigPath);
+        if (rig == null)
+        {
+            Debug.LogError($"[MonsterSetup] '{recipe.MonsterId}': rig missing at {recipe.RigPath}.");
+            return false;
+        }
+
+        string outputPath = $"{OUTPUT_DIR}/{recipe.MonsterId}.prefab";
 
         // Work on an instance; the asset itself is never modified.
         var instance = (GameObject)PrefabUtility.InstantiatePrefab(rig);
-        instance.name = "goblin";
+        instance.name = recipe.MonsterId;
 
         // Break the SPUM prefab link so the result is a standalone prefab rather than
         // a variant that would inherit future changes to the pack.
@@ -67,24 +130,26 @@ public static class MonsterPrefabSetup
             ConfigureCollision(instance, source);
             ConfigureController(instance, sourceController);
 
-            Directory.CreateDirectory(Path.GetDirectoryName(OUTPUT_PREFAB));
-            PrefabUtility.SaveAsPrefabAsset(instance, OUTPUT_PREFAB, out bool saved);
+            if (!string.IsNullOrEmpty(recipe.SkinTint))
+            {
+                int tinted = SpumAppearance.TintBody(instance.transform, recipe.SkinTint);
+                if (tinted == 0)
+                    Debug.LogWarning($"[MonsterSetup] '{recipe.MonsterId}': tint {recipe.SkinTint} " +
+                                     "matched no body layer — the rig may not be a SPUM unit.");
+            }
+
+            Directory.CreateDirectory(OUTPUT_DIR);
+            PrefabUtility.SaveAsPrefabAsset(instance, outputPath, out bool saved);
 
             if (!saved)
             {
-                Debug.LogError($"[MonsterSetup] Failed to save {OUTPUT_PREFAB}.");
-                return;
+                Debug.LogError($"[MonsterSetup] Failed to save {outputPath}.");
+                return false;
             }
 
-            AssetDatabase.Refresh();
-            Debug.Log($"[MonsterSetup] Built {OUTPUT_PREFAB} from {Path.GetFileName(SPUM_RIG)}.");
-
-            EditorUtility.DisplayDialog("Goblin Built",
-                $"Saved {OUTPUT_PREFAB}.\n\n" +
-                "MonsterSpawner already looks up Monsters/goblin before falling back to " +
-                "_default, so goblin_camp will use it on the next Play with no code change.\n\n" +
-                "Delete the file to go back to the skeleton stand-in.",
-                "OK");
+            Debug.Log($"[MonsterSetup] {recipe.MonsterId} → {outputPath} " +
+                      $"({Path.GetFileNameWithoutExtension(recipe.RigPath)}). {recipe.Note}");
+            return true;
         }
         finally
         {
@@ -171,12 +236,12 @@ public static class MonsterPrefabSetup
 
         if (controller == null)
         {
-            Debug.LogError("[MonsterSetup] Could not attach MonsterController to the goblin.");
+            Debug.LogError($"[MonsterSetup] Could not attach MonsterController to '{target.name}'.");
             return;
         }
 
-        // These pointed at the skeleton's own components; left alone they would be
-        // null on the goblin and it would neither animate nor path.
+        // These pointed at the source prefab's own components; left alone they would
+        // be null on the new rig and it would neither animate nor path.
         controller.agent = target.GetComponent<NavMeshAgent>();
         controller.anim  = target.GetComponentInChildren<Animator>();
 
@@ -187,6 +252,6 @@ public static class MonsterPrefabSetup
         controller.healthSlider = null;
 
         if (controller.anim == null)
-            Debug.LogWarning("[MonsterSetup] No Animator found on the SPUM rig — the goblin will not animate.");
+            Debug.LogWarning($"[MonsterSetup] No Animator on '{target.name}' — it will not animate.");
     }
 }

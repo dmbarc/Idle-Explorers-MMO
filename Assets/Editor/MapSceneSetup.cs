@@ -3,6 +3,7 @@ using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 
 /// <summary>
 /// Editor utility: turns SampleScene into the Goblin Camp map scene.
@@ -142,6 +143,12 @@ public static class MapSceneSetup
 
         int stripped = StripLegacyObjects(scene);
         int nodes    = PlaceSkillNodes();
+
+        // Placed deliberately rather than left wherever SampleScene happened to have
+        // it. It landed on the terrain by luck, which is not a property to rely on:
+        // the same inherited position put the Hollow's player outside its map.
+        EnsurePlayer(SnapToGround(PlayerSpawn, 0.5f));
+
         EnsurePlayerTag();
         EnsureCameraController();
         ConfigureMonsterSpawner();
@@ -149,6 +156,10 @@ public static class MapSceneSetup
         // After the nodes exist, so the bake sees the finished scene. Placing geometry
         // and leaving the NavMesh stale is what forced a manual rebuild every time.
         bool baked = BakeNavMesh(MAP_SCENE);
+
+        // After the bake — before it there is no mesh to stand on and the check
+        // would fail on every map.
+        VerifyPlayerPlacement("Goblin Camp");
 
         EditorSceneManager.MarkSceneDirty(scene);
         bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
@@ -214,6 +225,14 @@ public static class MapSceneSetup
 
         // BuildNavMesh fills the NavMeshData in memory. If it is not already a saved
         // asset it dies with the Editor session, and the scene reloads with nothing.
+        //
+        // BuildNavMesh always produces a NEW NavMeshData object, so GetAssetPath is
+        // always empty here and this always writes. It used to write through
+        // GenerateUniqueAssetPath, which meant every rebuild left another file behind:
+        // Map_FadingHollow/ had accumulated NavMesh.asset, NavMesh 1.asset and
+        // NavMesh 2.asset, only the last of which anything referenced. A fixed path
+        // replaces the asset in place instead — CreateAsset deletes what is already
+        // there — so the scene's reference stays valid and nothing accumulates.
         string assetPath = AssetDatabase.GetAssetPath(surface.navMeshData);
         if (string.IsNullOrEmpty(assetPath))
         {
@@ -221,9 +240,9 @@ public static class MapSceneSetup
                                              Path.GetFileNameWithoutExtension(scenePath));
             if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
-            assetPath = AssetDatabase.GenerateUniqueAssetPath(
-                Path.Combine(directory, "NavMesh.asset").Replace("\\", "/"));
+            assetPath = Path.Combine(directory, "NavMesh.asset").Replace("\\", "/");
             AssetDatabase.CreateAsset(surface.navMeshData, assetPath);
+            RemoveStaleNavMeshAssets(directory, assetPath);
         }
 
         EditorUtility.SetDirty(surface.navMeshData);
@@ -232,6 +251,23 @@ public static class MapSceneSetup
 
         Debug.Log($"[MapSetup] NavMesh rebuilt → {assetPath}");
         return true;
+    }
+
+    /// <summary>
+    /// Deletes the "NavMesh 1.asset", "NavMesh 2.asset" … files earlier rebuilds left
+    /// behind. Only the one the surface now points at is live; the rest are dead
+    /// weight in the repository, and this project's assets are on Git LFS.
+    /// </summary>
+    private static void RemoveStaleNavMeshAssets(string directory, string keepPath)
+    {
+        foreach (string file in Directory.GetFiles(directory, "NavMesh*.asset"))
+        {
+            string path = file.Replace("\\", "/");
+            if (path == keepPath) continue;
+
+            if (AssetDatabase.DeleteAsset(path))
+                Debug.Log($"[MapSetup] Removed stale NavMesh asset {path}.");
+        }
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -320,6 +356,13 @@ public static class MapSceneSetup
         // to reach past it or the horizon visibly cuts off.
         camera.farClipPlane = 3000f;
 
+        // The scene was saved with clearFlags = Nothing, which keeps whatever was in
+        // the framebuffer when nothing draws over it. That is how the Hollow's empty
+        // view presented as a flat yellow fill rather than as empty space — a
+        // rendering fault dressed up as a different rendering fault. A skybox makes
+        // "there is nothing here" look like nothing being here.
+        camera.clearFlags = CameraClearFlags.Skybox;
+
         var controller = camera.GetComponent<CameraController>();
         if (controller == null)
         {
@@ -375,17 +418,144 @@ public static class MapSceneSetup
     /// <summary>PlayerController's drop pickups depend on the Player tag being set.</summary>
     internal static void EnsurePlayerTag()
     {
-        var player = GameObject.Find("PlayerCharacter");
+        var player = FindPlayer();
         if (player == null)
         {
-            Debug.LogWarning("[MapSetup] No 'PlayerCharacter' object found — loot pickup needs it tagged 'Player'.");
+            Debug.LogWarning("[MapSetup] No player object found — loot pickup needs it tagged 'Player'.");
             return;
         }
         if (!player.CompareTag("Player"))
         {
             player.tag = "Player";
-            Debug.Log("[MapSetup] Tagged PlayerCharacter as 'Player'.");
+            Debug.Log("[MapSetup] Tagged the player as 'Player'.");
         }
+    }
+
+    // ── The player ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The player object, however it got into the scene.
+    ///
+    /// By component rather than by name: the name is what a map builder sets, so
+    /// searching for it would make finding the player depend on the very step that
+    /// might not have run.
+    /// </summary>
+    internal static GameObject FindPlayer()
+    {
+        var controller = Object.FindAnyObjectByType<PlayerController>(FindObjectsInactive.Include);
+        if (controller != null) return controller.gameObject;
+
+        return GameObject.Find("PlayerCharacter");
+    }
+
+    /// <summary>
+    /// Replaces whatever player the donor scene carried with the generated prefab, and
+    /// puts it where the map wants it.
+    ///
+    /// ══ WHY A PREFAB RATHER THAN THE INHERITED INSTANCE ═══════════════════════
+    ///
+    /// Both map builders open SampleScene and inherit its player. That player's root
+    /// is a RectTransform on the UI layer, because SPUM authors its rigs inside a
+    /// Canvas hierarchy — so assigning transform.position to it writes z and lets
+    /// anchoredPosition win back x and y on the next rect rebuild. The Hollow shipped
+    /// with its player 337 units outside the map for exactly that reason, and it
+    /// produced no error of any kind.
+    ///
+    /// PlayerPrefabSetup builds a player whose root is an ordinary Transform. Using it
+    /// here is what makes a spawn point mean what it says.
+    ///
+    /// Falls back to repositioning the inherited object when the prefab has not been
+    /// built yet, so a half-set-up project still produces a playable map — with a
+    /// warning, because that path is the one with the bug in it.
+    /// </summary>
+    internal static GameObject EnsurePlayer(Vector3 spawn)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PlayerPrefabSetup.PREFAB_PATH);
+
+        var existing = FindPlayer();
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[MapSetup] No player prefab at {PlayerPrefabSetup.PREFAB_PATH} — " +
+                             "run 'Idle Explorers → Build Player Prefab'. Falling back to moving the " +
+                             "scene's own player, which cannot be positioned reliably.");
+            if (existing != null) PlaceAnyTransform(existing.transform, spawn);
+            return existing;
+        }
+
+        // Remove the donor's player before adding ours, or the map has two.
+        if (existing != null)
+        {
+            var root = existing.transform.root.gameObject;
+            Debug.Log($"[MapSetup] Replacing the inherited player object '{root.name}'.");
+            Object.DestroyImmediate(root);
+        }
+
+        var player = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        PrefabUtility.UnpackPrefabInstance(player, PrefabUnpackMode.Completely,
+                                            InteractionMode.AutomatedAction);
+
+        player.name = "PlayerCharacter";
+        PlaceAnyTransform(player.transform, spawn);
+
+        return player;
+    }
+
+    /// <summary>
+    /// Writes a world position that survives whatever kind of transform it lands on.
+    ///
+    /// A RectTransform recomputes its local x and y from anchoredPosition, so setting
+    /// position alone silently keeps only z. Belt and braces for any rig that still
+    /// has one at its root.
+    /// </summary>
+    private static void PlaceAnyTransform(Transform target, Vector3 position)
+    {
+        if (target == null) return;
+
+        if (target is RectTransform rect)
+        {
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta          = Vector2.zero;
+            rect.anchoredPosition3D = Vector3.zero;
+        }
+
+        target.position = position;
+    }
+
+    /// <summary>
+    /// Refuses to let a map ship with the player somewhere they cannot stand.
+    ///
+    /// Run AFTER the NavMesh bake, because "is there ground here" is a NavMesh
+    /// question and the answer before the bake is always no. Returns false and logs an
+    /// error rather than throwing: the caller decides whether that is fatal, and a
+    /// map that saves with a loud error in the console is still more useful than one
+    /// that refuses to save at all.
+    /// </summary>
+    internal static bool VerifyPlayerPlacement(string mapName)
+    {
+        var player = FindPlayer();
+        if (player == null)
+        {
+            Debug.LogError($"[MapSetup] {mapName} has no player object at all.");
+            return false;
+        }
+
+        Vector3 at = player.transform.position;
+
+        if (!NavMesh.SamplePosition(at, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+        {
+            Debug.LogError($"[MapSetup] {mapName}: the player is at {at}, which has no NavMesh " +
+                           "within 2 units. They will spawn unable to move, with nothing around " +
+                           "them and no monsters — check the spawn point against the map's bounds.");
+            return false;
+        }
+
+        // Drop them onto the mesh rather than merely reporting the gap. A half-unit of
+        // float drift between a tile's surface and the baked mesh is normal and worth
+        // correcting silently; anything larger has already been reported above.
+        player.transform.position = hit.position;
+
+        Debug.Log($"[MapSetup] {mapName}: player placed at {hit.position} on walkable ground.");
+        return true;
     }
 
     // ── Skill nodes ───────────────────────────────────────────────────────────

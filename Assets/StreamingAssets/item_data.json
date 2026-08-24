@@ -1,6 +1,8 @@
 [
   { "id": "coins",        "name": "Coins",          "description": "The realm's currency. Even the dying world still runs on coin.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "" },
   { "id": "bones",        "name": "Bones",           "description": "Something used to live in these.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
+  { "id": "bramble_thorn","name": "Bramble Thorn",   "description": "Still faintly warm. Best not to think about why.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
+  { "id": "hollowcap",    "name": "Hollowcap",       "description": "A mushroom that grew far too well, like everything else down there.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
   { "id": "skull",        "name": "Skull",           "description": "It's looking at you. Don't make it weird.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
   { "id": "copper_ore",   "name": "Copper Ore",      "description": "Unassuming. Unbothered. Already in a union.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
   { "id": "tin_ore",      "name": "Tin Ore",         "description": "Copper's quiet neighbour.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },

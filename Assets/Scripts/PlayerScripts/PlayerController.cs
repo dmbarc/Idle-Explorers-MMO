@@ -166,12 +166,10 @@ public class PlayerController : MonoBehaviour
     {
         UpdateHealthUI();
 
-        if (!alive)
-        {
-            anim.SetBool("1_Move", false);
-            anim.SetBool("4_Death", true);
-            return;
-        }
+        // Die() already put the rig into its death state and left it there. Setting
+        // it again every frame would re-fire the trigger and restart the clip, which
+        // is the opposite of holding the final frame.
+        if (!alive) return;
 
         // Auto-targeting must not yank the player away from a node they chose to
         // gather at — gathering is an explicit commitment, combat is the default.
@@ -198,7 +196,7 @@ public class PlayerController : MonoBehaviour
         else if (currentItemTarget != null) PickupLogic();
         else if (currentNodeTarget != null) GatherLogic();
 
-        anim.SetBool("1_Move", agent.velocity.magnitude > 0.1f);
+        SpumAnim.SetMoving(anim, agent.velocity.magnitude > 0.1f);
 
         CleanupMarker();
         HandleRegen();
@@ -432,6 +430,27 @@ public class PlayerController : MonoBehaviour
             GameManager.Activity?.SetDefaultCombatActivity(GameManager.Zone?.CurrentMapId);
     }
 
+    /// <summary>Seconds between gathering swings. Roughly a working rhythm.</summary>
+    private const float GatherSwingInterval = 1.1f;
+
+    private float _nextGatherSwingAt;
+
+    /// <summary>
+    /// Reuses the attack animation for the swing of a pickaxe or an axe — dedicated
+    /// gathering clips arrive with the real art pass.
+    ///
+    /// On a cadence rather than every frame. 2_Attack is a TRIGGER, so setting it
+    /// sixty times a second re-fires the clip from its first frame the instant it
+    /// finishes, which reads as a twitch rather than as work.
+    /// </summary>
+    private void SwingAtNode()
+    {
+        if (Time.time < _nextGatherSwingAt) return;
+
+        _nextGatherSwingAt = Time.time + GatherSwingInterval;
+        SpumAnim.PlayAttack(anim);
+    }
+
     private void GatherLogic()
     {
         if (currentNodeTarget == null)
@@ -444,22 +463,22 @@ public class PlayerController : MonoBehaviour
         if (dist <= currentNodeTarget.interactionRange)
         {
             agent.isStopped = true;
-            anim.SetBool("1_Move", false);
+            SpumAnim.SetMoving(anim, false);
 
             if (!currentNodeTarget.IsGathering)
                 currentNodeTarget.BeginGathering();
 
-            if (currentNodeTarget.IsStation && !currentNodeTarget.IsCrafting)
+            // A bank chest is furniture; you stand at it. Everything else — an ore
+            // seam, a tree, a fishing spot, an anvil, a campfire — is worked at, and
+            // the character used to stand motionless at all of them because every
+            // station counted as furniture. You could hear the mining and see nothing.
+            if (currentNodeTarget.IsPassiveStation)
             {
-                // A bank chest, or a crafting station with no recipe chosen yet.
-                // Standing at it should not look like swinging a pickaxe at it.
-                anim.SetBool("2_Attack", false);
+                SpumAnim.CancelAttack(anim);
             }
             else
             {
-                // Reuse the attack animation for the swing of a pickaxe or an axe;
-                // dedicated gathering clips arrive with the real art pass.
-                anim.SetBool("2_Attack", true);
+                SwingAtNode();
                 currentNodeTarget.TickGather(Time.deltaTime);
             }
         }
@@ -545,8 +564,7 @@ public class PlayerController : MonoBehaviour
                 double dealt = StrikeMonster(struck);
 
                 GameManager.Audio?.PlayHit();
-                anim.SetBool("1_Move", false);
-                anim.SetBool("2_Attack", true);
+                SpumAnim.PlayAttack(anim);
                 attackTimer = 0f;
 
                 // Talent lifesteal applies to ordinary swings. Ability lifesteal is
@@ -869,8 +887,7 @@ public class PlayerController : MonoBehaviour
         }
         else
         {
-            anim.SetBool("1_Move", false);
-            anim.SetBool("3_Damaged", true);
+            SpumAnim.PlayHurt(anim);
         }
     }
 
@@ -885,8 +902,7 @@ public class PlayerController : MonoBehaviour
         if (!alive) return;
 
         alive = false;
-        anim.SetBool("1_Move", false);
-        anim.SetBool("4_Death", true);
+        SpumAnim.PlayDeath(anim);
 
         currentTarget     = null;
         currentItemTarget = null;
@@ -913,10 +929,7 @@ public class PlayerController : MonoBehaviour
         attackTimer         = 0f;
         regenTimer          = 0f;
 
-        anim.SetBool("4_Death", false);
-        anim.SetBool("3_Damaged", false);
-        anim.SetBool("2_Attack", false);
-        anim.SetBool("1_Move", false);
+        SpumAnim.Revive(anim);
 
         if (agent != null)
         {
@@ -1158,7 +1171,7 @@ public class PlayerController : MonoBehaviour
         _abilityReadyAt[ability.id] = Time.time + GetAbilityCooldownLength(ability);
 
         if (announce) GameEvents.FireToast($"✦ {ability.name}");
-        anim.SetBool("2_Attack", true);
+        SpumAnim.PlayAttack(anim);
 
         // The ability's own visual, then any worn proc that triggers on casting.
         GameManager.Audio?.Play(Sfx.AbilityCast);

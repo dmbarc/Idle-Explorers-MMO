@@ -72,6 +72,8 @@ public static class IconLibrarySetup
         // generated placeholders.
         { "bones",         "bone_white" },
         { "skull",         "bone_skull" },
+        { "bramble_thorn", "twig_green" },
+        { "hollowcap",     "mushroom_big_red" },
         { "troll_hide",    "Wool" },
         { "dragon_bones",  "Skull" },
         { "dragon_scale",  "Diamond" },

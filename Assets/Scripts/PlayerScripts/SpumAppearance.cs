@@ -175,6 +175,76 @@ public static class SpumAppearance
     };
 
     /// <summary>
+    /// Hides every layer the equipment system owns, leaving the character in nothing
+    /// but their own skin.
+    ///
+    /// ══ WHY THE CHARACTER WAS ALWAYS WEARING ARMOUR ═══════════════════════════
+    ///
+    /// SPUM's prefabs ship dressed. Apply writes body, hair, eyes, weapon and cloak,
+    /// and used to leave the rig's own helmet and cloth exactly where they were — so
+    /// the appearance editor showed a hooded figure in plate whatever you chose, and
+    /// all five class cards showed the same one. There was no "naked" option to pick
+    /// because nothing ever took the clothes off.
+    ///
+    /// ══ WHY THIS DISABLES RENDERERS INSTEAD OF CLEARING SPRITES ═══════════════
+    ///
+    /// SpumRig.Layer.WasDrawn is `OriginalSprite != null`, and CharacterAppearance
+    /// refuses to draw an item onto a layer the rig never drew — that check is what
+    /// stopped the tin helmet rendering behind the rig's own horns. Nulling the
+    /// sprites here would make every one of those layers look "never drawn", and worn
+    /// equipment would stop appearing on the live player entirely.
+    ///
+    /// Returns how many layers were hidden.
+    /// </summary>
+    public static int Undress(Transform rig)
+    {
+        if (rig == null) return 0;
+
+        int hidden = 0;
+
+        foreach (var slot in EquipmentSlots.All)
+        {
+            if (!slot.RendersOnCharacter) continue;
+
+            foreach (var part in slot.SpumParts)
+            {
+                foreach (var layer in SpumRig.Collect(rig, part))
+                {
+                    if (layer.Renderer == null) continue;
+                    layer.Renderer.enabled = false;
+                    hidden++;
+                }
+            }
+        }
+
+        return hidden;
+    }
+
+    /// <summary>
+    /// Recolours a rig's skin without touching anything else it is wearing.
+    ///
+    /// For monsters built from a human-shaped rig: a green elf reads as something
+    /// grown rather than as an elf. Tinting every renderer would take the eyes and
+    /// the weapon with it, which reads as a lighting bug.
+    /// </summary>
+    public static int TintBody(Transform rig, string hex)
+    {
+        if (rig == null || string.IsNullOrEmpty(hex)) return 0;
+
+        int tinted = 0;
+        foreach (var (part, ancestor, _) in BodyParts)
+        {
+            foreach (var layer in SpumRig.Collect(rig, part, ancestor))
+            {
+                if (layer.Renderer == null) continue;
+                Tint(layer.Renderer, hex);
+                tinted++;
+            }
+        }
+        return tinted;
+    }
+
+    /// <summary>
     /// Draws a look onto a rig. Safe to call repeatedly and on any SPUM prefab.
     ///
     /// Returns the number of renderers actually written, so callers can tell a look
@@ -187,14 +257,26 @@ public static class SpumAppearance
 
         int written = 0;
 
+        // Strip the rig's shipped clothing FIRST. The body write immediately below is
+        // what puts the bare feet back: P_LFoot and P_RFoot are the boots slot and the
+        // body's own feet at the same time, so undressing takes the feet off with the
+        // boots and only the body restores them.
+        Undress(rig);
+
         // ── Body: one sheet, six renderers ────────────────────────────────────
-        if (!string.IsNullOrEmpty(look.bodyAddress))
+        //
+        // Never skipped. A look with no body address would leave the character with
+        // no feet, because Undress has just hidden them.
+        string bodyAddress = string.IsNullOrEmpty(look.bodyAddress)
+            ? Default().bodyAddress
+            : look.bodyAddress;
+
         {
             foreach (var (part, ancestor, sub) in BodyParts)
             {
                 // Always an explicit sub-sprite. A bare path would fall through
                 // SpriteLoader's "Body" fallback and put the torso on the feet.
-                var sprite = SpriteLoader.Load(look.bodyAddress + "#" + sub);
+                var sprite = SpriteLoader.Load(bodyAddress + "#" + sub);
                 if (sprite == null) continue;
 
                 foreach (var layer in SpumRig.Collect(rig, part, ancestor))

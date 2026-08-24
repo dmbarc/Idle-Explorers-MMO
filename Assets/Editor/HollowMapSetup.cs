@@ -45,6 +45,7 @@ public static class HollowMapSetup
     //   T tree                R rock             B bush
     //   F flowers             M mushrooms        ~ water (no ground: unwalkable)
     //   @ player spawn        1-7 skill nodes    S statue/landmark
+    //   g monster camp
     //
     // North is row 0. Every row must be the same length.
     private static readonly string[] Layout =
@@ -53,9 +54,9 @@ public static class HollowMapSetup
         "C.....TTT...........RRR........C",
         "C...TTTTTT.........RRRRRR......C",
         "C..TTTTTTTT........RR1RRR......C",
-        "C...TTT3TT..........RRRRR......C",
+        "C...TTT3TT.........gRRRRR......C",
         "C....TTTT............RRR.......C",
-        "C.....TT......B.......R........C",
+        "C..g..TT......B.......R........C",
         "C......B..............RR2R.....C",
         "C.................B....RRR.....C",
         "C....PPPPPPPPPPPPPPPPPPPP......C",
@@ -68,12 +69,20 @@ public static class HollowMapSetup
         "C..FFF................~~~~.....C",
         "C.FFFFF..............~~~~~~....C",
         "C..FFF..M...........~~~~4~~....C",
-        "C......MM............~~~~~~....C",
+        "C......MM.......g....~~~~~~....C",
         "C.......M.............~~~~.....C",
         "C.........B....................C",
         "C..............................C",
         "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
     };
+
+    /// <summary>
+    /// How far from a 'g' marker its monsters may appear, in world units.
+    ///
+    /// Wide enough that a camp reads as an area rather than a spawn point, and narrow
+    /// enough that the three camps stay distinct places — the map is 128 units across.
+    /// </summary>
+    private const float CampRadius = 9f;
 
     /// <summary>
     /// Which skill node each digit in the layout places. The ids must match the
@@ -163,13 +172,20 @@ public static class HollowMapSetup
         int cells = BuildGround(root.transform, out Vector3 spawnPoint);
         int props = BuildProps(root.transform);
         int nodes = BuildNodes(root.transform);
+        int camps = BuildCamps(root.transform);
 
-        PlacePlayer(spawnPoint);
+        // Slightly above the tiles; the agent drops onto the NavMesh on the first frame.
+        MapSceneSetup.EnsurePlayer(spawnPoint + Vector3.up * 0.5f);
+
         MapSceneSetup.EnsurePlayerTag();
         MapSceneSetup.EnsureCameraController();
         MapSceneSetup.ConfigureMonsterSpawner();
 
         bool baked = MapSceneSetup.BakeNavMesh(MAP_SCENE);
+
+        // After the bake, and loudly: this map shipped with its player 337 units
+        // outside the layout and every symptom looked like a rendering fault.
+        MapSceneSetup.VerifyPlayerPlacement("Hollow of the Fading Light");
 
         EditorSceneManager.MarkSceneDirty(scene);
         if (!EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false))
@@ -182,12 +198,14 @@ public static class HollowMapSetup
         MapSceneSetup.AddSceneToBuildSettings(MAP_SCENE);
 
         Debug.Log($"[Hollow] {MAP_SCENE} saved — {cells} ground tile(s), {props} prop(s), " +
-                  $"{nodes} skill node(s), NavMesh {(baked ? "baked" : "NOT baked")}.");
+                  $"{nodes} skill node(s), {camps} monster camp(s), " +
+                  $"NavMesh {(baked ? "baked" : "NOT baked")}.");
 
         if (showDialog)
             EditorUtility.DisplayDialog("Hollow Map Built",
                 $"Saved: {MAP_SCENE}\n\n" +
                 $"• Ground tiles: {cells}\n• Props: {props}\n• Skill nodes: {nodes}\n" +
+                $"• Monster camps: {camps}\n" +
                 $"• NavMesh: {(baked ? "baked" : "FAILED — see Console")}\n\n" +
                 "Travel to it in game with the MAP button.",
                 "OK");
@@ -410,6 +428,42 @@ public static class HollowMapSetup
         return placed;
     }
 
+    /// <summary>
+    /// Places a MonsterCamp at every 'g' in the layout.
+    ///
+    /// The camps are what make this a place with things living in it rather than a
+    /// map with a spawn radius following the player around. Three of them: in the
+    /// north-eastern rocks, in the western treeline, and in the southern meadow — so
+    /// there is somewhere to fight in every direction from the plaza, and somewhere to
+    /// walk between while the previous camp refills.
+    /// </summary>
+    private static int BuildCamps(Transform parent)
+    {
+        var holder = new GameObject("MonsterCamps");
+        holder.transform.SetParent(parent, false);
+
+        int placed = 0;
+
+        for (int row = 0; row < Height; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                if (At(col, row) != 'g') continue;
+
+                var go = new GameObject($"Camp_{placed + 1}");
+                go.transform.SetParent(holder.transform, false);
+                go.transform.position = CellToWorld(col, row);
+
+                var camp = go.AddComponent<MonsterCamp>();
+                camp.radius = CampRadius;
+
+                placed++;
+            }
+        }
+
+        return placed;
+    }
+
     // ── Placement helpers ─────────────────────────────────────────────────────
 
     private static GameObject Place(string modelName, Transform parent, Vector3 position,
@@ -496,21 +550,7 @@ public static class HollowMapSetup
                                                     StaticEditorFlags.BatchingStatic);
     }
 
-    // ── Player ────────────────────────────────────────────────────────────────
-
-    private static void PlacePlayer(Vector3 spawnPoint)
-    {
-        var player = GameObject.Find("PlayerCharacter");
-        if (player == null)
-        {
-            Debug.LogWarning("[Hollow] No PlayerCharacter in the source scene — nothing to place.");
-            return;
-        }
-
-        // Slightly above the tiles; the agent drops onto the NavMesh on the first frame.
-        player.transform.position = spawnPoint + Vector3.up * 0.5f;
-        Debug.Log($"[Hollow] Player placed at {player.transform.position}.");
-    }
+    // ── Terrain ───────────────────────────────────────────────────────────────
 
     /// <summary>Removes SampleScene's terrain — this map builds its own ground.</summary>
     private static void RemoveTerrain()

@@ -105,6 +105,23 @@ public class MonsterSpawner : MonoBehaviour
     }
 
     /// <summary>
+    /// Where the next monster appears.
+    ///
+    /// A map that places MonsterCamps gets its monsters in those camps; every other
+    /// map keeps the ring around the player. The ring stays the default deliberately —
+    /// it is the only placement that works on a map nobody has authored camps for, and
+    /// replacing it outright is how the previous world-space box broke the moment a
+    /// second map existed.
+    /// </summary>
+    private bool TryFindSpawnPoint(out Vector3 position)
+    {
+        var camp = MonsterCamp.PickRandom();
+        if (camp != null && camp.TryPickSpawnPoint(out position)) return true;
+
+        return TryFindSpawnPointNearPlayer(out position);
+    }
+
+    /// <summary>
     /// Finds walkable ground in the ring around the player.
     ///
     /// The height matters as much as the horizontal position. Sampling from a fixed
@@ -112,7 +129,7 @@ public class MonsterSpawner : MonoBehaviour
     /// altitude, or every sample fails no matter how good the horizontal position is.
     /// Starting from the player's own height removes the guesswork.
     /// </summary>
-    private bool TryFindSpawnPoint(out Vector3 position)
+    private bool TryFindSpawnPointNearPlayer(out Vector3 position)
     {
         position = Vector3.zero;
 

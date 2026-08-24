@@ -17,6 +17,24 @@
     ]
   },
   {
+    "id": "bramblekin",
+    "name": "Bramblekin",
+    "description": "Grew where it was not planted and has taken the whole business personally.",
+    "level": 4,
+    "maxHp": 55,
+    "attackDamageMin": 2,
+    "attackDamageMax": 4,
+    "attackSpeedSeconds": 2.8,
+    "xpReward": 34,
+    "spriteAddress": "",
+    "lootTable": [
+      { "itemId": "coins",         "minQty": 8,   "maxQty": 40,  "weight": 80 },
+      { "itemId": "bramble_thorn", "minQty": 1,   "maxQty": 3,   "weight": 100 },
+      { "itemId": "hollowcap",     "minQty": 1,   "maxQty": 2,   "weight": 35 },
+      { "itemId": "normal_logs",   "minQty": 1,   "maxQty": 2,   "weight": 25 }
+    ]
+  },
+  {
     "id": "skeleton",
     "name": "Skeleton",
     "description": "Has been here a very long time and is not happy about how things have gone.",
