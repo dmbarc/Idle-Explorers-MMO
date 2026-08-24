@@ -534,8 +534,14 @@ public static class HollowMapSetup
     private static void IgnoreInNavMesh(GameObject go)
     {
         if (go == null) return;
-        var modifier = go.GetComponent<Unity.AI.Navigation.NavMeshModifier>()
-                       ?? go.AddComponent<Unity.AI.Navigation.NavMeshModifier>();
+
+        // `??` cannot be used here. It compares by reference, so it never sees Unity's
+        // overloaded ==, and the wrapper GetComponent returns for an absent component
+        // reads as non-null — the AddComponent is skipped and the next line throws.
+        var modifier = go.GetComponent<Unity.AI.Navigation.NavMeshModifier>();
+        if (modifier == null) modifier = go.AddComponent<Unity.AI.Navigation.NavMeshModifier>();
+        if (modifier == null) return;
+
         modifier.ignoreFromBuild = true;
     }
 

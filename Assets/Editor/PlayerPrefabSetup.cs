@@ -106,6 +106,8 @@ public static class PlayerPrefabSetup
             ConfigureCollision(root);
             ConfigureController(root, animator);
 
+            if (!Verify(root)) return false;
+
             Directory.CreateDirectory(Path.GetDirectoryName(PREFAB_PATH));
             PrefabUtility.SaveAsPrefabAsset(root, PREFAB_PATH, out bool saved);
 
@@ -133,6 +135,38 @@ public static class PlayerPrefabSetup
         {
             Object.DestroyImmediate(root);
         }
+    }
+
+    /// <summary>
+    /// Refuses to save a player who cannot play.
+    ///
+    /// Every one of these is something that produces no error at build time and a
+    /// broken game later: no agent means a character who cannot move, no collider
+    /// means loot that cannot be picked up, a RectTransform root means spawn points
+    /// that silently lose two of their three axes. Each has already happened.
+    /// </summary>
+    private static bool Verify(GameObject root)
+    {
+        var problems = new System.Collections.Generic.List<string>();
+
+        if (root.transform is RectTransform)
+            problems.Add("the root is a RectTransform — world positions written to it will not stick");
+
+        if (root.GetComponent<PlayerController>() == null) problems.Add("no PlayerController");
+        if (root.GetComponent<NavMeshAgent>()     == null) problems.Add("no NavMeshAgent — it cannot move");
+        if (root.GetComponent<Collider>()         == null) problems.Add("no Collider — loot cannot be collected");
+
+        if (!root.CompareTag("Player"))
+            problems.Add("not tagged 'Player' — the camera and loot triggers find it by tag");
+
+        if (root.GetComponentInChildren<Animator>(includeInactive: true) == null)
+            problems.Add("no Animator anywhere in the rig — it will not animate");
+
+        if (problems.Count == 0) return true;
+
+        Debug.LogError($"[PlayerPrefab] NOT saving {PREFAB_PATH} — the player would be broken:\n  • " +
+                       string.Join("\n  • ", problems));
+        return false;
     }
 
     /// <summary>
@@ -170,7 +204,8 @@ public static class PlayerPrefabSetup
 
     private static void ConfigureNavigation(GameObject root)
     {
-        var agent = root.GetComponent<NavMeshAgent>() ?? root.AddComponent<NavMeshAgent>();
+        var agent = Ensure<NavMeshAgent>(root);
+        if (agent == null) return;
 
         agent.radius       = AgentRadius;
         agent.height       = AgentHeight;
@@ -194,22 +229,61 @@ public static class PlayerPrefabSetup
     /// </summary>
     private static void ConfigureCollision(GameObject root)
     {
-        var capsule = root.GetComponent<CapsuleCollider>() ?? root.AddComponent<CapsuleCollider>();
-        capsule.radius    = ColliderRadius;
-        capsule.height    = ColliderHeight;
-        capsule.direction = 1;                // Y
-        capsule.center    = ColliderCentre;
-        capsule.isTrigger = false;
+        var capsule = Ensure<CapsuleCollider>(root);
+        if (capsule != null)
+        {
+            capsule.radius    = ColliderRadius;
+            capsule.height    = ColliderHeight;
+            capsule.direction = 1;                // Y
+            capsule.center    = ColliderCentre;
+            capsule.isTrigger = false;
+        }
 
-        var controller = root.GetComponent<CharacterController>() ?? root.AddComponent<CharacterController>();
-        controller.height = AgentHeight;
-        controller.radius = AgentRadius;
-        controller.center = Vector3.zero;
+        var controller = Ensure<CharacterController>(root);
+        if (controller != null)
+        {
+            controller.height = AgentHeight;
+            controller.radius = AgentRadius;
+            controller.center = Vector3.zero;
+        }
+    }
+
+    /// <summary>
+    /// Gets a component, adding it if it is not there.
+    ///
+    /// ══ WHY NOT `GetComponent&lt;T&gt;() ?? AddComponent&lt;T&gt;()` ═══════════════════════
+    ///
+    /// Because it does not work, and fails in a way that reads like the opposite
+    /// problem. `??` compares by REFERENCE — it is a C# language operator and cannot be
+    /// overloaded — while UnityEngine.Object overloads `==` to report a live wrapper
+    /// around a dead native object as null. GetComponent hands back exactly such a
+    /// wrapper when the component is absent, so `??` sees "not null", skips the
+    /// AddComponent entirely, and the next line throws
+    ///
+    ///     MissingComponentException: There is no 'NavMeshAgent' attached to the
+    ///     "PlayerCharacter" game object, but a script is trying to access it.
+    ///
+    /// which points at the object rather than at the operator that decided not to
+    /// create the thing. `==` against null is the only comparison that respects
+    /// Unity's overload, so this uses it, and reports a genuine failure to add rather
+    /// than dereferencing null one line later.
+    /// </summary>
+    private static T Ensure<T>(GameObject go) where T : Component
+    {
+        var existing = go.GetComponent<T>();
+        if (existing != null) return existing;
+
+        var added = go.AddComponent<T>();
+        if (added == null)
+            Debug.LogError($"[PlayerPrefab] Could not add {typeof(T).Name} to '{go.name}'.");
+
+        return added;
     }
 
     private static void ConfigureController(GameObject root, Animator animator)
     {
-        var player = root.GetComponent<PlayerController>() ?? root.AddComponent<PlayerController>();
+        var player = Ensure<PlayerController>(root);
+        if (player == null) return;
 
         // The animator lives on the rig's UnitRoot, one level down. Wiring it here is
         // what keeps PlayerController free of a rig lookup of its own.

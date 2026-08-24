@@ -162,7 +162,18 @@ public static class MonsterPrefabSetup
         var sourceAgent = source.GetComponent<NavMeshAgent>();
         if (sourceAgent == null) return;
 
-        var agent = target.GetComponent<NavMeshAgent>() ?? target.AddComponent<NavMeshAgent>();
+        // Not `GetComponent() ?? AddComponent()`. `??` compares by reference and cannot
+        // see Unity's overloaded ==, so the live-wrapper-around-nothing that
+        // GetComponent returns for an absent component reads as "not null", the
+        // AddComponent never runs, and the next line throws MissingComponentException
+        // against the object instead of against the operator that skipped it.
+        var agent = target.GetComponent<NavMeshAgent>();
+        if (agent == null) agent = target.AddComponent<NavMeshAgent>();
+        if (agent == null)
+        {
+            Debug.LogError($"[MonsterSetup] Could not add a NavMeshAgent to '{target.name}'.");
+            return;
+        }
 
         agent.speed                 = sourceAgent.speed;
         agent.angularSpeed          = sourceAgent.angularSpeed;
