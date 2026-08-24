@@ -97,6 +97,51 @@ public static class EquipmentSlots
 
     public static bool Exists(string slotId) => Get(slotId) != null;
 
+    /// <summary>
+    /// Every slot an item declaring <paramref name="declared"/> could go in.
+    ///
+    /// An item names a FAMILY, not a numbered slot: item_data.json says "ring", and
+    /// the character has ring1 through ring10. Authoring "ring7 of the glutton" would
+    /// be absurd, so the numbering is the paperdoll's business and never the item's.
+    ///
+    /// One implementation, because there were two readings of this rule and they
+    /// disagreed: EquipmentManager resolved families correctly while the art check
+    /// asked EquipmentSlots.Get and reported all six rings, amulets and trinkets in
+    /// the game as broken items that would draw nothing. They equip perfectly well.
+    /// </summary>
+    public static IEnumerable<Slot> Family(string declared)
+    {
+        if (string.IsNullOrEmpty(declared)) yield break;
+
+        // An exact id is its own family of one.
+        var exact = Get(declared);
+        if (exact != null) { yield return exact; yield break; }
+
+        foreach (var slot in All)
+            if (slot.SlotId.StartsWith(declared, System.StringComparison.Ordinal))
+                yield return slot;
+    }
+
+    /// <summary>
+    /// Whether an item's declared slot names anything real, exactly or as a family.
+    /// This is the question content validation should be asking.
+    /// </summary>
+    public static bool IsEquippableSlot(string declared)
+    {
+        foreach (var _ in Family(declared)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// The slot whose art an item in this family renders on. Every member of a family
+    /// draws the same way, so the first is representative.
+    /// </summary>
+    public static Slot Representative(string declared)
+    {
+        foreach (var slot in Family(declared)) return slot;
+        return null;
+    }
+
     /// <summary>Display name for a slot id, falling back to the raw id.</summary>
     public static string NameOf(string slotId) => Get(slotId)?.DisplayName ?? slotId;
 

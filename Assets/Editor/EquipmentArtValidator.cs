@@ -48,10 +48,15 @@ public static class EquipmentArtValidator
         {
             if (item == null || !item.IsEquippable) continue;
 
-            var slot = EquipmentSlots.Get(item.equipSlot);
+            // By FAMILY, not by exact id. An item declares "ring" and the paperdoll
+            // has ring1..ring10; asking for an exact match reported all six rings,
+            // amulets and trinkets in the game as broken when they equip perfectly
+            // well — EquipmentManager has always resolved families. Both now go
+            // through EquipmentSlots so they cannot disagree again.
+            var slot = EquipmentSlots.Representative(item.equipSlot);
             if (slot == null)
             {
-                broken.Add($"{item.id}: equipSlot '{item.equipSlot}' is not a real slot");
+                broken.Add($"{item.id}: equipSlot '{item.equipSlot}' matches no slot or slot family");
                 continue;
             }
 

@@ -541,20 +541,85 @@ public static class MapSceneSetup
 
         Vector3 at = player.transform.position;
 
-        if (!NavMesh.SamplePosition(at, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+        // ── The direct question, when it can be asked ─────────────────────────
+        //
+        // A NavMesh sample is the strongest possible answer: it says the player is on
+        // ground an agent can path across. But the query system only answers about a
+        // mesh that has been ADDED to it, and a surface baked from an editor script
+        // does not reliably register one outside play mode — the data is written to
+        // its asset and the scene works when you press Play, while
+        // NavMesh.SamplePosition here finds nothing anywhere. Asking whether the
+        // system holds any mesh at all separates "the player is in the void" from
+        // "this check cannot run right now", which are not the same finding and were
+        // being reported as though they were.
+        if (NavMesh.CalculateTriangulation().vertices.Length > 0)
         {
-            Debug.LogError($"[MapSetup] {mapName}: the player is at {at}, which has no NavMesh " +
-                           "within 2 units. They will spawn unable to move, with nothing around " +
-                           "them and no monsters — check the spawn point against the map's bounds.");
+            if (!NavMesh.SamplePosition(at, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            {
+                Debug.LogError($"[MapSetup] {mapName}: the player is at {at}, which has no NavMesh " +
+                               "within 2 units. They will spawn unable to move, with nothing around " +
+                               "them and no monsters — check the spawn point against the map's bounds.");
+                return false;
+            }
+
+            // Drop them onto the mesh rather than merely reporting the gap. A half-unit
+            // of float drift between a tile's surface and the baked mesh is normal and
+            // worth correcting silently.
+            player.transform.position = hit.position;
+
+            Debug.Log($"[MapSetup] {mapName}: player at {hit.position}, on walkable ground.");
+            return true;
+        }
+
+        return VerifyAgainstBakedBounds(mapName, player, at);
+    }
+
+    /// <summary>
+    /// The fallback check: is the player inside the geometry that was baked, and is
+    /// there something solid underneath them?
+    ///
+    /// Weaker than a NavMesh sample — it cannot tell a walkable tile from the top of a
+    /// cliff — but it needs no query system, and it is more than enough for the failure
+    /// this exists to catch: a player 337 units outside a map 128 units across is not a
+    /// borderline case.
+    /// </summary>
+    private static bool VerifyAgainstBakedBounds(string mapName, GameObject player, Vector3 at)
+    {
+        var surface = Object.FindAnyObjectByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsInactive.Include);
+        if (surface?.navMeshData == null)
+        {
+            Debug.LogError($"[MapSetup] {mapName}: no baked NavMesh data to check the player against.");
             return false;
         }
 
-        // Drop them onto the mesh rather than merely reporting the gap. A half-unit of
-        // float drift between a tile's surface and the baked mesh is normal and worth
-        // correcting silently; anything larger has already been reported above.
-        player.transform.position = hit.position;
+        // sourceBounds is in the data's own space; the surface's transform places it.
+        var bounds = surface.navMeshData.sourceBounds;
+        bounds.center += surface.transform.position;
 
-        Debug.Log($"[MapSetup] {mapName}: player placed at {hit.position} on walkable ground.");
+        // Generous vertically. The bake's bounds hug the ground it collected, and the
+        // player is deliberately placed half a unit above it.
+        bounds.Expand(new Vector3(0f, 4f, 0f));
+
+        if (!bounds.Contains(at))
+        {
+            Debug.LogError($"[MapSetup] {mapName}: the player is at {at}, outside the baked area " +
+                           $"{bounds}. They will spawn unable to move, with nothing around them and " +
+                           "no monsters — check the spawn point against the map's bounds.");
+            return false;
+        }
+
+        bool grounded = Physics.Raycast(at + Vector3.up * 50f, Vector3.down, 200f,
+                                         ~0, QueryTriggerInteraction.Ignore);
+        if (!grounded)
+        {
+            Debug.LogError($"[MapSetup] {mapName}: the player is at {at}, with no solid ground " +
+                           "beneath them.");
+            return false;
+        }
+
+        Debug.Log($"[MapSetup] {mapName}: player at {at}, inside the baked area and above ground. " +
+                  "(No NavMesh is registered for queries in edit mode, so this is the bounds check " +
+                  "rather than a NavMesh sample.)");
         return true;
     }
 

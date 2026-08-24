@@ -259,17 +259,11 @@ public class EquipmentManager : MonoBehaviour
     /// </summary>
     private string FirstFreeSlotFor(ItemData item)
     {
-        string declared = item.equipSlot;
-
-        // A slot id that exists verbatim is used as-is.
-        if (EquipmentSlots.Exists(declared)) return declared;
-
-        // Otherwise treat it as a family prefix: "ring" matches ring1..ring10.
+        // EquipmentSlots.Family covers both cases: a verbatim slot id is a family of
+        // one, and "ring" expands to ring1..ring10.
         string firstMatch = null;
-        foreach (var slot in EquipmentSlots.All)
+        foreach (var slot in EquipmentSlots.Family(item.equipSlot))
         {
-            if (!slot.SlotId.StartsWith(declared, System.StringComparison.Ordinal)) continue;
-
             firstMatch ??= slot.SlotId;
             if (string.IsNullOrEmpty(GetEquipped(slot.SlotId))) return slot.SlotId;
         }
