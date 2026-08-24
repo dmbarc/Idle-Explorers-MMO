@@ -1006,15 +1006,29 @@ public class PlayerController : MonoBehaviour
 
     // ── Abilities (action bar slots 1-5) ──────────────────────────────────────
 
-    private readonly float[] _abilityReadyAt = new float[5];
+    /// <summary>
+    /// Cooldowns, keyed by ABILITY ID rather than bar slot.
+    ///
+    /// This used to be a float[5] indexed by slot, which was fine only while the bar
+    /// was fixed. The moment abilities became draggable that would have meant moving
+    /// Fireball to another slot handed it that slot's cooldown — spend it in slot 1,
+    /// drag it to slot 3, and it is ready again.
+    /// </summary>
+    private readonly Dictionary<string, float> _abilityReadyAt = new();
+
     private float _hasteUntil;
     private float _hasteMultiplier = 1f;
 
     /// <summary>Remaining cooldown in seconds, 0 when ready. Drives the HUD overlay.</summary>
-    public float GetAbilityCooldownRemaining(int slot)
+    public float GetAbilityCooldownRemaining(int slot) =>
+        GetAbilityCooldownRemaining(GetAbility(slot));
+
+    public float GetAbilityCooldownRemaining(AbilityData ability)
     {
-        if (slot < 0 || slot >= _abilityReadyAt.Length) return 0f;
-        return Mathf.Max(0f, _abilityReadyAt[slot] - Time.time);
+        if (ability == null || string.IsNullOrEmpty(ability.id)) return 0f;
+        if (!_abilityReadyAt.TryGetValue(ability.id, out float readyAt)) return 0f;
+
+        return Mathf.Max(0f, readyAt - Time.time);
     }
 
     /// <summary>
@@ -1025,15 +1039,80 @@ public class PlayerController : MonoBehaviour
     public float GetAbilityCooldownLength(AbilityData ability)
     {
         if (ability == null) return 0f;
-        return ability.cooldownSeconds *
-               TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
+
+        float reduction = TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
+
+        // An ability-scoped cooldown talent applies on top of the character-wide one.
+        reduction *= Mathf.Max(0.25f,
+            1f - TalentManager.AbilityBonus(CharacterManager.Current, ability.id,
+                                            TalentManager.CooldownPercent));
+
+        return ability.cooldownSeconds * reduction;
     }
 
+    /// <summary>
+    /// What is in an action bar slot.
+    ///
+    /// THE single place a slot becomes an ability. It used to be resolved as
+    /// ClassData.abilities[slot] here AND independently in GameHUD, so the two could
+    /// disagree and slot position was the ability's only identity. Now the character's
+    /// hotbar decides, and both callers come through here.
+    /// </summary>
     public AbilityData GetAbility(int slot)
     {
-        var cls = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
-        if (cls?.abilities == null || slot < 0 || slot >= cls.abilities.Length) return null;
-        return cls.abilities[slot];
+        var character = CharacterManager.Current;
+        if (character == null || slot < 0 || slot >= CharacterData.HotbarSlots) return null;
+
+        string abilityId = character.Hotbar()[slot];
+        if (string.IsNullOrEmpty(abilityId)) return null;
+
+        // Resolved against every specced class, so a Paladin's bar can hold Cleave and
+        // Fireball at the same time.
+        return TalentManager.FindAbilityFor(character, abilityId);
+    }
+
+    /// <summary>
+    /// Puts an ability into a slot, removing it from wherever else it was.
+    ///
+    /// Two copies of one ability on the bar would share a cooldown and look broken, so
+    /// assigning is a MOVE rather than a copy — dragging onto an occupied slot swaps.
+    /// </summary>
+    public bool AssignAbility(int slot, string abilityId)
+    {
+        var character = CharacterManager.Current;
+        if (character == null || slot < 0 || slot >= CharacterData.HotbarSlots) return false;
+
+        if (!string.IsNullOrEmpty(abilityId) && !TalentManager.HasAbility(character, abilityId))
+        {
+            GameEvents.FireToast("You have not learned that yet.");
+            return false;
+        }
+
+        var hotbar = character.Hotbar();
+
+        int existing = hotbar.IndexOf(abilityId);
+        if (!string.IsNullOrEmpty(abilityId) && existing >= 0 && existing != slot)
+            hotbar[existing] = hotbar[slot];   // swap rather than duplicate
+
+        hotbar[slot] = abilityId ?? "";
+
+        GameManager.Save?.Save();
+        GameEvents.OnHotbarChanged?.Invoke();
+        return true;
+    }
+
+    /// <summary>Swaps two bar slots, for dragging one ability onto another.</summary>
+    public void SwapAbilitySlots(int from, int to)
+    {
+        var character = CharacterManager.Current;
+        if (character == null || from == to) return;
+        if (from < 0 || to < 0 || from >= CharacterData.HotbarSlots || to >= CharacterData.HotbarSlots) return;
+
+        var hotbar = character.Hotbar();
+        (hotbar[from], hotbar[to]) = (hotbar[to], hotbar[from]);
+
+        GameManager.Save?.Save();
+        GameEvents.OnHotbarChanged?.Invoke();
     }
 
     /// <summary>Fires the ability in the given action bar slot (0-4).</summary>
@@ -1074,8 +1153,10 @@ public class PlayerController : MonoBehaviour
 
         TrySpendCost(ability, announce: false);
 
-        _abilityReadyAt[slot] = Time.time + ability.cooldownSeconds *
-            TalentManager.ReductionMultiplier(TalentManager.CooldownPercent);
+        // Against the ability, not the slot — and through the same helper the HUD's
+        // sweep divides by, so the two cannot disagree about how long it lasts.
+        _abilityReadyAt[ability.id] = Time.time + GetAbilityCooldownLength(ability);
+
         if (announce) GameEvents.FireToast($"✦ {ability.name}");
         anim.SetBool("2_Attack", true);
 
@@ -1113,7 +1194,10 @@ public class PlayerController : MonoBehaviour
         if (Vector3.Distance(transform.position, currentTarget.transform.position) > attackDistance * 1.5f)
             return;
 
-        for (int slot = 0; slot < _abilityReadyAt.Length; slot++)
+        // Walks the bar in order, so slot position is now a player-facing auto-cast
+        // PRIORITY rather than just a keybind — arranging the bar decides what an
+        // unattended character reaches for first.
+        for (int slot = 0; slot < CharacterData.HotbarSlots; slot++)
         {
             var ability = GetAbility(slot);
             if (ability == null || !ability.IsActivatable) continue;
@@ -1170,6 +1254,10 @@ public class PlayerController : MonoBehaviour
         // an attack-rate multiplier rather than an amount: scaling 1.5x up to 1.8x
         // reads as the same +20% and is worth several times as much.
         float power = ability.power * TalentManager.Multiplier(TalentManager.AbilityPowerPercent);
+
+        // Ranks poured into this specific ability's own talent node. This is what
+        // makes upgrading one ability in the tree different from a general power stat.
+        power *= TalentManager.AbilityPowerMultiplier(CharacterManager.Current, ability.id);
 
         switch (ability.effect)
         {

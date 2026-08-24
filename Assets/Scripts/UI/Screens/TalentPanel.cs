@@ -24,6 +24,13 @@ public class TalentPanel : UIScreen
     private const float NodeHeight = 92f;
     private const float RowGap     = 10f;
 
+    /// <summary>
+    /// Which specced class's tree is on screen. Persisted across rebuilds — spending a
+    /// point rebuilds the panel, and snapping back to the first tab every time would
+    /// make a second tree almost unusable.
+    /// </summary>
+    private static string _viewedClassId;
+
     public override void Build()
     {
         var theme = UIManager.Theme;
@@ -33,15 +40,89 @@ public class TalentPanel : UIScreen
         backdropBtn.transition = Selectable.Transition.None;
         backdropBtn.onClick.AddListener(() => GameManager.UI?.Pop());
 
+        // Narrower than full width on purpose: the HUD's ability bar has to stay
+        // visible and reachable underneath, because abilities are dragged from a
+        // talent card down onto it.
         var panel   = UIFactory.Panel(transform, "TalentPanel", theme.panelBg, false);
         var panelRt = panel.GetComponent<RectTransform>();
-        panelRt.anchorMin = new Vector2(0.16f, 0.08f);
-        panelRt.anchorMax = new Vector2(0.84f, 0.92f);
+        panelRt.anchorMin = new Vector2(0.14f, 0.12f);
+        panelRt.anchorMax = new Vector2(0.86f, 0.95f);
         panelRt.offsetMin = panelRt.offsetMax = Vector2.zero;
 
+        ResolveViewedClass();
+
         BuildHeader(panel.transform, theme);
+        BuildTabs(panel.transform, theme);
         BuildTree(panel.transform, theme);
         BuildFooter(panel.transform, theme);
+    }
+
+    /// <summary>
+    /// Keeps the viewed tab pointing at a class the character actually has — they may
+    /// have changed class, or this may be a different character entirely.
+    /// </summary>
+    private static void ResolveViewedClass()
+    {
+        var ids = CharacterManager.Current?.ClassIds();
+        if (ids == null || ids.Count == 0) { _viewedClassId = null; return; }
+
+        if (string.IsNullOrEmpty(_viewedClassId) || !ids.Contains(_viewedClassId))
+            _viewedClassId = ids[0];
+    }
+
+    // ── Class tabs ────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// One tab per specced class, plus an invitation when a class slot is free.
+    ///
+    /// Built even for a single-class character, so the row does not appear from
+    /// nowhere at level 50 — and so the "another class unlocks at…" line has somewhere
+    /// to live before then.
+    /// </summary>
+    private void BuildTabs(Transform parent, UITheme theme)
+    {
+        var character = CharacterManager.Current;
+        if (character == null) return;
+
+        var tabs = UIFactory.HStack(parent, theme.spacing, "ClassTabs");
+        UIFactory.At(tabs, 0.02f, 0.845f, 0.98f, 0.90f);
+        tabs.childForceExpandWidth = true;
+        tabs.childControlWidth     = true;
+
+        foreach (var classId in character.ClassIds())
+        {
+            string id  = classId;
+            var    cls = GameManager.Content?.GetClass(classId);
+            bool   on  = classId == _viewedClassId;
+
+            var btn = UIFactory.Button(tabs.transform, cls?.DisplayName ?? classId, () =>
+            {
+                _viewedClassId = id;
+                RebuildContents();
+            }, width: 0f);
+
+            var colors = btn.colors;
+            colors.normalColor = on ? theme.accentGold : theme.buttonNormal;
+            btn.colors         = colors;
+            btn.interactable   = !on;
+        }
+
+        if (character.HasUnusedClassSlot())
+        {
+            UIFactory.Button(tabs.transform, "+ ADD CLASS",
+                             () => GameManager.UI?.Push<SpecSelectModal>(), width: 0f);
+            return;
+        }
+
+        if (character.ClassSlots() >= 3) return;
+
+        int next = character.ClassSlots() == 1 ? CharacterData.ClassSlotTwoLevel
+                                               : CharacterData.ClassSlotThreeLevel;
+
+        var locked = UIFactory.Label(tabs.transform, $"next class: level {next}",
+                                      theme.fontSizeLabel, theme.textDisabled,
+                                      TextAlignmentOptions.Center);
+        locked.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
     }
 
     public override void OnShow()  => GameEvents.OnTalentsChanged += MarkDirty;
@@ -70,16 +151,18 @@ public class TalentPanel : UIScreen
     private void BuildHeader(Transform parent, UITheme theme)
     {
         var character = CharacterManager.Current;
-        var cls       = GameManager.Content?.GetClass(character?.classId);
 
         var header   = UIFactory.Panel(parent, "Header", theme.headerBg, false);
         var headerRt = header.GetComponent<RectTransform>();
-        headerRt.anchorMin = new Vector2(0f, 0.90f);
+        headerRt.anchorMin = new Vector2(0f, 0.905f);
         headerRt.anchorMax = new Vector2(1f, 1f);
         headerRt.offsetMin = headerRt.offsetMax = Vector2.zero;
 
+        // The character's title, not a single class name — a cross-specced character
+        // is a Paladin, and calling the screen "Warrior — Talents" would contradict
+        // every other place their title appears.
         var title = UIFactory.Label(header.transform,
-                                     $"{cls?.DisplayName ?? "TALENTS"} — TALENTS",
+                                     $"{ClassManager.TitleFor(character)} — TALENTS",
                                      theme.fontSizeBody, theme.accentGold,
                                      TextAlignmentOptions.MidlineLeft);
         UIFactory.At(title, 0.02f, 0.45f, 0.60f, 0.95f);
@@ -100,7 +183,8 @@ public class TalentPanel : UIScreen
         // explanation. One point per character level after the first.
         int level = character?.level ?? 1;
         var hint  = UIFactory.Label(header.transform,
-                                     $"{spent} spent  •  one point per character level (you are {level})",
+                                     $"{spent} spent across all trees  •  one point per level (you are {level})  " +
+                                     "•  drag an ability onto the bar below",
                                      theme.fontSizeLabel, theme.textSecondary,
                                      TextAlignmentOptions.MidlineLeft);
         UIFactory.At(hint, 0.02f, 0.06f, 0.98f, 0.44f);
@@ -116,11 +200,11 @@ public class TalentPanel : UIScreen
         var (scroll, content) = UIFactory.ScrollList(parent, "TalentScroll", RowGap);
         var scrollRt = scroll.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0.02f, 0.10f);
-        scrollRt.anchorMax = new Vector2(0.98f, 0.885f);
+        scrollRt.anchorMax = new Vector2(0.98f, 0.835f);
         scrollRt.offsetMin = scrollRt.offsetMax = Vector2.zero;
 
         var character = CharacterManager.Current;
-        var tree      = TalentManager.TreeFor(character);
+        var tree      = TalentManager.TreeOf(_viewedClassId);
 
         if (tree == null || tree.Length == 0)
         {
@@ -205,6 +289,17 @@ public class TalentPanel : UIScreen
         button.transition    = Selectable.Transition.None;
         button.onClick.AddListener(() => TrySpend(node));
 
+        // An unlocked ability node is a drag SOURCE — this is how an ability reaches
+        // the action bar. Added only once the node is actually taken, so dragging a
+        // talent you have not bought cannot put a dead button on the bar.
+        if (node.GrantsAbility && rank > 0)
+        {
+            var ability = TalentManager.FindAbilityFor(character, node.abilityId);
+            var icon    = GameManager.Content?.GetAbilityIcon(ability);
+
+            card.AddComponent<AbilityDragHandle>().Bind(node.abilityId, icon);
+        }
+
         var nameLabel = UIFactory.Label(card.transform, node.name, theme.fontSizeSmall,
                                          rank > 0 ? theme.accentGold
                                                   : (canTake ? theme.textPrimary : theme.textDisabled),
@@ -216,7 +311,13 @@ public class TalentPanel : UIScreen
         UIFactory.At(descLabel, 0.05f, 0.24f, 0.95f, 0.66f);
         descLabel.textWrappingMode = TextWrappingModes.Normal;
 
-        var rankLabel = UIFactory.Label(card.transform, $"{rank} / {node.RankCap}",
+        // The rank counter doubles as the ability node's affordance. A card you can
+        // drag but which looks identical to one you cannot is a feature nobody finds.
+        string rankText = node.GrantsAbility && rank > 0
+            ? $"{rank} / {node.RankCap}   ✥ drag to bar"
+            : $"{rank} / {node.RankCap}";
+
+        var rankLabel = UIFactory.Label(card.transform, rankText,
                                          theme.fontSizeLabel,
                                          maxed ? theme.accentGold
                                                : (canTake ? theme.accentGreen : theme.textDisabled),

@@ -56,6 +56,9 @@ public static class GameEvents
     /// <summary>Something feeding the stat block changed, so displays should re-read it.</summary>
     public static Action                  OnStatsChanged;
 
+    /// <summary>An ability was moved onto, off, or between action bar slots.</summary>
+    public static Action                  OnHotbarChanged;
+
     // ── Merge Board ──────────────────────────────────────────────────────────
     public static Action<int>             OnMergeSlotChanged;     // slotIndex
     public static Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
@@ -147,6 +150,7 @@ public static class GameEvents
         OnAutoModeChanged        = null;
         OnAppearanceChanged      = null;
         OnStatsChanged           = null;
+        OnHotbarChanged          = null;
         OnRelicCoinsChanged      = null;
 
         OnMergeSlotChanged       = null;

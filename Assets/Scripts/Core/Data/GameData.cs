@@ -244,6 +244,21 @@ public class TalentNode
     /// <summary>Optional hard prerequisites, on top of the tier's point requirement.</summary>
     public string[] requiresNodeIds;
 
+    /// <summary>
+    /// The ability this node concerns, if any.
+    ///
+    /// With effectType "grantAbility" the first rank unlocks it and further ranks make
+    /// it stronger. With any other effectType, the node's bonus is SCOPED to just this
+    /// ability rather than the whole character — so "Fireball costs 20% less mana" is
+    /// expressible without a new effect type, and TalentManager.Bonus knows to leave
+    /// ability-scoped nodes out of character-wide totals.
+    /// </summary>
+    public string   abilityId;
+
+    /// <summary>True when taking this node puts a new ability in the player's hands.</summary>
+    public bool GrantsAbility =>
+        effectType == "grantAbility" && !string.IsNullOrEmpty(abilityId);
+
     public int PointCost => UnityEngine.Mathf.Max(1, talentPointCost);
     public int RankCap   => UnityEngine.Mathf.Max(1, maxRank);
 }
@@ -564,6 +579,13 @@ public class AccountData
     /// </summary>
     public long                 relicCoins;
 
+    /// <summary>
+    /// Which save format this account was last written by. Zero for anything written
+    /// before versioning existed, which is exactly what a one-time migration needs to
+    /// recognise. See SaveManager.CurrentSaveVersion.
+    /// </summary>
+    public int                  saveVersion;
+
     public AccountData()
     {
         characters = new List<CharacterData>();
@@ -625,6 +647,30 @@ public class CharacterData
     // read or wrote — and which would have silently reassigned every character's
     // talents the first time a node was inserted into the middle of a tree.
     public List<TalentRank> talents;
+
+    /// <summary>
+    /// The five action-bar slots, as ability ids. An empty string is an empty slot.
+    ///
+    /// This is the indirection that makes the bar arrangeable. Abilities used to be
+    /// resolved as ClassData.abilities[slot] in two places independently, so slot
+    /// position WAS the ability's identity and there was nothing to rearrange. Now
+    /// PlayerController.GetAbility is the single place a slot becomes an ability.
+    /// </summary>
+    public List<string> hotbar;
+
+    /// <summary>The hotbar, always exactly HotbarSlots long.</summary>
+    public List<string> Hotbar()
+    {
+        hotbar ??= new List<string>();
+
+        while (hotbar.Count < HotbarSlots) hotbar.Add("");
+        if (hotbar.Count > HotbarSlots) hotbar.RemoveRange(HotbarSlots, hotbar.Count - HotbarSlots);
+
+        return hotbar;
+    }
+
+    public const int HotbarSlots = 5;
+
     public long     coins;
 
     /// <summary>
@@ -690,6 +736,7 @@ public class CharacterData
         collectedSpiritIds  = new string[0];
         collectedRelicIds   = new string[0];
         talents             = new List<TalentRank>();
+        hotbar              = new List<string>();
         classIds            = new List<string>();
         storedDurability    = new List<ItemDurability>();
         allowGhostDisplay   = true;

@@ -157,7 +157,7 @@ public class CharacterSelectScreen : UIScreen
     {
         var theme = UIManager.Theme;
 
-        string className = GameManager.Content?.GetClass(data.classId)?.DisplayName ?? data.classId ?? "Unknown";
+        string className = ClassManager.TitleFor(data);
 
         Row(UIFactory.Label(body, data.characterName, theme.fontSizeBody, theme.textPrimary, TextAlignmentOptions.Center), 30f);
         Row(UIFactory.Label(body, $"Lv. {data.level}  •  {className}", theme.fontSizeSmall,

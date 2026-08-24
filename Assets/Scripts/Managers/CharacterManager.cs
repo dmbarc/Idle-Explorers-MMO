@@ -149,10 +149,21 @@ public class CharacterManager : MonoBehaviour
         string previous = GameManager.Content?.GetClass(character.classId)?.DisplayName
                           ?? character.classId;
 
-        character.classId = newClassId;
+        // Replaces the PRIMARY class only, leaving any second or third intact — a
+        // cross-specced character using a Shifting Sigil should not lose two other
+        // trees they earned separately.
+        string replaced = character.classId;
+
+        var ids = character.ClassIds();
+        if (ids.Count > 0) ids[0] = newClassId;
+        else ids.Add(newClassId);
+
+        ClassManager.SyncLegacyClassId(character);
         character.classChangeCount++;
 
-        TalentManager.ClearForClassChange(character);
+        // Only the replaced tree's points come back. ClearForClassChange wiped every
+        // tree, which was right when a character could only have one.
+        TalentManager.ClearClassTalents(character, replaced);
 
         GameManager.Save?.Save();
 

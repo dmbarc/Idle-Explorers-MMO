@@ -95,6 +95,7 @@ public class CharCreateConfirmScreen : UIScreen
             characterId        = System.Guid.NewGuid().ToString(),
             characterName      = CharCreateState.PendingName,
             classId            = CharCreateState.PendingClassId,
+            classIds           = new System.Collections.Generic.List<string> { CharCreateState.PendingClassId },
             level              = 1,
             xp                 = 0,
             lastLogoutUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),

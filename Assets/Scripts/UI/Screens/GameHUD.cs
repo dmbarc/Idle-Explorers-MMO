@@ -56,6 +56,8 @@ public class GameHUD : UIScreen
         GameEvents.OnTalentsChanged      += RefreshTalentBadge;
         GameEvents.OnClassChanged        += OnClassChanged;
         GameEvents.OnAutoModeChanged     += RefreshAutoMode;
+        GameEvents.OnHotbarChanged       += RebuildAbilityBar;
+        GameEvents.OnTalentsChanged      += RebuildAbilityBar;
     }
 
     public override void OnHide()
@@ -68,6 +70,8 @@ public class GameHUD : UIScreen
         GameEvents.OnTalentsChanged      -= RefreshTalentBadge;
         GameEvents.OnClassChanged        -= OnClassChanged;
         GameEvents.OnAutoModeChanged     -= RefreshAutoMode;
+        GameEvents.OnHotbarChanged       -= RebuildAbilityBar;
+        GameEvents.OnTalentsChanged      -= RebuildAbilityBar;
     }
 
     /// <summary>
@@ -99,7 +103,7 @@ public class GameHUD : UIScreen
         var charData = CharacterManager.Current;
         string name  = charData?.characterName ?? "Explorer";
         int    level = charData?.level ?? 1;
-        string cls   = GameManager.Content?.GetClass(charData?.classId)?.DisplayName ?? charData?.classId ?? "";
+        string cls   = ClassManager.TitleFor(charData);
 
         _charNameLabel = UIFactory.Label(bar.transform, $"{name}  •  {cls}",
                                           theme.fontSizeSmall, theme.textPrimary, TextAlignmentOptions.MidlineLeft);
@@ -193,9 +197,16 @@ public class GameHUD : UIScreen
     }
 
     /// <summary>
-    /// Repopulates the action bar from the active character's class. Called on every
-    /// show, because the HUD is cached and a second character may be a different
-    /// class with entirely different abilities.
+    /// Repopulates the action bar from the character's HOTBAR — the five ability ids
+    /// they have chosen — rather than from their class's ability array.
+    ///
+    /// The bar used to be `cls.abilities[i]`, resolved here AND independently in
+    /// PlayerController, which meant slot position was an ability's only identity and
+    /// there was nothing to rearrange. Everything now goes through
+    /// PlayerController.GetAbility, so the two cannot disagree.
+    ///
+    /// A slot can legitimately be empty: abilities are earned from the talent tree, so
+    /// a level 1 character has an entirely blank bar until they spend their first point.
     /// </summary>
     private void RebuildAbilityBar()
     {
@@ -208,13 +219,13 @@ public class GameHUD : UIScreen
         _abilityCooldownOverlays.Clear();
         _abilityLabels.Clear();
 
+        EnsurePlayer();
         var stack = _abilityBarRoot;
-        var cls   = GameManager.Content?.GetClass(CharacterManager.Current?.classId);
 
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < CharacterData.HotbarSlots; i++)
         {
             int slot = i;
-            var ability = (cls?.abilities != null && i < cls.abilities.Length) ? cls.abilities[i] : null;
+            var ability = _player != null ? _player.GetAbility(i) : null;
 
             var slotGo = UIFactory.Slot(stack, $"Ability{i + 1}");
 
@@ -226,12 +237,27 @@ public class GameHUD : UIScreen
             btn.onClick.AddListener(() =>
             {
                 EnsurePlayer();
-                _player?.UseAbility(slot);
+                if (_player == null) return;
+
+                if (_player.GetAbility(slot) == null)
+                {
+                    GameEvents.FireToast("Drag an ability here from the talent tree.");
+                    return;
+                }
+                _player.UseAbility(slot);
             });
+
+            // Every slot accepts a drop, including empty ones — an empty slot is the
+            // most likely place a player drags their first ability to.
+            slotGo.AddComponent<AbilitySlotDrop>().Bind(i);
+
+            // A filled slot is also a drag SOURCE, so the bar can be rearranged.
+            var iconSprite = GameManager.Content?.GetAbilityIcon(ability);
+            if (ability != null)
+                slotGo.AddComponent<AbilityDragHandle>().Bind(ability.id, iconSprite, i);
 
             // Icon behind the text. Dimmed so the name stays the readable element —
             // the icon is for recognising a slot at a glance, not for reading.
-            var iconSprite = GameManager.Content?.GetAbilityIcon(ability);
             if (iconSprite != null)
             {
                 var iconImg = UIFactory.Icon(slotGo.transform, iconSprite, 0f, "AbilityIcon");
@@ -427,7 +453,7 @@ public class GameHUD : UIScreen
         var charData = CharacterManager.Current;
         if (charData == null) return;
 
-        string cls = GameManager.Content?.GetClass(charData.classId)?.DisplayName ?? charData.classId;
+        string cls = ClassManager.TitleFor(charData);
         if (_charNameLabel  != null) _charNameLabel.text  = $"{charData.characterName}  •  {cls}";
         if (_charLevelLabel != null) _charLevelLabel.text = $"Lv. {charData.level}";
     }

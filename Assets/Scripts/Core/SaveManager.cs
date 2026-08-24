@@ -49,6 +49,11 @@ public class SaveManager : MonoBehaviour
             return;
         }
 
+        // Stamp before writing. A brand-new account has never been through Rehydrate,
+        // so without this it would be written at version 0 and then "migrated" — and
+        // the migration refunds talents.
+        account.saveVersion = CurrentSaveVersion;
+
         try
         {
             string json = JsonUtility.ToJson(account, prettyPrint: true);
@@ -166,6 +171,12 @@ public class SaveManager : MonoBehaviour
             ch.equipment  ??= new System.Collections.Generic.List<EquipmentEntry>();
             // Absent from every save written before talents existed.
             ch.talents    ??= new System.Collections.Generic.List<TalentRank>();
+            ch.storedDurability ??= new System.Collections.Generic.List<ItemDurability>();
+
+            // Absent from every save written before cross-speccing. ClassIds() does
+            // the actual migration from the single classId, so calling it is enough.
+            ch.ClassIds();
+            ch.Hotbar();
 
             // Nobody is online at load. If the game was killed mid-session the
             // flag stayed true, and the character card showed "⚡ ONLINE"
@@ -174,6 +185,51 @@ public class SaveManager : MonoBehaviour
 
             BackfillCharacterXP(ch);
         }
+
+        MigrateTalentTrees(account);
+    }
+
+    /// <summary>
+    /// The version of the save format this build writes.
+    ///
+    /// Bumped when a change makes existing saved data mean something different, rather
+    /// than merely adding to it. Most changes need no bump: a new field that defaults
+    /// sensibly is handled by the rehydration above.
+    /// </summary>
+    public const int CurrentSaveVersion = 2;
+
+    /// <summary>
+    /// Refunds every talent once, when a save predates abilities living in the trees.
+    ///
+    /// The trees were rebuilt: nodes were renamed, and the four abilities each class
+    /// used to hand out at creation are now bought from the tree. A character whose
+    /// points sit in nodes that no longer exist would keep those points locked away
+    /// AND have no abilities — TalentManager ignores ranks whose node id it cannot
+    /// find, so they are neither refunded nor useful.
+    ///
+    /// Stamped so it happens exactly once. Running it again on an already-migrated
+    /// save would wipe a build the player had since chosen deliberately.
+    /// </summary>
+    private static void MigrateTalentTrees(AccountData account)
+    {
+        if (account == null || account.saveVersion >= CurrentSaveVersion) return;
+
+        int wiped = 0;
+        foreach (var ch in account.characters)
+        {
+            if (ch?.talents == null || ch.talents.Count == 0) continue;
+
+            ch.talents.Clear();
+            ch.Hotbar().Clear();
+            wiped++;
+        }
+
+        account.saveVersion = CurrentSaveVersion;
+
+        if (wiped == 0) return;
+
+        Debug.Log($"[SaveManager] Talent trees were rebuilt — refunded {wiped} character(s).");
+        GameEvents.FireToast($"Talents refunded on {wiped} character(s): abilities now come from the tree.");
     }
 
     /// <summary>

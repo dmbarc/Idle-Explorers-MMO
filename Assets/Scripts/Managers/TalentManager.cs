@@ -46,12 +46,22 @@ public static class TalentManager
     public const string SkillXpPercent      = "skillXpPercent";
     public const string AfkRatePercent      = "afkRatePercent";
 
+    /// <summary>
+    /// Unlocks the ability named in the node's abilityId, and each further rank makes
+    /// it stronger by effectValue.
+    ///
+    /// This is what makes abilities part of progression rather than something handed
+    /// out at character creation: a level 1 character has an empty action bar, and the
+    /// first talent point buys their first ability out of the tree.
+    /// </summary>
+    public const string GrantAbility = "grantAbility";
+
     private static readonly HashSet<string> KnownEffects = new()
     {
         MaxHpPercent, AttackDamagePercent, AttackSpeedPercent, AbilityPowerPercent,
         CooldownPercent, LifestealPercent, HealthRegenFlat, DropQuantityPercent,
         GatherRatePercent, CraftSpeedPercent, CraftDoubleChance, SkillXpPercent,
-        AfkRatePercent,
+        AfkRatePercent, GrantAbility,
     };
 
     /// <summary>
@@ -74,17 +84,22 @@ public static class TalentManager
     public static int TotalPoints(CharacterData character) =>
         character == null ? 0 : Mathf.Max(0, character.level - 1);
 
+    /// <summary>
+    /// Points spent across EVERY tree the character has specced into.
+    ///
+    /// One shared pool rather than a pool per class: with up to three trees, separate
+    /// pools would make a third class free and remove the decision entirely. Sharing
+    /// them is what makes spreading yourself across three trees a real cost, and what
+    /// keeps a pure class competitive.
+    /// </summary>
     public static int SpentPoints(CharacterData character)
     {
-        var tree = TreeFor(character);
-        if (tree == null || character?.talents == null) return 0;
+        if (character?.talents == null) return 0;
 
         int spent = 0;
-        foreach (var node in tree)
-        {
-            if (node == null) continue;
+        foreach (var node in AllNodes(character))
             spent += RankOf(character, node.id) * node.PointCost;
-        }
+
         return spent;
     }
 
@@ -93,19 +108,64 @@ public static class TalentManager
 
     // ── Tree access ───────────────────────────────────────────────────────────
 
+    /// <summary>The tree for one specific class.</summary>
+    public static TalentNode[] TreeOf(string classId) =>
+        GameManager.Content?.GetClass(classId)?.talentTree;
+
+    /// <summary>
+    /// The character's PRIMARY tree. Kept for callers that only ever meant one tree;
+    /// anything that should span a cross-specced character wants AllNodes instead.
+    /// </summary>
     public static TalentNode[] TreeFor(CharacterData character)
     {
         if (character == null) return null;
-        return GameManager.Content?.GetClass(character.classId)?.talentTree;
+        return TreeOf(character.classId);
+    }
+
+    /// <summary>Every node from every class this character has specced into.</summary>
+    public static IEnumerable<TalentNode> AllNodes(CharacterData character)
+    {
+        if (character == null) yield break;
+
+        foreach (var classId in character.ClassIds())
+        {
+            var tree = TreeOf(classId);
+            if (tree == null) continue;
+
+            foreach (var node in tree)
+                if (node != null) yield return node;
+        }
     }
 
     public static TalentNode FindNode(CharacterData character, string nodeId)
     {
-        var tree = TreeFor(character);
-        if (tree == null || string.IsNullOrEmpty(nodeId)) return null;
+        if (string.IsNullOrEmpty(nodeId)) return null;
 
-        foreach (var node in tree)
-            if (node != null && node.id == nodeId) return node;
+        foreach (var node in AllNodes(character))
+            if (node.id == nodeId) return node;
+        return null;
+    }
+
+    /// <summary>
+    /// Which class a node belongs to, or null.
+    ///
+    /// Needed because node ids are globally unique but a character can hold three
+    /// trees at once — replacing one class has to refund only that tree's points, not
+    /// wipe everything the character has ever taken.
+    /// </summary>
+    public static string ClassOf(string nodeId)
+    {
+        var classes = GameManager.Content?.Classes;
+        if (classes == null || string.IsNullOrEmpty(nodeId)) return null;
+
+        foreach (var kv in classes)
+        {
+            var tree = kv.Value?.talentTree;
+            if (tree == null) continue;
+
+            foreach (var node in tree)
+                if (node != null && node.id == nodeId) return kv.Key;
+        }
         return null;
     }
 
@@ -188,9 +248,37 @@ public static class TalentManager
         if (existing != null) existing.rank++;
         else character.talents.Add(new TalentRank { nodeId = nodeId, rank = 1 });
 
+        // A newly learned ability goes straight into the first empty bar slot.
+        //
+        // Dragging is how the bar is ARRANGED, but an ability that is learned and then
+        // sits nowhere is a purchase with no visible effect — and the very first one a
+        // character buys would land on a completely empty bar with nothing to suggest
+        // what to do next. Filling only EMPTY slots means this can never displace an
+        // arrangement the player chose.
+        if (node.GrantsAbility && RankOf(character, nodeId) == 1)
+            PlaceInFirstEmptySlot(character, node.abilityId);
+
         Commit(character);
         GameEvents.FireToast($"✦ {node.name} {RankOf(character, nodeId)}/{node.RankCap}");
         return true;
+    }
+
+    private static void PlaceInFirstEmptySlot(CharacterData character, string abilityId)
+    {
+        var ability = FindAbilityFor(character, abilityId);
+        if (ability == null || !ability.IsActivatable) return;   // passives never occupy a slot
+
+        var hotbar = character.Hotbar();
+        if (hotbar.Contains(abilityId)) return;
+
+        for (int i = 0; i < hotbar.Count; i++)
+        {
+            if (!string.IsNullOrEmpty(hotbar[i])) continue;
+
+            hotbar[i] = abilityId;
+            GameEvents.OnHotbarChanged?.Invoke();
+            return;
+        }
     }
 
     /// <summary>
@@ -218,7 +306,52 @@ public static class TalentManager
     {
         if (character == null) return;
         character.talents = new List<TalentRank>();
+        PruneHotbar(character);
         Commit(character);
+    }
+
+    /// <summary>
+    /// Refunds only the points in ONE class's tree.
+    ///
+    /// Replacing a second class must not cost a cross-specced character the talents
+    /// they earned in the other two. ClassOf is what makes this possible: node ids are
+    /// globally unique, so each saved rank can be traced back to the tree it came from.
+    /// </summary>
+    public static void ClearClassTalents(CharacterData character, string classId)
+    {
+        if (character?.talents == null || string.IsNullOrEmpty(classId)) return;
+
+        var tree = TreeOf(classId);
+        if (tree == null) return;
+
+        var ids = new HashSet<string>();
+        foreach (var node in tree)
+            if (node != null && !string.IsNullOrEmpty(node.id)) ids.Add(node.id);
+
+        character.talents.RemoveAll(t => t != null && ids.Contains(t.nodeId));
+        PruneHotbar(character);
+        Commit(character);
+    }
+
+    /// <summary>
+    /// Drops anything from the hotbar the character can no longer use.
+    ///
+    /// Refunding a talent takes its ability back, and a bar slot still pointing at it
+    /// would be a button that silently does nothing — which is the exact failure this
+    /// codebase keeps having to hunt down.
+    /// </summary>
+    public static void PruneHotbar(CharacterData character)
+    {
+        var hotbar = character?.Hotbar();
+        if (hotbar == null) return;
+
+        for (int i = 0; i < hotbar.Count; i++)
+        {
+            if (string.IsNullOrEmpty(hotbar[i])) continue;
+            if (HasAbility(character, hotbar[i])) continue;
+
+            hotbar[i] = "";
+        }
     }
 
     private static void Commit(CharacterData character)
@@ -242,14 +375,19 @@ public static class TalentManager
 
     public static float Bonus(CharacterData character, string effectType)
     {
-        var tree = TreeFor(character);
-        if (tree == null || string.IsNullOrEmpty(effectType)) return 0f;
+        if (character == null || string.IsNullOrEmpty(effectType)) return 0f;
 
         float total = 0f;
 
-        foreach (var node in tree)
+        // Every specced tree, not just the primary — that is what makes a second class
+        // contribute rather than sit there as a title.
+        foreach (var node in AllNodes(character))
         {
-            if (node == null || node.effectType != effectType) continue;
+            if (node.effectType != effectType) continue;
+
+            // An ability-scoped talent is not a character-wide bonus. "Fireball costs
+            // 20% less mana" must not also make every other ability cheaper.
+            if (!string.IsNullOrEmpty(node.abilityId)) continue;
 
             int rank = RankOf(character, node.id);
             if (rank <= 0) continue;
@@ -277,6 +415,116 @@ public static class TalentManager
     public static float ReductionMultiplier(string effectType) =>
         Mathf.Max(0.25f, 1f - Bonus(effectType));
 
+    // ── Abilities earned from the tree ────────────────────────────────────────
+
+    /// <summary>
+    /// Every ability this character has unlocked, in the order their trees list them.
+    ///
+    /// Derived, never stored. Storing an unlock list would mean two places that could
+    /// disagree about what a character has — and the tree is already the truth, since
+    /// a refunded talent should take its ability back with it.
+    /// </summary>
+    public static List<AbilityData> UnlockedAbilities(CharacterData character)
+    {
+        var results = new List<AbilityData>();
+        if (character == null) return results;
+
+        var seen = new HashSet<string>();
+
+        foreach (var classId in character.ClassIds())
+        {
+            var cls = GameManager.Content?.GetClass(classId);
+            if (cls?.talentTree == null) continue;
+
+            foreach (var node in cls.talentTree)
+            {
+                if (node == null || node.effectType != GrantAbility) continue;
+                if (string.IsNullOrEmpty(node.abilityId))            continue;
+                if (RankOf(character, node.id) <= 0)                 continue;
+
+                var ability = FindAbility(cls, node.abilityId);
+                if (ability == null || !seen.Add(ability.id)) continue;
+
+                results.Add(ability);
+            }
+        }
+        return results;
+    }
+
+    /// <summary>Whether a specific ability has been unlocked.</summary>
+    public static bool HasAbility(CharacterData character, string abilityId)
+    {
+        if (string.IsNullOrEmpty(abilityId)) return false;
+
+        foreach (var ability in UnlockedAbilities(character))
+            if (ability.id == abilityId) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// An ability by id, searched across every class the character has.
+    ///
+    /// Not just their primary: with cross-speccing a Paladin's bar can hold Cleave and
+    /// Fireball at once, and resolving only against one class would make half the bar
+    /// stop working.
+    /// </summary>
+    public static AbilityData FindAbilityFor(CharacterData character, string abilityId)
+    {
+        if (character == null || string.IsNullOrEmpty(abilityId)) return null;
+
+        foreach (var classId in character.ClassIds())
+        {
+            var ability = FindAbility(GameManager.Content?.GetClass(classId), abilityId);
+            if (ability != null) return ability;
+        }
+        return null;
+    }
+
+    private static AbilityData FindAbility(ClassData cls, string abilityId)
+    {
+        if (cls?.abilities == null) return null;
+
+        foreach (var ability in cls.abilities)
+            if (ability != null && ability.id == abilityId) return ability;
+        return null;
+    }
+
+    /// <summary>
+    /// How much a talent has upgraded one ability, summed across ability-scoped nodes
+    /// with the given effect type. Ranks past the first on a grantAbility node count.
+    /// </summary>
+    public static float AbilityBonus(CharacterData character, string abilityId, string effectType)
+    {
+        if (character == null || string.IsNullOrEmpty(abilityId)) return 0f;
+
+        float total = 0f;
+
+        foreach (var node in AllNodes(character))
+        {
+            if (node.abilityId != abilityId) continue;
+
+            int rank = RankOf(character, node.id);
+            if (rank <= 0) continue;
+
+            // The node that GRANTS an ability spends its first rank on the unlock
+            // itself; only the ranks after that are an upgrade.
+            if (node.effectType == GrantAbility)
+            {
+                if (effectType != GrantAbility) continue;
+                total += node.effectValue * (rank - 1);
+                continue;
+            }
+
+            if (node.effectType != effectType) continue;
+            total += node.effectValue * rank;
+        }
+        return total;
+    }
+
+    /// <summary>Power multiplier for an ability, from the ranks invested in it.</summary>
+    public static float AbilityPowerMultiplier(CharacterData character, string abilityId) =>
+        1f + AbilityBonus(character, abilityId, GrantAbility);
+
     // ── Validation ────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -292,11 +540,16 @@ public static class TalentManager
 
         int checkedNodes = 0, broken = 0;
 
+        // Node ids must be unique across EVERY class, not just within one. A character
+        // can hold three trees at once, and TalentRank is keyed by node id alone — so
+        // two classes sharing an id would silently share the ranks spent in it.
+        var seenGlobally = new Dictionary<string, string>();
+
         foreach (var cls in content.Classes.Values)
         {
             if (cls?.talentTree == null) continue;
 
-            var seen = new HashSet<string>();
+            var grantedHere = new HashSet<string>();
 
             foreach (var node in cls.talentTree)
             {
@@ -310,12 +563,14 @@ public static class TalentManager
                     continue;
                 }
 
-                if (!seen.Add(node.id))
+                if (seenGlobally.TryGetValue(node.id, out string owner))
                 {
-                    Debug.LogWarning($"[Talents] {cls.id}: duplicate node id '{node.id}' — " +
-                                     "ranks in one will be read from the other.");
+                    Debug.LogWarning($"[Talents] node id '{node.id}' appears in both '{owner}' and " +
+                                     $"'{cls.id}'. Ids are global — a cross-specced character would " +
+                                     "share ranks between the two.");
                     broken++;
                 }
+                else seenGlobally[node.id] = cls.id;
 
                 if (!KnownEffects.Contains(node.effectType))
                 {
@@ -323,6 +578,38 @@ public static class TalentManager
                                      "is not read by anything — this talent would cost a point and do nothing.");
                     broken++;
                 }
+
+                if (node.effectType != GrantAbility) continue;
+
+                if (string.IsNullOrEmpty(node.abilityId))
+                {
+                    Debug.LogWarning($"[Talents] {cls.id}/{node.id}: grantAbility with no abilityId — " +
+                                     "it would unlock nothing.");
+                    broken++;
+                    continue;
+                }
+
+                if (FindAbility(cls, node.abilityId) == null)
+                {
+                    Debug.LogWarning($"[Talents] {cls.id}/{node.id}: grants '{node.abilityId}', which " +
+                                     "is not in that class's ability list.");
+                    broken++;
+                }
+
+                grantedHere.Add(node.abilityId);
+            }
+
+            // The other direction: an ability nothing unlocks is content the player can
+            // never reach, which is the same silent gap in reverse.
+            if (cls.abilities == null) continue;
+
+            foreach (var ability in cls.abilities)
+            {
+                if (ability == null || grantedHere.Contains(ability.id)) continue;
+
+                Debug.LogWarning($"[Talents] {cls.id}: ability '{ability.id}' is not granted by any " +
+                                 "talent — no character can ever learn it.");
+                broken++;
             }
         }
 
