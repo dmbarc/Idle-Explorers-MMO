@@ -70,6 +70,11 @@ public class GameHUD : UIScreen
 
     public override void OnHide()
     {
+        // A stuck flag would leave the world camera deaf to WASD for the rest of the
+        // session, with nothing on screen to explain why. Cleared here because this
+        // runs whether the HUD was left by a panel, a death or a trip to the menu.
+        UIManager.TextInputFocused = false;
+
         GameEvents.OnCharacterXPGained   -= OnXpGained;
         GameEvents.OnCharacterLevelUp    -= OnLevelUp;
         GameEvents.OnPlayerHealthChanged -= OnHealthChanged;
