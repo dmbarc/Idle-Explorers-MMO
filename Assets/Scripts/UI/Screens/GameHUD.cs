@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 
 /// <summary>
 /// Screen 8: In-game HUD.
@@ -37,6 +39,7 @@ public class GameHUD : UIScreen
         BuildTopBar();
         BuildBottomBar();
         BuildAutoBanner();
+        BuildChatBar();
     }
 
     public override void OnShow()
@@ -95,6 +98,7 @@ public class GameHUD : UIScreen
 
     void Update()
     {
+        HandleChatKeys();
         UpdateAbilityCooldowns();
     }
 
@@ -486,6 +490,103 @@ public class GameHUD : UIScreen
     // with a show/hide toggle in the menu. It is now rendered inside MenuModal
     // instead — one place to look, and nothing occupying screen space to be toggled
     // off. See MenuModal.BuildActivityBlock.
+
+    // ── Chat ──────────────────────────────────────────────────────────────────
+
+    private TMP_InputField _chatField;
+
+    /// <summary>
+    /// A line of chat, above the ability bar and out of the way of everything else.
+    ///
+    /// Sits on the HUD rather than in a panel because the point of it is to be typed
+    /// into while playing — a chat box you have to open a menu to reach is a chat box
+    /// nobody uses. Enter focuses it from anywhere in the world, Enter again sends,
+    /// and Escape gives the keyboard back.
+    /// </summary>
+    private void BuildChatBar()
+    {
+        var theme = UIManager.Theme;
+
+        _chatField = UIFactory.InputField(transform, "Press Enter to chat...",
+                                           width: 0f, height: 34f);
+        UIFactory.At(_chatField.transform, 0.005f, 0.152f, 0.30f, 0.194f);
+
+        _chatField.characterLimit = ChatBubble.MaxMessageLength;
+
+        // Submit on Enter rather than on a button. lineType has to say so too:
+        // the default MultiLineNewline swallows Enter as a newline and onSubmit
+        // never fires, which looks exactly like a field that has stopped responding.
+        _chatField.lineType = TMP_InputField.LineType.SingleLine;
+        _chatField.onSubmit.AddListener(SendChat);
+
+        // The world camera pans on WASD and orbits on Q/E, straight off the keyboard
+        // device. Without these the first word typed would walk the view off the
+        // character — and typing a digit would fire an ability.
+        _chatField.onSelect.AddListener(_ => UIManager.TextInputFocused = true);
+        _chatField.onDeselect.AddListener(_ => UIManager.TextInputFocused = false);
+    }
+
+    /// <summary>
+    /// Says it above the character's head and hands the keyboard back.
+    ///
+    /// Deliberately no chat log. There is nobody else in the world yet, so a scrolling
+    /// history would be a list of things the player had said to themselves; the bubble
+    /// is the whole feature until there is a server to carry it.
+    /// </summary>
+    private void SendChat(string message)
+    {
+        EnsurePlayer();
+
+        if (_player != null) ChatBubble.Say(_player.transform, message);
+        else                 GameEvents.FireToast("There is nobody out there to hear you.");
+
+        _chatField.text = "";
+        ReleaseChatFocus();
+    }
+
+    /// <summary>
+    /// Enter opens chat; Escape closes it without sending.
+    ///
+    /// Read from the keyboard device rather than through the EventSystem, because the
+    /// field is not focused yet at the moment Enter has to be noticed — that IS the
+    /// event being waited for.
+    /// </summary>
+    private void HandleChatKeys()
+    {
+        var kb = Keyboard.current;
+        if (kb == null || _chatField == null) return;
+
+        if (UIManager.TextInputFocused)
+        {
+            if (kb.escapeKey.wasPressedThisFrame)
+            {
+                _chatField.text = "";
+                ReleaseChatFocus();
+            }
+            return;
+        }
+
+        // Not while a panel is up: Enter is a confirm key in most of them, and
+        // stealing it here would break every one of those at once.
+        if (UIManager.IsModalOpen) return;
+
+        if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
+            _chatField.ActivateInputField();
+    }
+
+    private void ReleaseChatFocus()
+    {
+        _chatField.DeactivateInputField();
+
+        // Deselect as well as deactivate. Deactivating alone leaves the field as the
+        // EventSystem's selected object, so the next Enter is delivered straight back
+        // to it and the player is typing again without having asked to be.
+        if (EventSystem.current != null &&
+            EventSystem.current.currentSelectedGameObject == _chatField.gameObject)
+            EventSystem.current.SetSelectedGameObject(null);
+
+        UIManager.TextInputFocused = false;
+    }
 
     // ── Refresh ───────────────────────────────────────────────────────────────
 

@@ -9,8 +9,12 @@ using UnityEngine.UI;
 public class PlayerController : MonoBehaviour
 {
     private NavMeshAgent agent;
-    public GameObject destinationMarker;
-    private GameObject currentMarker;
+
+    // What the player has been told to go and do. A point on the ground gets an
+    // arrow above it; a monster or a station is lit up in place. See TargetMarker.cs
+    // for why one green cylinder could not honestly answer all three.
+    private GroundArrow     _groundArrow;
+    private TargetHighlight _highlight;
 
     public Animator anim;
 
@@ -399,6 +403,8 @@ public class PlayerController : MonoBehaviour
     {
         if (node == null || !node.CanGather()) return;
 
+        HighlightTarget(node.gameObject);
+
         currentTarget     = null;
         currentItemTarget = null;
 
@@ -433,6 +439,13 @@ public class PlayerController : MonoBehaviour
     private void ClearNodeTarget(bool revertActivity = true)
     {
         bool wasGathering = currentNodeTarget != null;
+
+        // Only when it is THIS node that is lit. SwitchToNode lights the new node
+        // before clearing the old one, so an unconditional clear here would put out
+        // the light it had just switched on.
+        if (currentNodeTarget != null && _highlight != null &&
+            _highlight.gameObject == currentNodeTarget.gameObject)
+            ClearHighlight();
 
         if (currentNodeTarget != null) currentNodeTarget.StopGathering();
         currentNodeTarget = null;
@@ -504,6 +517,8 @@ public class PlayerController : MonoBehaviour
     {
         currentItemTarget = null;
         ClearNodeTarget();
+
+        HighlightTarget(newTarget.gameObject);
         if (currentTarget != newTarget)
         {
             currentTarget = newTarget;
@@ -523,6 +538,10 @@ public class PlayerController : MonoBehaviour
     {
         currentTarget = null;
         ClearNodeTarget();
+
+        // A dropped item already glows for itself, and the goblin that dropped it is
+        // no longer what the character is walking to.
+        ClearHighlight();
         if (currentItemTarget != newItem)
         {
             currentItemTarget = newItem;
@@ -611,6 +630,10 @@ public class PlayerController : MonoBehaviour
 
     private void ClearCombatTarget()
     {
+        // Whatever was lit was this target — the node case clears itself in
+        // ClearNodeTarget, and nothing else lights anything.
+        ClearHighlight();
+
         currentTarget    = null;
         _closestApproach = float.MaxValue;
         if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
@@ -725,47 +748,99 @@ public class PlayerController : MonoBehaviour
             EventSystem.current.IsPointerOverGameObject(Mouse.current.deviceId)) return;
 
         Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
-        if (Physics.Raycast(ray, out RaycastHit hit))
-        {
-            MonsterController monster = hit.collider.GetComponentInParent<MonsterController>();
-            SkillNodeController node  = hit.collider.GetComponentInParent<SkillNodeController>();
+        if (!Physics.Raycast(ray, out RaycastHit hit)) return;
 
-            if (monster != null)
-            {
-                SwitchToMonster(monster);
-                if (currentMarker) Destroy(currentMarker);
-                currentMarker = Instantiate(destinationMarker, monster.transform.position + Vector3.up * 0.1f, Quaternion.identity);
-                currentMarker.transform.SetParent(monster.transform);
-            }
-            else if (node != null)
-            {
-                SwitchToNode(node);
-                if (currentMarker) Destroy(currentMarker);
-                currentMarker = Instantiate(destinationMarker, node.transform.position + Vector3.up * 0.1f, Quaternion.identity);
-                currentMarker.transform.SetParent(node.transform);
-            }
-            else
-            {
-                currentTarget = null;
-                currentItemTarget = null;
-                ClearNodeTarget();
-                agent.ResetPath();
-                agent.isStopped = false;
-                agent.stoppingDistance = 0.1f;
-                agent.SetDestination(hit.point);
-                if (currentMarker) Destroy(currentMarker);
-                currentMarker = Instantiate(destinationMarker, hit.point + Vector3.up * 0.1f, Quaternion.identity);
-            }
+        MonsterController monster = hit.collider.GetComponentInParent<MonsterController>();
+        SkillNodeController node  = hit.collider.GetComponentInParent<SkillNodeController>();
+
+        // The marker is not chosen here. SwitchToMonster and SwitchToNode raise it,
+        // so auto-mode picking its own target lights that target up too — which is
+        // the whole point of a highlight rather than a marker dropped on click.
+        if (monster != null)
+        {
+            SwitchToMonster(monster);
+        }
+        else if (node != null)
+        {
+            SwitchToNode(node);
+        }
+        else
+        {
+            currentTarget     = null;
+            currentItemTarget = null;
+            ClearNodeTarget();
+
+            agent.ResetPath();
+            agent.isStopped        = false;
+            agent.stoppingDistance = 0.1f;
+            agent.SetDestination(hit.point);
+
+            ShowGroundArrow(hit.point);
         }
     }
 
+    // ── Showing what is targeted ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Points an arrow at a spot on the ground, and puts out whatever was lit.
+    ///
+    /// The two are mutually exclusive on purpose: an arrow over open ground while a
+    /// goblin still glowed would show the player two destinations, only one of which
+    /// the character was walking to.
+    /// </summary>
+    private void ShowGroundArrow(Vector3 point)
+    {
+        ClearHighlight();
+
+        if (_groundArrow == null) _groundArrow = GroundArrow.ShowAt(point);
+        else                      _groundArrow.MoveTo(point);
+    }
+
+    /// <summary>
+    /// Lights up a monster or a station, and takes the ground arrow down.
+    ///
+    /// Re-lighting what is already lit is a no-op rather than a rebuild, because
+    /// AttackLogic calls through here every time it re-acquires the same target and a
+    /// highlight that restarted its pulse each frame would sit at one brightness.
+    /// </summary>
+    private void HighlightTarget(GameObject target)
+    {
+        if (target == null) return;
+
+        ClearGroundArrow();
+
+        if (_highlight != null && _highlight.gameObject == target) return;
+
+        ClearHighlight();
+        _highlight = TargetHighlight.Apply(target);
+    }
+
+    private void ClearGroundArrow()
+    {
+        if (_groundArrow != null) Destroy(_groundArrow.gameObject);
+        _groundArrow = null;
+    }
+
+    private void ClearHighlight()
+    {
+        // Remove puts the original colours back. A dead monster has already restored
+        // itself in OnDisable and destroyed the component with the object, so the
+        // null check here is the normal path rather than the exceptional one.
+        if (_highlight != null) _highlight.Remove();
+        _highlight = null;
+    }
+
+    /// <summary>
+    /// Takes the arrow down on arrival. The highlight deliberately stays: the point
+    /// of lighting a goblin up is to know which one is being fought, and that outlives
+    /// the walk toward it.
+    /// </summary>
     private void CleanupMarker()
     {
-        if (currentMarker && agent.isOnNavMesh && !agent.pathPending &&
+        if (_groundArrow != null && agent.isOnNavMesh && !agent.pathPending &&
             agent.remainingDistance <= agent.stoppingDistance + 0.05f)
         {
-            Destroy(currentMarker);
-            currentMarker = null;
+            ClearGroundArrow();
         }
     }
 
@@ -919,6 +994,10 @@ public class PlayerController : MonoBehaviour
         currentItemTarget = null;
         ClearNodeTarget();
 
+        // Dying is not a target change, so nothing else would take these down.
+        ClearHighlight();
+        ClearGroundArrow();
+
         if (agent != null && agent.isOnNavMesh)
         {
             agent.ResetPath();
@@ -1020,6 +1099,10 @@ public class PlayerController : MonoBehaviour
     {
         var kb = Keyboard.current;
         if (kb == null) return;   // null on touch-only devices
+
+        // Typing "1 goblin left" must not cast the ability in slot one. The chat
+        // field raises this flag while it holds focus.
+        if (UIManager.TextInputFocused) return;
 
         if (kb.digit1Key.wasPressedThisFrame) UseAbility(0);
         if (kb.digit2Key.wasPressedThisFrame) UseAbility(1);

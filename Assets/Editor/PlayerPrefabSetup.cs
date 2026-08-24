@@ -49,7 +49,9 @@ public static class PlayerPrefabSetup
     /// </summary>
     internal const string PREFAB_PATH = "Assets/Prefabs/PlayerCharacter.prefab";
 
-    private const string MARKER_PREFAB = "Assets/Prefabs/MoveMarker.prefab";
+    // No marker prefab any more. PlayerController builds its own arrow mesh and lights
+    // targets up in place — see TargetMarker.cs. Assets/Prefabs/MoveMarker.prefab is
+    // the old green cylinder and is no longer referenced by anything.
 
     /// <summary>
     /// The art. The same Devil rig CharacterPreview instantiates, so the character in
@@ -344,12 +346,6 @@ public static class PlayerPrefabSetup
         // The animator lives on the rig's UnitRoot, one level down. Wiring it here is
         // what keeps PlayerController free of a rig lookup of its own.
         player.anim = animator;
-
-        var marker = AssetDatabase.LoadAssetAtPath<GameObject>(MARKER_PREFAB);
-        if (marker == null)
-            Debug.LogWarning($"[PlayerPrefab] No move marker at {MARKER_PREFAB} — " +
-                             "click-to-move will work but show nothing where you clicked.");
-        player.destinationMarker = marker;
 
         // Inspector fallbacks only. StatsManager overwrites all of these in Start via
         // RefreshFromStats; they matter solely when a map scene is played directly
