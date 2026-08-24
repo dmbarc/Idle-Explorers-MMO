@@ -200,6 +200,52 @@ public static class PlayerPrefabSetup
         art.transform.localPosition = Vector3.zero;
         art.transform.localRotation = Quaternion.identity;
         art.transform.localScale    = Vector3.one;
+
+        UnmaskRenderers(art);
+    }
+
+    /// <summary>
+    /// Clears sprite-mask interaction across the rig, and drops the inert mask.
+    ///
+    /// SPUM ships P_Hair's renderer (7_Hair) set to VisibleInsideMask while the only
+    /// SpriteMask in the hierarchy — on 5_Head — has no sprite, so it masks zero pixels.
+    /// A renderer visible only inside a mask that covers nothing is invisible
+    /// everywhere, with its sprite correctly assigned and enabled true. That is why
+    /// hair could be picked in the creator and never appear, on the class cards or on
+    /// the character in the world.
+    ///
+    /// SpumRig.Show clears this at runtime for every layer it draws, which is what
+    /// actually fixes the game. This does it in the asset as well so the generated
+    /// prefab is honest about what it will look like — an editor preview of the prefab
+    /// should not disagree with play mode — and so the invariant is testable from the
+    /// YAML without entering play mode.
+    /// </summary>
+    private static void UnmaskRenderers(GameObject art)
+    {
+        int cleared = 0;
+
+        foreach (var renderer in art.GetComponentsInChildren<SpriteRenderer>(true))
+        {
+            if (renderer == null || renderer.maskInteraction == SpriteMaskInteraction.None) continue;
+
+            renderer.maskInteraction = SpriteMaskInteraction.None;
+            cleared++;
+        }
+
+        // Only ever removed when it is doing nothing. A mask WITH a sprite is a
+        // deliberate authoring choice and must survive.
+        int removed = 0;
+        foreach (var mask in art.GetComponentsInChildren<SpriteMask>(true))
+        {
+            if (mask == null || mask.sprite != null) continue;
+
+            Object.DestroyImmediate(mask);
+            removed++;
+        }
+
+        if (cleared > 0 || removed > 0)
+            Debug.Log($"[PlayerPrefab] Cleared mask interaction on {cleared} renderer(s) and " +
+                      $"removed {removed} empty SpriteMask(s) — this is what kept hair invisible.");
     }
 
     private static void ConfigureNavigation(GameObject root)

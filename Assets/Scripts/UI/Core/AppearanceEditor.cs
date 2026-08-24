@@ -61,12 +61,31 @@ public class AppearanceEditor
                               () => look.eyeAddress,      v => look.eyeAddress = v);
         editor.BuildSwatches(content, theme, "Eye Color",
                               () => look.eyeColor,        v => look.eyeColor = v);
-        editor.BuildCategory(content, theme, "Weapon",    SpumAppearance.Weapons,
-                              () => look.weaponAddress,   v => look.weaponAddress = v);
-        editor.BuildCategory(content, theme, "Cloak",     SpumAppearance.Backs,
-                              () => look.backAddress,     v => look.backAddress = v);
+
+        // Weapon and Cloak are deliberately absent. They are what a character is
+        // WEARING, not what they look like: P_Back is also the cape equipment slot
+        // (EquipmentSlots "cape"), so the appearance write and the equipment write
+        // were landing on the same renderer and whichever ran last won. Equipment owns
+        // both parts now. SpumSaveData keeps the fields — an empty address makes
+        // ApplySingle hide the part, and the class cards still arm themselves from
+        // class_data.json's previewLook.
+
+        // Clear whatever the old pickers left behind. A character created while Weapon
+        // and Cloak were still choosable would otherwise keep a phantom sword forever,
+        // with no control left anywhere to take it off. Safe to do here because this
+        // editor is only ever opened on a PLAYER look — the class cards build their
+        // previews straight from previewLook and never come through Build.
+        look.weaponAddress = "";
+        look.backAddress   = "";
 
         editor.BuildRandomise(content, theme);
+
+        // Paint the rows before anyone sees them. Every caption and n/N counter is
+        // created empty and filled only by a refresher, and the refreshers ran solely
+        // from Step and the swatch handler — so the whole panel opened blank and stayed
+        // that way until a control was touched. A blank caption is exactly what makes a
+        // working picker look like a dead one.
+        editor.Refresh();
 
         return editor;
     }

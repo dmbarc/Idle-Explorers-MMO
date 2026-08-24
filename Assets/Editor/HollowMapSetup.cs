@@ -187,6 +187,8 @@ public static class HollowMapSetup
         // outside the layout and every symptom looked like a rendering fault.
         MapSceneSetup.VerifyPlayerPlacement("Hollow of the Fading Light");
 
+        MapSceneSetup.VerifyCamera("Hollow of the Fading Light");
+
         EditorSceneManager.MarkSceneDirty(scene);
         if (!EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false))
         {

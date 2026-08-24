@@ -45,8 +45,50 @@ public class BootstrapCamera : MonoBehaviour
         GameEvents.OnReturnToMainMenu -= OnReturnedToMenu;
     }
 
-    private void OnMapEntered(string mapId) => SetActive(false);
-    private void OnReturnedToMenu()         => SetActive(true);
+    /// <summary>
+    /// Steps aside for the map's own camera — but only if there is one.
+    ///
+    /// This used to disable unconditionally, on the assumption in the class comment
+    /// above. That assumption failed: MapSceneSetup deleted the player root, the Main
+    /// Camera was a child of it, and both maps saved with no camera at all. This
+    /// listener then switched off the last enabled camera in the game at the exact
+    /// moment the map finished loading, which is why the fault presented as
+    /// "Display 1 — No cameras rendering" on entering any map.
+    ///
+    /// Staying on does not make the map playable — cullingMask is 0, so nothing in the
+    /// world draws. It keeps a legible background and a working overlay UI so the
+    /// player can get back to the menu, and it puts a real error in the console instead
+    /// of a black screen. A safety net, not a fix; the fix is that the map builder now
+    /// creates the camera.
+    /// </summary>
+    private void OnMapEntered(string mapId)
+    {
+        if (!AnotherCameraIsRendering())
+        {
+            Debug.LogError($"[BootstrapCamera] Scene '{mapId}' has no camera of its own, so the " +
+                           "menu camera is staying on. The map will not be visible. Run " +
+                           "'Idle Explorers → Setup Everything' to rebuild the map scenes.");
+            return;
+        }
+
+        SetActive(false);
+    }
+
+    private void OnReturnedToMenu() => SetActive(true);
+
+    /// <summary>Any enabled camera that is not this one.</summary>
+    private bool AnotherCameraIsRendering()
+    {
+        var cameras = FindObjectsByType<Camera>(FindObjectsInactive.Exclude);
+
+        foreach (var cam in cameras)
+        {
+            if (cam == null || cam == _camera) continue;
+            if (cam.enabled && cam.isActiveAndEnabled) return true;
+        }
+
+        return false;
+    }
 
     private void SetActive(bool active)
     {

@@ -150,13 +150,27 @@ public static class SpumRig
     /// `enabled = true` does nothing for a renderer on a deactivated GameObject, and a
     /// silently-inactive layer looks exactly like a failed sprite load — which is a
     /// bug this project has already paid for once.
+    ///
+    /// The maskInteraction reset is the third way this rig has found to draw nothing
+    /// without reporting anything. SPUM ships P_Hair's renderer (7_Hair) set to
+    /// VisibleInsideMask, and the only SpriteMask in the hierarchy — on 5_Head — has
+    /// no sprite, so it masks zero pixels. A renderer visible only inside a mask that
+    /// covers nothing is invisible everywhere, with the sprite correctly assigned and
+    /// enabled true. That is why hair could be chosen but never seen, on the class
+    /// cards, in the appearance editor and on the character in the world alike.
+    ///
+    /// Cleared here rather than in the prefab because this is the one place every
+    /// appearance and equipment write already passes through, so it holds for whichever
+    /// rig a future character uses. Safe because no SpriteMask in the rig has a sprite:
+    /// nothing is masking anything today.
     /// </summary>
     public static void Show(Layer layer, Sprite sprite)
     {
         if (layer?.Renderer == null || sprite == null) return;
 
-        layer.Renderer.sprite  = sprite;
-        layer.Renderer.enabled = true;
+        layer.Renderer.sprite          = sprite;
+        layer.Renderer.enabled         = true;
+        layer.Renderer.maskInteraction = SpriteMaskInteraction.None;
 
         if (!layer.Renderer.gameObject.activeSelf)
             layer.Renderer.gameObject.SetActive(true);

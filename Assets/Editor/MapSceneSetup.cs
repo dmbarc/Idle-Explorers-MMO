@@ -161,6 +161,10 @@ public static class MapSceneSetup
         // would fail on every map.
         VerifyPlayerPlacement("Goblin Camp");
 
+        // Before the save, not after: a map nobody can see is not a map, and the only
+        // sign last time was one warning in a thirteen-step log.
+        VerifyCamera("Goblin Camp");
+
         EditorSceneManager.MarkSceneDirty(scene);
         bool saved = EditorSceneManager.SaveScene(scene, MAP_SCENE, saveAsCopy: false);
         if (!saved)
@@ -326,21 +330,39 @@ public static class MapSceneSetup
         return removed;
     }
 
-    /// <summary>Gives the map camera WASD panning, scroll zoom and player follow.</summary>
+    /// <summary>
+    /// Guarantees the map has a follow camera, and gives it WASD panning and zoom.
+    ///
+    /// ══ WHY THIS CREATES RATHER THAN CONFIGURES ═══════════════════════════════
+    ///
+    /// It used to return early when Camera.main was null, on the assumption that every
+    /// map inherits SampleScene's camera. That assumption died the moment EnsurePlayer
+    /// started replacing the inherited player: SampleScene had parked the Main Camera
+    /// as a CHILD of PlayerCharacter — SPUM authors rigs inside a Canvas, so the same
+    /// RectTransform that put the Hollow's player 337 units out of bounds was also the
+    /// camera's parent — and DestroyImmediate on the player root took the camera, its
+    /// AudioListener and its CameraController with it.
+    ///
+    /// Both maps then saved with zero cameras, and the game showed "Display 1 — No
+    /// cameras rendering" on entering either one. Click-to-move and the billboarded
+    /// node labels went with it; they all read Camera.main.
+    ///
+    /// The detach below was written to fix the camera-parented-to-player problem and
+    /// was correct, but it ran twenty lines after the object it was fixing had already
+    /// been deleted. Creating the camera here is what makes a map OWN one rather than
+    /// inherit one, which is the same reason EnsurePlayer builds its player.
+    /// </summary>
     internal static void EnsureCameraController()
     {
         var camera = Camera.main;
-        if (camera == null)
-        {
-            Debug.LogWarning("[MapSetup] No MainCamera in the scene — camera controls not added.");
-            return;
-        }
+        if (camera == null) camera = CreateMapCamera();
+        if (camera == null) return;
 
-        // The camera was saved as a CHILD of PlayerCharacter. A follow camera cannot
-        // be parented to its own target: CameraController assigns a world position
-        // every LateUpdate, but the parent has already moved and rotated it by then —
-        // and the NavMeshAgent rotates the player to face travel, which swings the
-        // camera around them before the follow drags it back.
+        // A follow camera cannot be parented to its own target: CameraController assigns
+        // a world position every LateUpdate, but the parent has already moved and
+        // rotated it by then — and the NavMeshAgent rotates the player to face travel,
+        // which swings the camera around them before the follow drags it back. Kept for
+        // any scene not yet regenerated; a camera built above is already a root object.
         if (camera.transform.parent != null)
         {
             Debug.Log($"[MapSetup] Detaching the camera from '{camera.transform.parent.name}'.");
@@ -363,6 +385,15 @@ public static class MapSceneSetup
         // "there is nothing here" look like nothing being here.
         camera.clearFlags = CameraClearFlags.Skybox;
 
+        // Gameplay audio is positional and needs a listener somewhere in the scene. The
+        // menu camera disables its own on OnMapEntered, so without this the map is
+        // silent — the missing camera cost us every sound effect as well as the picture.
+        if (camera.GetComponent<AudioListener>() == null)
+        {
+            camera.gameObject.AddComponent<AudioListener>();
+            Debug.Log("[MapSetup] Added an AudioListener to the map camera.");
+        }
+
         var controller = camera.GetComponent<CameraController>();
         if (controller == null)
         {
@@ -379,8 +410,91 @@ public static class MapSceneSetup
         controller.maxDistance = 300f;
         controller.zoomStep    = 1.18f;
 
+        FrameOnPlayer(camera, controller);
+
         EditorUtility.SetDirty(camera);
         EditorUtility.SetDirty(controller);
+    }
+
+    /// <summary>
+    /// A new Main Camera as a ROOT object, never parented to the player.
+    ///
+    /// CameraController.AcquireTarget resolves the player by tag every LateUpdate, so a
+    /// root camera survives the player being replaced, respawned or repositioned —
+    /// which is precisely what a child camera did not.
+    /// </summary>
+    private static Camera CreateMapCamera()
+    {
+        Debug.Log("[MapSetup] No MainCamera in the scene — building one.");
+
+        var go = new GameObject("Main Camera");
+        go.tag = "MainCamera";
+
+        var camera = go.AddComponent<Camera>();
+        if (camera == null)
+            Debug.LogError("[MapSetup] Could not add a Camera to the new Main Camera object.");
+
+        return camera;
+    }
+
+    /// <summary>
+    /// Points the saved camera at the player from the angle CameraController settles to,
+    /// so the scene looks right in the editor and frame one is not a lurch. Mirrors
+    /// CameraController.DesiredPosition rather than copying SampleScene's hand-placed
+    /// offset, which was specific to Goblin Camp.
+    /// </summary>
+    private static void FrameOnPlayer(Camera camera, CameraController controller)
+    {
+        if (camera == null || controller == null) return;
+
+        var player = FindPlayer();
+        if (player == null) return;
+
+        var rotation = Quaternion.Euler(controller.pitch, controller.yaw, 0f);
+        camera.transform.position = player.transform.position +
+                                    rotation * Vector3.back * controller.distance;
+        camera.transform.rotation = rotation;
+    }
+
+    /// <summary>
+    /// Refuses to call a map finished when it cannot be seen.
+    ///
+    /// Both maps shipped with no camera at all, and the only sign was a single warning
+    /// inside a thirteen-step log, which scrolled past. Same shape as
+    /// PlayerPrefabSetup.Verify: a check that fails loudly beats a check that mentions
+    /// something in passing.
+    /// </summary>
+    internal static bool VerifyCamera(string mapName)
+    {
+        var cameras = Object.FindObjectsByType<Camera>(FindObjectsInactive.Include);
+
+        int rendering = 0;
+        foreach (var cam in cameras)
+            if (cam != null && cam.enabled && cam.gameObject.activeInHierarchy) rendering++;
+
+        if (rendering != 1)
+        {
+            Debug.LogError($"[MapSetup] {mapName} has {rendering} enabled camera(s) — expected 1. " +
+                           "The map would show \"Display 1 — No cameras rendering\".");
+            return false;
+        }
+
+        if (Camera.main == null)
+        {
+            Debug.LogError($"[MapSetup] {mapName} has a camera but nothing tagged MainCamera — " +
+                           "click-to-move and the billboarded labels both read Camera.main.");
+            return false;
+        }
+
+        if (Object.FindAnyObjectByType<AudioListener>(FindObjectsInactive.Include) == null)
+        {
+            Debug.LogError($"[MapSetup] {mapName} has no AudioListener — all positional audio " +
+                           "would be silent.");
+            return false;
+        }
+
+        Debug.Log($"[MapSetup] {mapName}: one MainCamera with an AudioListener. Good.");
+        return true;
     }
 
     /// <summary>
