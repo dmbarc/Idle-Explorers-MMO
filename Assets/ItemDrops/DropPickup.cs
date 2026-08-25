@@ -323,14 +323,18 @@ public class DropPickup : MonoBehaviour
             // Names what was left. "Inventory full — some was left behind" told you
             // there was a problem and nothing about which of the thirty things in your
             // bag to drop, or whether what you were missing mattered.
-            if (!_warnedFull)
+            //
+            // A quantity of zero is not worth announcing. It reads as a bug in the
+            // message rather than a full bag, which is what "left behind 0 × Tin Ore"
+            // looked like, and the pickup is still refused either way.
+            if (!_warnedFull && quantity > 0)
             {
                 _warnedFull = true;
 
                 var missed = GameManager.Content?.GetItem(itemId);
                 GameEvents.FireToast($"Inventory full — left behind " +
                                      $"{NumberFormatter.Format(quantity)} × " +
-                                     $"{missed?.DisplayName ?? itemId}.");
+                                     $"{missed?.DisplayName ?? itemId}.", ChatTone.Warning);
             }
             return false;
         }

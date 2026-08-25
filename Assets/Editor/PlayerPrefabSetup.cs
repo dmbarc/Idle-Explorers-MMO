@@ -68,9 +68,13 @@ public static class PlayerPrefabSetup
     private const float AgentAccel   = 8f;
     private const float AgentAngular = 120f;
 
-    private static readonly Vector3 ColliderCentre = new Vector3(0f, 0.3058f, 0f);
-    private const float ColliderRadius = 0.2416f;
-    private const float ColliderHeight = 1.0187f;
+    // Sized to the character rather than copied from the scene instance. Those numbers
+    // (radius 0.24, height 1.02, centred at 0.31) described the rig at its ORIGINAL
+    // sub-metre scale, and the rig is now normalised to SpumRig.CharacterHeight — so a
+    // copied collider would be a third of the body it belongs to.
+    private static readonly Vector3 ColliderCentre = new Vector3(0f, SpumRig.CharacterHeight * 0.5f, 0f);
+    private const float ColliderRadius = SpumRig.CharacterHeight * 0.28f;
+    private const float ColliderHeight = SpumRig.CharacterHeight;
 
     [MenuItem("Idle Explorers/Build Player Prefab")]
     public static void BuildMenu() => Build(showDialog: true);

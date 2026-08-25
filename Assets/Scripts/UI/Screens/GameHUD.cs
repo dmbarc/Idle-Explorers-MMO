@@ -65,7 +65,13 @@ public class GameHUD : UIScreen
         GameEvents.OnClassChanged        += OnClassChanged;
         GameEvents.OnAutoModeChanged     += RefreshAutoMode;
         GameEvents.OnHotbarChanged       += RebuildAbilityBar;
+        GameEvents.OnHotbarChanged       += RebuildAbilityBar;
         GameEvents.OnTalentsChanged      += RebuildAbilityBar;
+
+        // The chat window is the display for everything the game says while the HUD
+        // is up; ToastLayer checks this before popping so nothing is said twice.
+        ChatLog.OnLine += OnChatLine;
+        ChatLog.HasWindow = true;
     }
 
     public override void OnHide()
@@ -86,6 +92,9 @@ public class GameHUD : UIScreen
         GameEvents.OnAutoModeChanged     -= RefreshAutoMode;
         GameEvents.OnHotbarChanged       -= RebuildAbilityBar;
         GameEvents.OnTalentsChanged      -= RebuildAbilityBar;
+
+        ChatLog.OnLine -= OnChatLine;
+        ChatLog.HasWindow = false;
     }
 
     /// <summary>
@@ -499,69 +508,169 @@ public class GameHUD : UIScreen
     // ── Chat ──────────────────────────────────────────────────────────────────
 
     private TMP_InputField _chatField;
+    private Transform      _chatLines;
+    private ScrollRect     _chatScroll;
 
     /// <summary>
-    /// A line of chat, above the ability bar and out of the way of everything else.
+    /// The chat window: a column of recent lines on the left, with the box you type
+    /// into underneath it.
     ///
-    /// Sits on the HUD rather than in a panel because the point of it is to be typed
-    /// into while playing — a chat box you have to open a menu to reach is a chat box
-    /// nobody uses. Enter focuses it from anywhere in the world, Enter again sends,
-    /// and Escape gives the keyboard back.
+    /// ══ WHY THE BOX DID NOTHING ═══════════════════════════════════════════════
+    ///
+    /// The first version had only the input, opened by pressing Enter. Enter both
+    /// activated the field AND was then read by that same field as a submit on the
+    /// frame it woke up, so it opened and closed again before a character could be
+    /// typed. It looked like a text box that ignored the keyboard; it was a text box
+    /// that was never focused for longer than a frame.
+    ///
+    /// Now the field is always there and always clickable, Enter focuses it only when
+    /// it is not already focused, and submitting an empty line does nothing rather
+    /// than counting as sending.
+    ///
+    /// Nothing here blocks raycasts except the input itself. A chat window that ate
+    /// world clicks would take a fifth of the screen away from click-to-move.
     /// </summary>
     private void BuildChatBar()
     {
         var theme = UIManager.Theme;
 
-        _chatField = UIFactory.InputField(transform, "Press Enter to chat...",
+        // ── The log ───────────────────────────────────────────────────────────
+        var (scroll, content) = UIFactory.ScrollList(transform, "ChatLog", 2f);
+        UIFactory.At(scroll, 0.005f, 0.155f, 0.30f, 0.52f);
+
+        _chatScroll = scroll;
+        _chatLines  = content;
+
+        // Left-aligned and bottom-up, the way every chat window in the genre reads.
+        var layout = content.GetComponent<VerticalLayoutGroup>();
+        if (layout != null)
+        {
+            layout.childAlignment      = TextAnchor.LowerLeft;
+            layout.childForceExpandHeight = false;
+            layout.childControlHeight  = true;
+        }
+
+        // The panel is scenery. Only the input below takes input.
+        foreach (var image in scroll.GetComponentsInChildren<Image>(true))
+            image.raycastTarget = false;
+
+        // ── The box ───────────────────────────────────────────────────────────
+        _chatField = UIFactory.InputField(transform, "Press Enter to chat  (/p /g /w)",
                                            width: 0f, height: 34f);
-        UIFactory.At(_chatField.transform, 0.005f, 0.152f, 0.30f, 0.194f);
+        UIFactory.At(_chatField.transform, 0.005f, 0.152f, 0.30f, 0.152f + 0.038f);
 
         _chatField.characterLimit = ChatBubble.MaxMessageLength;
 
-        // Submit on Enter rather than on a button. lineType has to say so too:
-        // the default MultiLineNewline swallows Enter as a newline and onSubmit
-        // never fires, which looks exactly like a field that has stopped responding.
+        // SingleLine matters: the default MultiLineNewline swallows Enter as a newline
+        // and onSubmit never fires, which reads as a field that has stopped working.
         _chatField.lineType = TMP_InputField.LineType.SingleLine;
         _chatField.onSubmit.AddListener(SendChat);
 
-        // The world camera pans on WASD and orbits on Q/E, straight off the keyboard
-        // device. Without these the first word typed would walk the view off the
-        // character — and typing a digit would fire an ability.
         _chatField.onSelect.AddListener(_ => UIManager.TextInputFocused = true);
         _chatField.onDeselect.AddListener(_ => UIManager.TextInputFocused = false);
+
+        // Whatever was said before this panel existed. The HUD is rebuilt per
+        // character and the log outlives it, so history is redrawn rather than lost.
+        foreach (var line in ChatLog.Lines) AppendLine(line);
+        ScrollToBottom();
+    }
+
+    /// <summary>One line in the window, coloured by what kind of line it is.</summary>
+    private void AppendLine(ChatLog.Line line)
+    {
+        if (_chatLines == null || string.IsNullOrEmpty(line.Text)) return;
+
+        var theme = UIManager.Theme;
+
+        var label = UIFactory.Label(_chatLines, line.Text, theme.fontSizeLabel,
+                                     theme.ChatColor(line.Tone), TextAlignmentOptions.TopLeft);
+        label.textWrappingMode = TextWrappingModes.Normal;
+        label.raycastTarget    = false;
+
+        // Sized to its own wrapped height, so a long line is not clipped to one row.
+        var fitter = label.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        // The log is capped in ChatLog; this keeps the view from outgrowing it.
+        // Counted once rather than looped on childCount, because Destroy is deferred
+        // to the end of the frame and the count would not drop until then.
+        int excess = _chatLines.childCount - ChatLog.Capacity;
+        for (int i = 0; i < excess; i++) Destroy(_chatLines.GetChild(i).gameObject);
+    }
+
+    private void OnChatLine(ChatLog.Line line)
+    {
+        // A cleared log arrives as a null line rather than its own event.
+        if (string.IsNullOrEmpty(line.Text))
+        {
+            if (_chatLines == null) return;
+            for (int i = _chatLines.childCount - 1; i >= 0; i--)
+                Destroy(_chatLines.GetChild(i).gameObject);
+            return;
+        }
+
+        AppendLine(line);
+        ScrollToBottom();
     }
 
     /// <summary>
-    /// Says it above the character's head and hands the keyboard back.
+    /// Pins the view to the newest line. Deferred by a frame because the layout has
+    /// not measured the line that was just added, so scrolling now would scroll to
+    /// where the bottom used to be.
+    /// </summary>
+    private void ScrollToBottom()
+    {
+        if (_chatScroll == null) return;
+        StartCoroutine(ScrollNextFrame());
+    }
+
+    private System.Collections.IEnumerator ScrollNextFrame()
+    {
+        yield return null;
+        if (_chatScroll != null) _chatScroll.verticalNormalizedPosition = 0f;
+    }
+
+    /// <summary>
+    /// Says it out loud: into the chat window, and above the character's head.
     ///
-    /// Deliberately no chat log. There is nobody else in the world yet, so a scrolling
-    /// history would be a list of things the player had said to themselves; the bubble
-    /// is the whole feature until there is a server to carry it.
+    /// A leading /p, /g or /w picks a channel. Those have no traffic until there is a
+    /// server, but they are how the four channel colours can be seen at all today.
     /// </summary>
     private void SendChat(string message)
     {
-        EnsurePlayer();
+        // Submitting nothing is not sending. It used to clear focus, which is what
+        // made a stray Enter feel like the box had closed itself.
+        if (string.IsNullOrWhiteSpace(message)) return;
 
+        var tone = ChatLog.ParseChannel(ref message);
+        if (string.IsNullOrWhiteSpace(message)) { _chatField.text = ""; return; }
+
+        string speaker = CharacterManager.Current?.characterName ?? "You";
+        ChatLog.Say($"{speaker}: {message}", tone);
+
+        EnsurePlayer();
         if (_player != null) ChatBubble.Say(_player.transform, message);
-        else                 GameEvents.FireToast("There is nobody out there to hear you.");
 
         _chatField.text = "";
-        ReleaseChatFocus();
+
+        // Kept focused, so a conversation does not need the mouse between lines.
+        _chatField.ActivateInputField();
     }
 
     /// <summary>
-    /// Enter opens chat; Escape closes it without sending.
+    /// Enter opens the box; Escape closes it without sending.
     ///
     /// Read from the keyboard device rather than through the EventSystem, because the
     /// field is not focused yet at the moment Enter has to be noticed — that IS the
-    /// event being waited for.
+    /// event being waited for. Guarded on isFocused so the Enter that submits a line
+    /// is not also read here as a request to open the box again.
     /// </summary>
     private void HandleChatKeys()
     {
         var kb = Keyboard.current;
         if (kb == null || _chatField == null) return;
 
-        if (UIManager.TextInputFocused)
+        if (_chatField.isFocused)
         {
             if (kb.escapeKey.wasPressedThisFrame)
             {

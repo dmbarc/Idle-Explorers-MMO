@@ -125,8 +125,32 @@ public class TalentPanel : UIScreen
         locked.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1f;
     }
 
-    public override void OnShow()  => GameEvents.OnTalentsChanged += MarkDirty;
-    public override void OnHide()  => GameEvents.OnTalentsChanged -= MarkDirty;
+    /// <summary>
+    /// Rebuilt on a talent change AND on a class change.
+    ///
+    /// The class one is why "+ ADD CLASS" stayed on the tab strip after a class had
+    /// been added: SpecSelectModal is an overlay, so popping it does not resume the
+    /// panel underneath, and nothing else asked this screen to look again. The tab
+    /// only disappeared once some other button happened to rebuild the panel.
+    /// </summary>
+    public override void OnShow()
+    {
+        GameEvents.OnTalentsChanged += MarkDirty;
+        GameEvents.OnClassChanged   += OnClassChanged;
+    }
+
+    public override void OnHide()
+    {
+        GameEvents.OnTalentsChanged -= MarkDirty;
+        GameEvents.OnClassChanged   -= OnClassChanged;
+    }
+
+    private void OnClassChanged(string classId)
+    {
+        // The tab being viewed may be a class the character no longer has.
+        _viewedClassId = null;
+        MarkDirty();
+    }
 
     private bool _needsRebuild;
 

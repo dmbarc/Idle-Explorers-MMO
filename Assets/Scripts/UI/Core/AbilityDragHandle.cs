@@ -50,7 +50,7 @@ public class AbilityDragHandle : MonoBehaviour,
         // letting the player drag it across the screen and silently refusing at the end.
         if (ability != null && !ability.IsActivatable)
         {
-            GameEvents.FireToast($"{ability.name} is passive — it is always active.");
+            GameEvents.FireToast($"{ability.name} is passive — it is always active.", ChatTone.Bad);
             return;
         }
 

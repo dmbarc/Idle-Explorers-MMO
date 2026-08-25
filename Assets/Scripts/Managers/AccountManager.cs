@@ -85,7 +85,7 @@ public class AccountManager : MonoBehaviour
 
             // Toasted here rather than from a UI screen because account levels can
             // rise during AFK accrual on character select, where no HUD is loaded.
-            GameEvents.FireToast($"★ Account Level {newLevel}!");
+            GameEvents.FireToast($"★ Account Level {newLevel}!", ChatTone.Good);
         }
     }
 

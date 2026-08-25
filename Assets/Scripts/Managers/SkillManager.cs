@@ -53,7 +53,7 @@ public class SkillManager : MonoBehaviour
             progress.level = newLevel;
             GameEvents.OnSkillLevelUp?.Invoke(skillId, newLevel);
             GameManager.Audio?.Play(Sfx.SkillUp);
-            GameEvents.FireToast($"⬆ {SkillDisplayName(skillId)}: {old} → {newLevel}");
+            GameEvents.FireToast($"⬆ {SkillDisplayName(skillId)}: {old} → {newLevel}", ChatTone.Good);
             CheckMilestones(skillId, old, newLevel);
         }
     }

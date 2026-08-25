@@ -741,6 +741,18 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// How far off a target a click may land and still count as aimed at it.
+    ///
+    /// A goblin is a flat sprite about half a metre wide on a capsule a little wider
+    /// than that, seen from a camera thirty units up at fifty degrees. Demanding a hit
+    /// on the capsule means demanding pixel accuracy on a moving target, which is what
+    /// "extremely difficult to select an enemy" was. This is only consulted when the
+    /// precise ray hit nothing worth targeting, so it can never steal a click from
+    /// something the player DID hit.
+    /// </summary>
+    private const float ClickAssistRadius = 0.6f;
+
     private void HandleMouseClick()
     {
         if (Mouse.current == null || Camera.main == null) return;
@@ -748,10 +760,17 @@ public class PlayerController : MonoBehaviour
             EventSystem.current.IsPointerOverGameObject(Mouse.current.deviceId)) return;
 
         Ray ray = Camera.main.ScreenPointToRay(Mouse.current.position.ReadValue());
+
+        // The precise ray decides where the ground is, and gets first refusal on what
+        // was clicked. Nothing below can override a direct hit.
         if (!Physics.Raycast(ray, out RaycastHit hit)) return;
 
-        MonsterController monster = hit.collider.GetComponentInParent<MonsterController>();
-        SkillNodeController node  = hit.collider.GetComponentInParent<SkillNodeController>();
+        var monster = hit.collider.GetComponentInParent<MonsterController>();
+        var node    = hit.collider.GetComponentInParent<SkillNodeController>();
+
+        // Only when the ray found bare ground. A near miss on a goblin is a click on
+        // the goblin; a click on the goblin's rock is a click on the rock.
+        if (monster == null && node == null) FindNearMiss(ray, out monster, out node);
 
         // The marker is not chosen here. SwitchToMonster and SwitchToNode raise it,
         // so auto-mode picking its own target lights that target up too — which is
@@ -776,6 +795,39 @@ public class PlayerController : MonoBehaviour
             agent.SetDestination(hit.point);
 
             ShowGroundArrow(hit.point);
+        }
+    }
+
+    /// <summary>
+    /// Sweeps a small sphere along the click ray and returns the nearest monster or
+    /// node it brushes past.
+    ///
+    /// SphereCastAll rather than SphereCast, because the first thing a fattened ray
+    /// touches on the way to a goblin is usually the ground it is standing on.
+    /// </summary>
+    private void FindNearMiss(Ray ray, out MonsterController monster, out SkillNodeController node)
+    {
+        monster = null;
+        node    = null;
+
+        var hits = Physics.SphereCastAll(ray, ClickAssistRadius, Camera.main.farClipPlane);
+        float best = float.MaxValue;
+
+        foreach (var candidate in hits)
+        {
+            var m = candidate.collider.GetComponentInParent<MonsterController>();
+            var n = candidate.collider.GetComponentInParent<SkillNodeController>();
+            if (m == null && n == null) continue;
+
+            // A dead monster is scenery until it despawns, and selecting a corpse
+            // leaves the player walking to something they cannot fight.
+            if (m != null && !m.IsAlive()) continue;
+
+            if (candidate.distance >= best) continue;
+
+            best    = candidate.distance;
+            monster = m;
+            node    = m != null ? null : n;
         }
     }
 
@@ -897,7 +949,7 @@ public class PlayerController : MonoBehaviour
         if (have >= ability.cost) return true;
 
         if (announce)
-            GameEvents.FireToast($"Not enough {ability.costType} for {ability.name}.");
+            GameEvents.FireToast($"Not enough {ability.costType} for {ability.name}.", ChatTone.Bad);
         return false;
     }
 
@@ -914,7 +966,7 @@ public class PlayerController : MonoBehaviour
             case "mana":
                 if (currentMana < ability.cost)
                 {
-                    if (announce) GameEvents.FireToast($"Not enough mana for {ability.name}.");
+                    if (announce) GameEvents.FireToast($"Not enough mana for {ability.name}.", ChatTone.Bad);
                     return false;
                 }
                 currentMana -= ability.cost;
@@ -923,7 +975,7 @@ public class PlayerController : MonoBehaviour
             case "stamina":
                 if (currentStamina < ability.cost)
                 {
-                    if (announce) GameEvents.FireToast($"Not enough stamina for {ability.name}.");
+                    if (announce) GameEvents.FireToast($"Not enough stamina for {ability.name}.", ChatTone.Bad);
                     return false;
                 }
                 currentStamina -= ability.cost;
@@ -1035,7 +1087,7 @@ public class PlayerController : MonoBehaviour
         }
 
         GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
-        GameEvents.FireToast("You are back on your feet.");
+        GameEvents.FireToast("You are back on your feet.", ChatTone.Good);
     }
 
     public void RegenHealth()
@@ -1179,10 +1231,20 @@ public class PlayerController : MonoBehaviour
     }
 
     /// <summary>
-    /// Puts an ability into a slot, removing it from wherever else it was.
+    /// Puts an ability into a slot, REPLACING whatever was there.
     ///
-    /// Two copies of one ability on the bar would share a cooldown and look broken, so
-    /// assigning is a MOVE rather than a copy — dragging onto an occupied slot swaps.
+    /// This is the talent-tree route onto the bar, and it is deliberately not a swap.
+    /// It used to move the target slot's ability into wherever the dragged one already
+    /// sat, so dropping a known ability onto slot 3 quietly rearranged slot 1 as well
+    /// — the abilities "shifted around" for reasons nothing on screen explained.
+    /// Dragging one bar slot onto another still swaps; see SwapAbilitySlots. That
+    /// distinction is the whole reason AbilityDrag carries where it came from.
+    ///
+    /// The one thing it will not do is leave the same ability on the bar twice: two
+    /// copies share a cooldown, so the second looks broken. If the ability was already
+    /// somewhere else, that slot is EMPTIED rather than filled with the displaced one
+    /// — an empty slot is a state the player can see and understand, where a silent
+    /// reshuffle is not.
     /// </summary>
     public bool AssignAbility(int slot, string abilityId)
     {
@@ -1191,7 +1253,7 @@ public class PlayerController : MonoBehaviour
 
         if (!string.IsNullOrEmpty(abilityId) && !TalentManager.HasAbility(character, abilityId))
         {
-            GameEvents.FireToast("You have not learned that yet.");
+            GameEvents.FireToast("You have not learned that yet.", ChatTone.Bad);
             return false;
         }
 
@@ -1199,7 +1261,7 @@ public class PlayerController : MonoBehaviour
 
         int existing = hotbar.IndexOf(abilityId);
         if (!string.IsNullOrEmpty(abilityId) && existing >= 0 && existing != slot)
-            hotbar[existing] = hotbar[slot];   // swap rather than duplicate
+            hotbar[existing] = "";
 
         hotbar[slot] = abilityId ?? "";
 
@@ -1242,13 +1304,13 @@ public class PlayerController : MonoBehaviour
 
         if (!ability.IsActivatable)
         {
-            if (announce) GameEvents.FireToast($"{ability.name} is passive — always active.");
+            if (announce) GameEvents.FireToast($"{ability.name} is passive — always active.", ChatTone.Bad);
             return false;
         }
 
         if (GetAbilityCooldownRemaining(slot) > 0f)
         {
-            if (announce) GameEvents.FireToast($"{ability.name}: {GetAbilityCooldownRemaining(slot):0.0}s");
+            if (announce) GameEvents.FireToast($"{ability.name}: {GetAbilityCooldownRemaining(slot):0.0}s", ChatTone.Bad);
             return false;
         }
 

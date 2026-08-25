@@ -94,7 +94,7 @@ public class EquipmentManager : MonoBehaviour
         var item = GameManager.Content?.GetItem(entry.itemId);
         if (item == null || !item.IsEquippable)
         {
-            GameEvents.FireToast("That cannot be worn.");
+            GameEvents.FireToast("That cannot be worn.", ChatTone.Bad);
             return false;
         }
 
@@ -107,7 +107,7 @@ public class EquipmentManager : MonoBehaviour
         string target = string.IsNullOrEmpty(slotId) ? FirstFreeSlotFor(item) : slotId;
         if (!EquipmentSlots.Exists(target))
         {
-            GameEvents.FireToast("No slot for that.");
+            GameEvents.FireToast("No slot for that.", ChatTone.Bad);
             return false;
         }
 
@@ -125,7 +125,7 @@ public class EquipmentManager : MonoBehaviour
         if (!string.IsNullOrEmpty(displaced) && !GameManager.Inventory.AddItem(displaced, 1))
         {
             GameManager.Inventory.AddItem(item.id, 1);
-            GameEvents.FireToast("No room for the item you would be taking off.");
+            GameEvents.FireToast("No room for the item you would be taking off.", ChatTone.Bad);
             return false;
         }
 
@@ -134,7 +134,7 @@ public class EquipmentManager : MonoBehaviour
         Changed();
 
         GameManager.Audio?.PlayEquip();
-        GameEvents.FireToast($"Equipped {item.DisplayName}.");
+        GameEvents.FireToast($"Equipped {item.DisplayName}.", ChatTone.Good);
         return true;
     }
 
@@ -173,7 +173,7 @@ public class EquipmentManager : MonoBehaviour
 
         if (GameManager.Inventory?.CanAddItem(itemId) != true)
         {
-            GameEvents.FireToast("No room to take that off.");
+            GameEvents.FireToast("No room to take that off.", ChatTone.Bad);
             return false;
         }
 
@@ -459,7 +459,7 @@ public class EquipmentManager : MonoBehaviour
         if (broke && announce)
         {
             GameManager.Audio?.PlayBreak();
-            GameEvents.FireToast($"✖ Your {item.DisplayName} breaks.");
+            GameEvents.FireToast($"✖ Your {item.DisplayName} breaks.", ChatTone.Bad);
         }
 
         DurabilityChanged(statsChanged: broke);
@@ -582,7 +582,7 @@ public class EquipmentManager : MonoBehaviour
             restored += RepairSlot(slotId, int.MaxValue);
 
         GameManager.Audio?.Play(Sfx.Repair);
-        GameEvents.FireToast($"Repaired {restored} point(s) for {NumberFormatter.Format(cost)} coins.");
+        GameEvents.FireToast($"Repaired {restored} point(s) for {NumberFormatter.Format(cost)} coins.", ChatTone.Good);
         return true;
     }
 

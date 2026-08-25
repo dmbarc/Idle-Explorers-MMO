@@ -92,7 +92,7 @@ public class SkillNodeController : MonoBehaviour
         if (level < _entry.reqSkillLevel)
         {
             string skillName = GameManager.Content?.GetSkill(_entry.skillId)?.DisplayName ?? _entry.skillId;
-            GameEvents.FireToast($"Requires {skillName} level {_entry.reqSkillLevel} (you are {level}).");
+            GameEvents.FireToast($"Requires {skillName} level {_entry.reqSkillLevel} (you are {level}).", ChatTone.Bad);
             return false;
         }
         return true;
@@ -158,7 +158,7 @@ public class SkillNodeController : MonoBehaviour
         if (level < recipe.reqSkillLevel)
         {
             string skillName = GameManager.Content?.GetSkill(recipe.skillId)?.DisplayName ?? recipe.skillId;
-            GameEvents.FireToast($"Requires {skillName} level {recipe.reqSkillLevel} (you are {level}).");
+            GameEvents.FireToast($"Requires {skillName} level {recipe.reqSkillLevel} (you are {level}).", ChatTone.Bad);
             return;
         }
 
@@ -205,7 +205,7 @@ public class SkillNodeController : MonoBehaviour
             if (CraftingSupply.Available(input.itemId) >= input.quantity) continue;
 
             var item = GameManager.Content?.GetItem(input.itemId);
-            GameEvents.FireToast($"Out of {item?.DisplayName ?? input.itemId}.");
+            GameEvents.FireToast($"Out of {item?.DisplayName ?? input.itemId}.", ChatTone.Bad);
             return false;
         }
 
@@ -223,7 +223,7 @@ public class SkillNodeController : MonoBehaviour
         // that out after consuming the inputs would charge for a craft that vanished.
         if (GameManager.Inventory?.CanAddItem(_recipe.outputItemId, produced) != true)
         {
-            GameEvents.FireToast("Inventory full.");
+            GameEvents.FireToast("Inventory full.", ChatTone.Warning);
             return false;
         }
 
@@ -324,7 +324,7 @@ public class SkillNodeController : MonoBehaviour
             {
                 qty += 1;
                 if (!string.IsNullOrEmpty(_entry.specialLabel))
-                    GameEvents.FireToast($"✦ {_entry.specialLabel}!");
+                    GameEvents.FireToast($"✦ {_entry.specialLabel}!", ChatTone.Good);
             }
 
             if (GameManager.Inventory?.CanAddItem(_entry.targetItemId, qty) == true)
@@ -334,7 +334,7 @@ public class SkillNodeController : MonoBehaviour
             }
             else
             {
-                GameEvents.FireToast("Inventory full.");
+                GameEvents.FireToast("Inventory full.", ChatTone.Warning);
                 StopGathering();
                 return;
             }

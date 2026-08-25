@@ -229,7 +229,7 @@ public class SaveManager : MonoBehaviour
         if (wiped == 0) return;
 
         Debug.Log($"[SaveManager] Talent trees were rebuilt — refunded {wiped} character(s).");
-        GameEvents.FireToast($"Talents refunded on {wiped} character(s): abilities now come from the tree.");
+        GameEvents.FireToast($"Talents refunded on {wiped} character(s): abilities now come from the tree.", ChatTone.Good);
     }
 
     /// <summary>

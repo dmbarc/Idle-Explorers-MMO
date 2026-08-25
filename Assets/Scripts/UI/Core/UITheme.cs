@@ -43,6 +43,37 @@ public class UITheme : ScriptableObject
     public Color slotBorder     = new Color(0.35f, 0.30f, 0.40f, 1.00f);
     public Color slotHighlight  = new Color(1.00f, 0.78f, 0.20f, 1.00f);  // matches accentGold
 
+    // ── Chat ──────────────────────────────────────────────────────────────────
+    //
+    // The four channel colours are the ones the genre has settled on, and players
+    // arrive already knowing them: white is what the person next to you said, blue is
+    // your party, green is your guild, purple carries across the world. Changing them
+    // to be different would only make the window slower to read.
+    public Color chatLocal   = new Color(0.95f, 0.95f, 0.95f, 1.00f);
+    public Color chatParty   = new Color(0.40f, 0.68f, 1.00f, 1.00f);
+    public Color chatGuild   = new Color(0.35f, 0.88f, 0.45f, 1.00f);
+    public Color chatWorld   = new Color(0.78f, 0.48f, 1.00f, 1.00f);
+
+    // The game talking. Good is a paler green than the guild colour on purpose —
+    // "you levelled up" must not be mistaken for somebody in your guild speaking.
+    public Color chatGood    = new Color(0.66f, 0.95f, 0.60f, 1.00f);
+    public Color chatBad     = new Color(0.95f, 0.35f, 0.32f, 1.00f);
+    public Color chatWarning = new Color(1.00f, 0.62f, 0.20f, 1.00f);
+    public Color chatInfo    = new Color(0.98f, 0.85f, 0.35f, 1.00f);
+
+    /// <summary>The colour a line of chat is written in.</summary>
+    public Color ChatColor(ChatTone tone) => tone switch
+    {
+        ChatTone.Local   => chatLocal,
+        ChatTone.Party   => chatParty,
+        ChatTone.Guild   => chatGuild,
+        ChatTone.World   => chatWorld,
+        ChatTone.Good    => chatGood,
+        ChatTone.Bad     => chatBad,
+        ChatTone.Warning => chatWarning,
+        _                => chatInfo,
+    };
+
     [Header("Sprites (optional 9-sliced art)")]
     // Every one of these is optional. UIFactory applies a sprite only when the theme
     // supplies one and otherwise keeps the flat colour above, so the art pass can

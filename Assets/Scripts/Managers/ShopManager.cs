@@ -90,7 +90,7 @@ public class ShopManager : MonoBehaviour
         {
             // Never pretend. A shop that appears to sell and silently does nothing is
             // worse than one that says it is not open yet.
-            GameEvents.FireToast("Purchasing is not available yet.");
+            GameEvents.FireToast("Purchasing is not available yet.", ChatTone.Bad);
             Debug.LogWarning("[Shop] Purchase refused: no store is wired up. " +
                              "See the header of ShopManager.cs.");
             return false;
@@ -101,7 +101,7 @@ public class ShopManager : MonoBehaviour
                          "No money has changed hands.");
 
         Grant(pack.coins, $"stub purchase of '{pack.id}'");
-        GameEvents.FireToast($"+{NumberFormatter.Format(pack.coins)} relic coins (test purchase)");
+        GameEvents.FireToast($"+{NumberFormatter.Format(pack.coins)} relic coins (test purchase)", ChatTone.Good);
         return true;
     }
 
@@ -126,20 +126,20 @@ public class ShopManager : MonoBehaviour
         var inventory = GameManager.Inventory;
         if (inventory == null)
         {
-            GameEvents.FireToast("Log in to a character first.");
+            GameEvents.FireToast("Log in to a character first.", ChatTone.Bad);
             return false;
         }
 
         if (!inventory.CanAddItem(product.itemId))
         {
-            GameEvents.FireToast("No room in your inventory.");
+            GameEvents.FireToast("No room in your inventory.", ChatTone.Bad);
             return false;
         }
 
         if (Balance < product.relicCoinCost)
         {
             long short_ = product.relicCoinCost - Balance;
-            GameEvents.FireToast($"Need {NumberFormatter.Format(short_)} more relic coins.");
+            GameEvents.FireToast($"Need {NumberFormatter.Format(short_)} more relic coins.", ChatTone.Bad);
             return false;
         }
 
@@ -149,7 +149,7 @@ public class ShopManager : MonoBehaviour
 
         var item = GameManager.Content?.GetItem(product.itemId);
         GameManager.Audio?.PlayPurchase();
-        GameEvents.FireToast($"Bought {item?.DisplayName ?? product.DisplayName}.");
+        GameEvents.FireToast($"Bought {item?.DisplayName ?? product.DisplayName}.", ChatTone.Good);
         Debug.Log($"[Shop] Bought '{product.id}' for {product.relicCoinCost} relic coins.");
         return true;
     }

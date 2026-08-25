@@ -72,9 +72,20 @@ public class ToastLayer : MonoBehaviour
 
     // ── Display ───────────────────────────────────────────────────────────────
 
-    public void Show(string message)
+    /// <summary>
+    /// Shows a message, unless the chat window is up.
+    ///
+    /// In game the chat window is where messages live now, and a popup on top of it
+    /// would be every line said twice. On the login and character-select screens there
+    /// is no chat window, and a silent failure there is worse than a popup — so this
+    /// stays as the fallback rather than being deleted.
+    /// </summary>
+    public void Show(string message, ChatTone tone = ChatTone.Info)
     {
         if (string.IsNullOrWhiteSpace(message)) return;
+
+        ChatLog.Say(message, tone);
+        if (ChatLog.HasWindow) return;
 
         // Retire the oldest rather than letting a burst of level-ups fill the screen
         while (_active.Count >= MaxVisible)
@@ -84,12 +95,12 @@ public class ToastLayer : MonoBehaviour
             if (oldest != null) Destroy(oldest);
         }
 
-        var toast = BuildToast(message);
+        var toast = BuildToast(message, tone);
         _active.Add(toast);
         StartCoroutine(AnimateAndDestroy(toast));
     }
 
-    private GameObject BuildToast(string message)
+    private GameObject BuildToast(string message, ChatTone tone)
     {
         var theme = UIManager.Theme;
 
@@ -108,7 +119,7 @@ public class ToastLayer : MonoBehaviour
         var tmp = labelGo.GetComponent<TextMeshProUGUI>();
         tmp.text          = message;
         tmp.fontSize      = theme != null ? theme.fontSizeBody : 18f;
-        tmp.color         = theme != null ? theme.textPrimary : Color.white;
+        tmp.color         = theme != null ? theme.ChatColor(tone) : Color.white;
         tmp.alignment     = TextAlignmentOptions.Center;
         tmp.raycastTarget = false;
         if (theme != null && theme.font != null) tmp.font = theme.font;

@@ -105,7 +105,7 @@ public static class ClassManager
         var character = CharacterManager.Current;
         if (character == null)
         {
-            GameEvents.FireToast("No character selected.");
+            GameEvents.FireToast("No character selected.", ChatTone.Bad);
             return false;
         }
 
@@ -119,7 +119,7 @@ public static class ClassManager
         var held = character.ClassIds();
         if (held.Contains(classId))
         {
-            GameEvents.FireToast($"You are already a {cls.DisplayName}.");
+            GameEvents.FireToast($"You are already a {cls.DisplayName}.", ChatTone.Bad);
             return false;
         }
 
@@ -127,7 +127,7 @@ public static class ClassManager
         {
             int next = held.Count == 1 ? CharacterData.ClassSlotTwoLevel
                                        : CharacterData.ClassSlotThreeLevel;
-            GameEvents.FireToast($"Another class unlocks at level {next}.");
+            GameEvents.FireToast($"Another class unlocks at level {next}.", ChatTone.Bad);
             return false;
         }
 
@@ -140,7 +140,7 @@ public static class ClassManager
         GameEvents.OnCharacterRosterChanged?.Invoke();
 
         string title = TitleFor(character);
-        GameEvents.FireToast($"You are now a {title}.");
+        GameEvents.FireToast($"You are now a {title}.", ChatTone.Good);
         Debug.Log($"[ClassManager] {character.characterName} added {cls.DisplayName} → {title}");
         return true;
     }

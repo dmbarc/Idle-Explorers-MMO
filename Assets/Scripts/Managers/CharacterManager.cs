@@ -128,7 +128,7 @@ public class CharacterManager : MonoBehaviour
         var character = Current;
         if (character == null)
         {
-            GameEvents.FireToast("No character selected.");
+            GameEvents.FireToast("No character selected.", ChatTone.Bad);
             return false;
         }
 
@@ -136,13 +136,13 @@ public class CharacterManager : MonoBehaviour
         if (newClass == null)
         {
             Debug.LogWarning($"[CharacterManager] No class '{newClassId}' — class change refused.");
-            GameEvents.FireToast("That class does not exist.");
+            GameEvents.FireToast("That class does not exist.", ChatTone.Bad);
             return false;
         }
 
         if (character.classId == newClassId)
         {
-            GameEvents.FireToast($"You are already a {newClass.DisplayName}.");
+            GameEvents.FireToast($"You are already a {newClass.DisplayName}.", ChatTone.Bad);
             return false;
         }
 
@@ -173,7 +173,7 @@ public class CharacterManager : MonoBehaviour
         GameEvents.OnEquipmentChanged?.Invoke();
         GameEvents.OnCharacterRosterChanged?.Invoke();
 
-        GameEvents.FireToast($"{previous} → {newClass.DisplayName}. Talents refunded.");
+        GameEvents.FireToast($"{previous} → {newClass.DisplayName}. Talents refunded.", ChatTone.Good);
         Debug.Log($"[CharacterManager] {character.characterName}: {previous} → {newClass.DisplayName}");
         return true;
     }

@@ -253,7 +253,7 @@ public static class SetBonusResolver
         AbilityVFX.Play("impact", target.transform.position);
         GameManager.Audio?.Play(Sfx.SetProc);
 
-        GameEvents.FireToast($"✦ You hurl your {item.DisplayName} at {target.name}.");
+        GameEvents.FireToast($"✦ You hurl your {item.DisplayName} at {target.name}.", ChatTone.Warning);
     }
 
     /// <summary>
@@ -281,7 +281,7 @@ public static class SetBonusResolver
         if (stolen <= 0) return;
 
         equipment.RepairSlot(weakest, stolen);
-        GameEvents.FireToast($"✦ Your armor redistributes {stolen} point(s) of wear.");
+        GameEvents.FireToast($"✦ Your armor redistributes {stolen} point(s) of wear.", ChatTone.Good);
     }
 
     /// <summary>
@@ -315,7 +315,7 @@ public static class SetBonusResolver
 
             if (!equipment.PutOn(slotId, item.id, condition)) continue;
 
-            GameEvents.FireToast($"✦ You scoop up your {item.DisplayName} and put it back on.");
+            GameEvents.FireToast($"✦ You scoop up your {item.DisplayName} and put it back on.", ChatTone.Good);
             Object.Destroy(drop.gameObject);
             return;   // one per proc, so a field of loot is not vacuumed in a frame
         }

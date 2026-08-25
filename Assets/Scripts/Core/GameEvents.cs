@@ -102,7 +102,7 @@ public static class GameEvents
     public static Action<string>          OnWardrobeItemUnlocked; // wardrobeId
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    public static Action<string>          OnToastRequested;       // message
+    public static Action<string, ChatTone> OnToastRequested;  // message, how it should read
     public static Action                  OnReturnToMainMenu;
 
     // ── Ghost System ──────────────────────────────────────────────────────────
@@ -113,7 +113,16 @@ public static class GameEvents
     public static void FireInventoryChanged()                         => OnInventoryChanged?.Invoke();
     public static void FireSkillLevelUp(string skillId, int level)   => OnSkillLevelUp?.Invoke(skillId, level);
     public static void FireActivityChanged(SkillActivityData data)   => OnActivityChanged?.Invoke(data);
-    public static void FireToast(string message)                     => OnToastRequested?.Invoke(message);
+    /// <summary>
+    /// A line for the player to read. The tone decides its colour, and — while the
+    /// chat window is up — whether it is worth interrupting them for at all.
+    ///
+    /// Info is the default because most callers are stating a fact rather than
+    /// delivering news, and a wall of green congratulation reads as noise.
+    /// </summary>
+    public static void FireToast(string message, ChatTone tone = ChatTone.Info)
+        => OnToastRequested?.Invoke(message, tone);
+
     public static void FireMonsterKilled(string monsterId)           => OnMonsterKilled?.Invoke(monsterId);
     public static void FireMapEntered(string mapId)                  => OnMapEntered?.Invoke(mapId);
     public static void FireMergeCompleted(string from, string to)    => OnMergeCompleted?.Invoke(from, to);

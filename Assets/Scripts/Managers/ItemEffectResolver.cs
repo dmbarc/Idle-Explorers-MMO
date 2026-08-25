@@ -71,17 +71,17 @@ public static class ItemEffectResolver
         var player = Object.FindAnyObjectByType<PlayerController>();
         if (player == null)
         {
-            GameEvents.FireToast("You can only eat that out in the world.");
+            GameEvents.FireToast("You can only eat that out in the world.", ChatTone.Bad);
             return false;
         }
 
         if (!player.Heal(effect.magnitude))
         {
-            GameEvents.FireToast("Already at full health.");
+            GameEvents.FireToast("Already at full health.", ChatTone.Bad);
             return false;
         }
 
-        GameEvents.FireToast($"+{effect.magnitude:0} HP from {item.DisplayName}.");
+        GameEvents.FireToast($"+{effect.magnitude:0} HP from {item.DisplayName}.", ChatTone.Good);
         return true;
     }
 
@@ -90,12 +90,12 @@ public static class ItemEffectResolver
         var player = Object.FindAnyObjectByType<PlayerController>();
         if (player == null)
         {
-            GameEvents.FireToast("You can only eat that out in the world.");
+            GameEvents.FireToast("You can only eat that out in the world.", ChatTone.Bad);
             return false;
         }
 
         player.TakeDamage(effect.magnitude);
-        GameEvents.FireToast($"{item.DisplayName} bites back — {effect.magnitude:0} damage.");
+        GameEvents.FireToast($"{item.DisplayName} bites back — {effect.magnitude:0} damage.", ChatTone.Bad);
         return true;
     }
 
@@ -116,7 +116,7 @@ public static class ItemEffectResolver
 
         if (character.currentActivity == null || string.IsNullOrEmpty(character.currentActivity.skillId))
         {
-            GameEvents.FireToast("Pick an activity before using this.");
+            GameEvents.FireToast("Pick an activity before using this.", ChatTone.Bad);
             return false;
         }
 
@@ -134,7 +134,7 @@ public static class ItemEffectResolver
         var summary = activity.ProcessAFKRewards(character, cap);
         if (summary == null)
         {
-            GameEvents.FireToast("Nothing accrued.");
+            GameEvents.FireToast("Nothing accrued.", ChatTone.Bad);
             return false;
         }
 
@@ -155,14 +155,14 @@ public static class ItemEffectResolver
     {
         if (CharacterManager.Current == null)
         {
-            GameEvents.FireToast("No character selected.");
+            GameEvents.FireToast("No character selected.", ChatTone.Bad);
             return false;
         }
 
         var ui = GameManager.UI;
         if (ui == null)
         {
-            GameEvents.FireToast("Cannot open the class picker right now.");
+            GameEvents.FireToast("Cannot open the class picker right now.", ChatTone.Bad);
             return false;
         }
 
@@ -182,14 +182,14 @@ public static class ItemEffectResolver
     {
         if (CharacterManager.Current == null)
         {
-            GameEvents.FireToast("No character selected.");
+            GameEvents.FireToast("No character selected.", ChatTone.Bad);
             return false;
         }
 
         var ui = GameManager.UI;
         if (ui == null)
         {
-            GameEvents.FireToast("Cannot open the mirror right now.");
+            GameEvents.FireToast("Cannot open the mirror right now.", ChatTone.Bad);
             return false;
         }
 
@@ -212,14 +212,14 @@ public static class ItemEffectResolver
     {
         if (!DevTools.Enabled)
         {
-            GameEvents.FireToast("That does nothing here.");
+            GameEvents.FireToast("That does nothing here.", ChatTone.Bad);
             return false;
         }
 
         var character = CharacterManager.Current;
         if (character?.skills == null || character.skills.Count == 0)
         {
-            GameEvents.FireToast("No skills to reset.");
+            GameEvents.FireToast("No skills to reset.", ChatTone.Bad);
             return false;
         }
 
@@ -236,7 +236,7 @@ public static class ItemEffectResolver
 
         if (reset == 0)
         {
-            GameEvents.FireToast("Every skill is already at level 1.");
+            GameEvents.FireToast("Every skill is already at level 1.", ChatTone.Bad);
             return false;
         }
 

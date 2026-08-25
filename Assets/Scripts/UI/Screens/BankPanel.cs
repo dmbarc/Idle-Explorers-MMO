@@ -247,7 +247,7 @@ public class BankPanel : UIScreen, ISlotPanel
         bool ok = deposit ? bank.DepositCoins(amount) : bank.WithdrawCoins(amount);
         if (!ok)
         {
-            GameEvents.FireToast(deposit ? "Not enough coins carried." : "Not enough coins banked.");
+            GameEvents.FireToast(deposit ? "Not enough coins carried." : "Not enough coins banked.", ChatTone.Bad);
             return;
         }
 

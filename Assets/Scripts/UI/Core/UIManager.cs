@@ -57,6 +57,12 @@ public class UIManager : MonoBehaviour
     public void OnStateChanged(GameManager.GameState state)
     {
         ClearAll();
+
+        // Chat does not survive leaving the world. The next character should not open
+        // their window onto the last one's death, and there is no window on the menus
+        // to read it in anyway.
+        if (state != GameManager.GameState.InGame) ChatLog.Clear();
+
         switch (state)
         {
             case GameManager.GameState.Splash:          Push<SplashScreen>();          break;

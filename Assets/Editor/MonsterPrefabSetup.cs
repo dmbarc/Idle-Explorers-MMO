@@ -138,8 +138,13 @@ public static class MonsterPrefabSetup
 
         try
         {
-            ConfigureNavigation(instance, source);
-            ConfigureCollision(instance, source);
+            // The height this monster is scaled to, worked out once: the collider and
+            // the agent both have to agree with the artwork, and the artwork is scaled
+            // from this same number below.
+            float height = SpumRig.CharacterHeight * recipe.HeightVsPlayer;
+
+            ConfigureNavigation(instance, source, height);
+            ConfigureCollision(instance, source, height);
             ConfigureController(instance, sourceController);
 
             // Monsters are the same flat artwork the player is, and turned edge-on for
@@ -148,8 +153,7 @@ public static class MonsterPrefabSetup
 
             // Same reason the player is scaled: the sprite is authored at 32 pixels to
             // the unit, and the world was built for a two-unit person.
-            SpumRig.NormaliseHeight(instance.transform,
-                                    SpumRig.CharacterHeight * recipe.HeightVsPlayer);
+            SpumRig.NormaliseHeight(instance.transform, height);
 
             int unbillboarded = Billboard.CountUnbillboardedSprites(instance);
             if (unbillboarded > 0)
@@ -183,7 +187,7 @@ public static class MonsterPrefabSetup
         }
     }
 
-    private static void ConfigureNavigation(GameObject target, GameObject source)
+    private static void ConfigureNavigation(GameObject target, GameObject source, float height)
     {
         var sourceAgent = source.GetComponent<NavMeshAgent>();
         if (sourceAgent == null) return;
@@ -205,8 +209,10 @@ public static class MonsterPrefabSetup
         agent.angularSpeed          = sourceAgent.angularSpeed;
         agent.acceleration          = sourceAgent.acceleration;
         agent.stoppingDistance      = sourceAgent.stoppingDistance;
-        agent.radius                = sourceAgent.radius;
-        agent.height                = sourceAgent.height;
+        agent.radius                = Mathf.Max(0.2f, height * 0.22f);
+        // Matched to the artwork, not copied. An agent taller than the monster it
+        // steers walks it through doorways it visibly does not fit under.
+        agent.height                = height;
         agent.baseOffset            = sourceAgent.baseOffset;
         agent.obstacleAvoidanceType = sourceAgent.obstacleAvoidanceType;
         agent.areaMask              = sourceAgent.areaMask;
@@ -216,23 +222,54 @@ public static class MonsterPrefabSetup
     /// Copies the colliders. Without these the goblin is unclickable and the player's
     /// raycast targeting slides straight through it.
     /// </summary>
-    private static void ConfigureCollision(GameObject target, GameObject source)
+    /// <summary>
+    /// Gives the monster a collider the size of the monster.
+    ///
+    /// ══ WHY THEY WERE SO HARD TO CLICK ════════════════════════════════════════
+    ///
+    /// This used to copy _default.prefab's capsule verbatim: radius 0.24, height 1.02,
+    /// centred 0.31 above the feet. Those numbers described a SPUM rig at its authored
+    /// sub-metre scale, and were already generous when the artwork was that small. Once
+    /// rigs were normalised to SpumRig.CharacterHeight the art roughly tripled and the
+    /// collider did not, so a goblin stood a metre and a half tall with half a metre of
+    /// clickable shin — and the player had to aim at its ankles to select it.
+    ///
+    /// Derived from the height the rig is actually scaled to, so the two cannot drift
+    /// apart again. The radius is a bit wider than a person really is: a target you
+    /// have to be precise about is a target you fight the camera to hit.
+    /// </summary>
+    private static void ConfigureCollision(GameObject target, GameObject source, float height)
     {
         foreach (var existing in target.GetComponents<Collider>())
             Object.DestroyImmediate(existing);
 
+        var capsule = target.AddComponent<CapsuleCollider>();
+        if (capsule == null)
+        {
+            Debug.LogError($"[MonsterSetup] Could not add a CapsuleCollider to '{target.name}'.");
+            return;
+        }
+
+        capsule.direction = 1;                                   // Y
+        capsule.height    = height;
+        capsule.radius    = Mathf.Max(0.25f, height * 0.32f);
+        capsule.center    = new Vector3(0f, height * 0.5f, 0f);  // stands on its feet
+        capsule.isTrigger = false;
+
+        // Trigger colliders from the source are still copied — those are aggro and
+        // pickup volumes, not the body, and nothing here knows what they are for.
         foreach (var sourceCollider in source.GetComponents<Collider>())
         {
+            if (!sourceCollider.isTrigger) continue;
+
             switch (sourceCollider)
             {
-                case CapsuleCollider capsule:
+                case SphereCollider sphere:
                 {
-                    var copy = target.AddComponent<CapsuleCollider>();
-                    copy.center    = capsule.center;
-                    copy.radius    = capsule.radius;
-                    copy.height    = capsule.height;
-                    copy.direction = capsule.direction;
-                    copy.isTrigger = capsule.isTrigger;
+                    var copy = target.AddComponent<SphereCollider>();
+                    copy.center    = sphere.center;
+                    copy.radius    = sphere.radius;
+                    copy.isTrigger = true;
                     break;
                 }
                 case BoxCollider box:
@@ -240,15 +277,7 @@ public static class MonsterPrefabSetup
                     var copy = target.AddComponent<BoxCollider>();
                     copy.center    = box.center;
                     copy.size      = box.size;
-                    copy.isTrigger = box.isTrigger;
-                    break;
-                }
-                case SphereCollider sphere:
-                {
-                    var copy = target.AddComponent<SphereCollider>();
-                    copy.center    = sphere.center;
-                    copy.radius    = sphere.radius;
-                    copy.isTrigger = sphere.isTrigger;
+                    copy.isTrigger = true;
                     break;
                 }
             }

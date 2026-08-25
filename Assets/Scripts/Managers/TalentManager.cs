@@ -259,7 +259,7 @@ public static class TalentManager
             PlaceInFirstEmptySlot(character, node.abilityId);
 
         Commit(character);
-        GameEvents.FireToast($"✦ {node.name} {RankOf(character, nodeId)}/{node.RankCap}");
+        GameEvents.FireToast($"✦ {node.name} {RankOf(character, nodeId)}/{node.RankCap}", ChatTone.Good);
         return true;
     }
 
