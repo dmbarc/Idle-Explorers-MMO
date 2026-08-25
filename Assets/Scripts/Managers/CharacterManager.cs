@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -149,21 +150,33 @@ public class CharacterManager : MonoBehaviour
         string previous = GameManager.Content?.GetClass(character.classId)?.DisplayName
                           ?? character.classId;
 
-        // Replaces the PRIMARY class only, leaving any second or third intact — a
-        // cross-specced character using a Shifting Sigil should not lose two other
-        // trees they earned separately.
-        string replaced = character.classId;
+        // ══ THE SIGIL RESETS EVERY CLASS, NOT JUST THE FIRST ══════════════════
+        //
+        // It used to replace the primary and leave a second and third intact, on the
+        // reasoning that those trees were earned separately. In play that is not what
+        // it reads as: the item says you "become something else entirely", and a
+        // Sorcerer/Archer who sigils into a Knight came out a Knight/Archer, still
+        // carrying half of who they used to be with no way to shed the rest.
+        //
+        // Nothing is lost that cannot be taken straight back. Class slots are gated on
+        // LEVEL, not spent permanently, so the extra slots are free the moment this
+        // returns and "+ ADD CLASS" is waiting on the talent panel. What the player
+        // gets is a clean re-pick of the whole build, which is what they reached for
+        // the sigil to do.
+        var cleared = new List<string>(character.ClassIds());
 
         var ids = character.ClassIds();
-        if (ids.Count > 0) ids[0] = newClassId;
-        else ids.Add(newClassId);
+        ids.Clear();
+        ids.Add(newClassId);
 
         ClassManager.SyncLegacyClassId(character);
         character.classChangeCount++;
 
-        // Only the replaced tree's points come back. ClearForClassChange wiped every
-        // tree, which was right when a character could only have one.
-        TalentManager.ClearClassTalents(character, replaced);
+        // Every tree the character had, so no points are stranded on a class they no
+        // longer hold. ClearClassTalents per id rather than ClearForClassChange, so a
+        // tree belonging to the class being ADOPTED is not wiped along with them.
+        foreach (string classId in cleared)
+            if (classId != newClassId) TalentManager.ClearClassTalents(character, classId);
 
         GameManager.Save?.Save();
 
@@ -173,8 +186,14 @@ public class CharacterManager : MonoBehaviour
         GameEvents.OnEquipmentChanged?.Invoke();
         GameEvents.OnCharacterRosterChanged?.Invoke();
 
-        GameEvents.FireToast($"{previous} → {newClass.DisplayName}. Talents refunded.", ChatTone.Good);
-        Debug.Log($"[CharacterManager] {character.characterName}: {previous} → {newClass.DisplayName}");
+        string extra = cleared.Count > 1
+            ? $" Your other {cleared.Count - 1} class(es) are reset — pick again from the talent panel."
+            : "";
+
+        GameEvents.FireToast($"{previous} → {newClass.DisplayName}. Talents refunded.{extra}",
+                             ChatTone.Good);
+        Debug.Log($"[CharacterManager] {character.characterName}: {previous} → {newClass.DisplayName}" +
+                  $" (reset {cleared.Count} class(es))");
         return true;
     }
 

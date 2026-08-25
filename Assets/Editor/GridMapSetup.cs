@@ -113,8 +113,18 @@ public class GridMapSetup
 
         public string GroundModel;
         public string PathModel;
-        public string WaterModel;
         public string CliffModel;
+
+        /// <summary>
+        /// The colour of open water.
+        ///
+        /// Water is a generated flat surface rather than a model. Kenney's
+        /// ground_riverTile is a POND set into a grass square — laid out cell by cell
+        /// it produced a field of separate little puddles with grass between them,
+        /// which is what "a bunch of tiny pools" was. A plain quad per cell meets its
+        /// neighbours exactly and reads as one body of water.
+        /// </summary>
+        public Color WaterColor = new Color(0.10f, 0.30f, 0.38f, 1f);
 
         public Dictionary<char, NodeSpec>    Nodes   = new();
         public Dictionary<char, ScatterSpec> Scatter = new();
@@ -256,7 +266,7 @@ public class GridMapSetup
             return false;
         }
 
-        return true;
+        return ValidateReachability();
     }
 
     // ── Geometry ──────────────────────────────────────────────────────────────
@@ -311,9 +321,7 @@ public class GridMapSetup
                 {
                     // No ground tile at all. The hole in the mesh is the hole in the
                     // NavMesh — water you cannot walk on, with no area types needed.
-                    var water = PlaceByFootprint(_recipe.WaterModel, ground.transform,
-                                                  world + Vector3.down * 0.35f, 0f, tile);
-                    IgnoreInNavMesh(water);
+                    BuildWaterTile(ground.transform, world + Vector3.down * 0.35f, tile);
                     continue;
                 }
 
@@ -338,6 +346,141 @@ public class GridMapSetup
 
         MarkStatic(parent.gameObject);
         return placed;
+    }
+
+    private Material _waterMaterial;
+
+    /// <summary>
+    /// One flat square of open water.
+    ///
+    /// A generated quad rather than a model, because Kenney's ground_riverTile is a
+    /// pond set into a grass square: laid cell by cell it produced a field of separate
+    /// little puddles with grass showing between them rather than a lake. A quad meets
+    /// its neighbours exactly, at any tile size, with no model to measure.
+    ///
+    /// No collider. Water is unwalkable because there is no NavMesh over it, and a
+    /// collider here would only give click-to-move somewhere to aim that the character
+    /// can never reach.
+    /// </summary>
+    private void BuildWaterTile(Transform parent, Vector3 position, float tile)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        go.name = "Water";
+        go.transform.SetParent(parent, false);
+
+        // CreatePrimitive fits a MeshCollider as a matter of course. See above.
+        var collider = go.GetComponent<Collider>();
+        if (collider != null) Object.DestroyImmediate(collider);
+
+        // A Quad faces +Z, so it has to be laid down to be a surface.
+        go.transform.position   = position;
+        go.transform.rotation   = Quaternion.Euler(90f, 0f, 0f);
+        go.transform.localScale = new Vector3(tile, tile, 1f);
+
+        go.GetComponent<MeshRenderer>().sharedMaterial = WaterMaterial();
+
+        IgnoreInNavMesh(go);
+    }
+
+    private Material WaterMaterial()
+    {
+        if (_waterMaterial != null) return _waterMaterial;
+
+        var shader = Shader.Find("Universal Render Pipeline/Lit");
+        if (shader == null) shader = Shader.Find("Standard");
+
+        _waterMaterial = new Material(shader) { name = "Water" };
+
+        if (_waterMaterial.HasProperty("_BaseColor")) _waterMaterial.SetColor("_BaseColor", _recipe.WaterColor);
+        if (_waterMaterial.HasProperty("_Color"))     _waterMaterial.SetColor("_Color",     _recipe.WaterColor);
+
+        // Wet, not matte. Water that takes no specular from the sun reads as painted
+        // concrete, which is most of what made the old ponds look like decals.
+        if (_waterMaterial.HasProperty("_Smoothness")) _waterMaterial.SetFloat("_Smoothness", 0.85f);
+        if (_waterMaterial.HasProperty("_Glossiness")) _waterMaterial.SetFloat("_Glossiness", 0.85f);
+
+        return _waterMaterial;
+    }
+
+    /// <summary>
+    /// Every skill node must be somewhere the player can walk to.
+    ///
+    /// ══ THE FISHING SPOT NOBODY COULD REACH ═══════════════════════════════════
+    ///
+    /// The fishing node was drawn in the MIDDLE of the water. Water cells get no
+    /// ground tile — that hole is what makes water unwalkable — so the node's own cell
+    /// was a single square of land with a moat around it and no NavMesh path to it
+    /// from anywhere. It rendered, it was clickable, and the character walked to the
+    /// shore and stopped. Nothing logged, because from the builder's point of view a
+    /// node had been placed exactly where the picture said.
+    ///
+    /// A flood fill from the spawn over walkable cells answers the question the
+    /// picture cannot: not "is this cell land" but "can you get there".
+    /// </summary>
+    private bool ValidateReachability()
+    {
+        int width = Width, height = Height;
+
+        int spawnRow = -1, spawnCol = -1;
+        for (int row = 0; row < height; row++)
+            for (int col = 0; col < width; col++)
+                if (At(col, row) == '@') { spawnRow = row; spawnCol = col; }
+
+        if (spawnRow < 0) return true;   // the spawn check has already failed
+
+        var reached = new bool[height, width];
+        var queue   = new Queue<(int Col, int Row)>();
+
+        reached[spawnRow, spawnCol] = true;
+        queue.Enqueue((spawnCol, spawnRow));
+
+        // Four-way, not eight: an agent cannot squeeze through the corner where two
+        // diagonal water cells touch, so counting diagonals would call a spit of land
+        // reachable that in play is not.
+        var steps = new (int Col, int Row)[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+
+        while (queue.Count > 0)
+        {
+            var (col, row) = queue.Dequeue();
+
+            foreach (var step in steps)
+            {
+                int nc = col + step.Col, nr = row + step.Row;
+                if (nc < 0 || nr < 0 || nc >= width || nr >= height) continue;
+                if (reached[nr, nc]) continue;
+
+                char cell = At(nc, nr);
+                if (cell == 'C' || cell == '~') continue;
+
+                reached[nr, nc] = true;
+                queue.Enqueue((nc, nr));
+            }
+        }
+
+        bool ok = true;
+
+        for (int row = 0; row < height; row++)
+            for (int col = 0; col < width; col++)
+            {
+                char cell = At(col, row);
+
+                if (_recipe.Nodes.TryGetValue(cell, out var node) && !reached[row, col])
+                {
+                    Debug.LogError($"[{_recipe.Tag}] Node '{node.NodeId}' at column {col}, row {row} " +
+                                   "cannot be walked to from the spawn. A node inside the water or " +
+                                   "behind the cliffs is a node the player watches from a distance.");
+                    ok = false;
+                }
+
+                if (cell == 'g' && !reached[row, col])
+                {
+                    Debug.LogError($"[{_recipe.Tag}] Monster camp at column {col}, row {row} is cut " +
+                                   "off from the spawn — nothing it spawns can reach the player.");
+                    ok = false;
+                }
+            }
+
+        return ok;
     }
 
     /// <summary>Scatters the decoration described by the layout.</summary>

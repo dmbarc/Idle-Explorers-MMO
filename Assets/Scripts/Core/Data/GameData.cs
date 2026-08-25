@@ -495,6 +495,16 @@ public class ItemSetBonus
 
     /// <summary>Metres, for the bonuses that hit everything nearby.</summary>
     public float  radius = 6f;
+
+    /// <summary>
+    /// Points of durability the bonus costs the wearer when it fires.
+    ///
+    /// Separate from magnitude because the tin set's shard burst needs both: how hard
+    /// the blast hits, and how much armour it costs to throw. It used to cost the
+    /// whole piece, which took that piece out of the set and turned the 2-piece bonus
+    /// into a way of switching the 6-piece bonus off.
+    /// </summary>
+    public int    durabilityCost;
 }
 
 /// <summary>

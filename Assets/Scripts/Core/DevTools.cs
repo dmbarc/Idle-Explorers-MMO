@@ -42,6 +42,12 @@ public static class DevTools
         // every other test needs room in.
         ("shifting_sigil", 2),
 
+        // Wears down a random worn piece on use. Durability takes an hour of being hit
+        // to observe otherwise, so every state past it — the break, the stats dropping
+        // off, a set falling under its threshold, the repair bill — was effectively
+        // untestable. Ten, because the interesting run is hammering one set to pieces.
+        ("proving_hammer", 10),
+
         // Puts every skill back to level 1, for re-testing level gates.
         ("resetting_draught", 2),
 

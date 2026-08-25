@@ -86,6 +86,7 @@ public static class IconLibrarySetup
         { "chaos_rune",    "runeBlack_slab_012" },
         { "death_rune",    "runeBlack_slab_026" },
         { "faint_residue", "SoulFragment" },
+        { "proving_hammer",    "Hammer_1" },
         { "shifting_sigil","runeBlack_slab_017" },
         { "resetting_draught", "bottle_standard_green" },
         { "mirror_of_faces",   "Witch 1-0" },

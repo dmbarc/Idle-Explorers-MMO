@@ -54,7 +54,7 @@ public static class GoblinCampSetup
         "C.........f........f....~~~~...C",
         "C..g......f...t....f...~~~~~~..C",
         "C.........f.5......f..~~~~~~~..C",
-        "C.........f........f.~~~~4~~~..C",
+        "C.........f........f.4~~~~~~~..C",
         "C.........f..@..t..f..~~~~~~~..C",
         "C....s....f.7...6..f...~~~~~~..C",
         "C.........f..t.....f....~~~~...C",
@@ -191,7 +191,6 @@ public static class GoblinCampSetup
         // Stone rather than the Hollow's rock, so two maps ringed by the same kit do
         // not read as the same place with the middle swapped out.
         CliffModel  = "cliff_block_stone",
-        WaterModel  = "ground_riverTile",
 
         Nodes   = Nodes,
         Scatter = Scatter,

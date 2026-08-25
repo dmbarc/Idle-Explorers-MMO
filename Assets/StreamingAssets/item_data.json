@@ -37,6 +37,8 @@
     "effects": [ { "trigger": "onConsume", "action": "changeClass", "chance": 1.0, "magnitude": 1 } ] },
   { "id": "mirror_of_faces", "name": "Mirror of Faces", "description": "Look into it and decide what looks back. Changes only your appearance — level, skills, equipment and talents are untouched.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
     "effects": [ { "trigger": "onConsume", "action": "changeAppearance", "chance": 1.0, "magnitude": 1 } ] },
+  { "id": "proving_hammer", "name": "Proving Hammer", "description": "A smith's test hammer. One tap on a piece of what you are wearing tells you how close it is to giving out — by bringing it a good deal closer. For finding out what breaking feels like without waiting to be hit for an hour.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
+    "effects": [ { "trigger": "onConsume", "action": "damageEquipment", "chance": 1.0, "magnitude": 20 } ] },
   { "id": "resetting_draught", "name": "Draught of Unlearning", "description": "TESTING TOOL. Sets every skill back to level 1 with no experience. Character level, talents and equipment are untouched. Does nothing outside a development build.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "",
     "effects": [ { "trigger": "onConsume", "action": "resetSkills", "chance": 1.0, "magnitude": 1 } ] },
   { "id": "tin_bar",      "name": "Tin Bar",         "description": "Soft, dull, and honest about both. Everyone starts here.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "smithing" },

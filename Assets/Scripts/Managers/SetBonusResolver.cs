@@ -185,25 +185,43 @@ public static class SetBonusResolver
     }
 
     /// <summary>
-    /// Tin shards: one worn piece is destroyed outright and everything nearby takes a
-    /// large hit. The piece is chosen at random from what is still intact, so this
-    /// cannot fire off a set that is already in pieces.
+    /// Tin shards: a piece of your armour takes a beating, and everything nearby
+    /// takes a large hit.
+    ///
+    /// ══ WHY IT NO LONGER DESTROYS THE PIECE ═══════════════════════════════════
+    ///
+    /// It used to shatter one piece outright — DamageSlot with int.MaxValue. A broken
+    /// piece does not count toward EquippedCount, so the FIRST time the 2-piece bonus
+    /// fired on a full set it dropped the wearer from six pieces to five and switched
+    /// off the two 6-piece bonuses. The set's own reward for completing it was
+    /// dismantled by the set's own cheapest proc, and the more of it you wore the
+    /// faster that happened.
+    ///
+    /// A large chunk of wear keeps the drama and the cost without the cliff: the piece
+    /// is visibly closer to breaking, the player can repair it, and a full set stays a
+    /// full set until they let it go. It can still break something that was already
+    /// nearly gone, which is honest — that is wear, not the bonus deleting the set.
     /// </summary>
     private static void ShatterAndBurst(PlayerController player, ItemSetBonus bonus)
     {
         var equipment = GameManager.Equipment;
         if (equipment == null) return;
 
+        // Chosen from what is still intact, so this cannot fire off a set that is
+        // already in pieces.
         var intact = new List<string>();
         foreach (var slotId in equipment.DurableSlots())
             if (equipment.GetDurability(slotId) > 0) intact.Add(slotId);
 
         if (intact.Count == 0) return;
 
-        string slotId2 = intact[Random.Range(0, intact.Count)];
-        var    item    = equipment.GetEquippedItem(slotId2);
+        string chosen = intact[Random.Range(0, intact.Count)];
+        var    item   = equipment.GetEquippedItem(chosen);
 
-        equipment.DamageSlot(slotId2, int.MaxValue, announce: false);
+        // Falls back to a sensible chunk if the data forgot to say. Zero here would
+        // make the bonus free, which is a different bonus.
+        int cost = bonus.durabilityCost > 0 ? bonus.durabilityCost : 25;
+        int lost = equipment.DamageSlot(chosen, cost);
 
         double blow = player.AttackDamage * bonus.magnitude;
         int    hits = 0;
@@ -216,8 +234,12 @@ public static class SetBonusResolver
 
         AbilityVFX.Play("aoe_burst", player.transform.position);
         GameManager.Audio?.Play(Sfx.SetProc);
-        GameEvents.FireToast($"✦ Tin shards — your {item?.DisplayName ?? "armor"} is destroyed" +
-                             (hits > 0 ? $", {hits} caught in the blast." : "."));
+
+        // DamageSlot announces a break itself, so this only reports the wear.
+        GameEvents.FireToast($"✦ Tin shards — your {item?.DisplayName ?? "armor"} loses " +
+                             $"{lost} durability" +
+                             (hits > 0 ? $", {hits} caught in the blast." : "."),
+                             ChatTone.Warning);
     }
 
     /// <summary>

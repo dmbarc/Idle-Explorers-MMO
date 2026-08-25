@@ -6,11 +6,12 @@
     "bonuses": [
       {
         "piecesRequired": 2,
-        "description": "When taking damage, has a chance to explode into tin shards — one piece of your armor is destroyed outright, but everything nearby takes a great deal of damage.",
+        "description": "When taking damage, has a chance to explode into tin shards — a piece of your armor is badly damaged, but everything nearby takes a great deal of damage.",
         "action": "shardBurst",
         "chance": 0.07,
         "magnitude": 5.0,
-        "radius": 6.0
+        "radius": 6.0,
+        "durabilityCost": 25
       },
       {
         "piecesRequired": 4,

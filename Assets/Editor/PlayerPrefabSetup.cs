@@ -226,6 +226,12 @@ public static class PlayerPrefabSetup
         Debug.Log($"[PlayerPrefab] Rig scaled x{scale:0.00} so the character stands " +
                   $"{SpumRig.CharacterHeight} units tall — the NavMeshAgent height the " +
                   "camera, the walk speed and the map tiles were all sized against.");
+
+        // Drawn in front of the world rather than depth-tested against it, so mining a
+        // rock does not bury the character's legs inside it.
+        int repainted = CharacterSpriteMaterial.ApplyTo(art);
+        if (repainted > 0)
+            Debug.Log($"[PlayerPrefab] {repainted} sprite(s) now draw in front of world geometry.");
     }
 
     /// <summary>

@@ -155,6 +155,10 @@ public static class MonsterPrefabSetup
             // the unit, and the world was built for a two-unit person.
             SpumRig.NormaliseHeight(instance.transform, height);
 
+            // Same as the player: drawn in front of world geometry, so a goblin
+            // standing behind a tent is a goblin you can see and click.
+            CharacterSpriteMaterial.ApplyTo(instance);
+
             int unbillboarded = Billboard.CountUnbillboardedSprites(instance);
             if (unbillboarded > 0)
                 Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + unbillboarded +

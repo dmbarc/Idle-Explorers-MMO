@@ -60,6 +60,9 @@ public static class ItemEffectResolver
             case "resetSkills":
                 return ApplyResetSkills();
 
+            case "damageEquipment":
+                return ApplyDamageEquipment(effect);
+
             default:
                 Debug.LogWarning($"[ItemEffect] '{item.id}' has unhandled action '{effect.action}'.");
                 return false;
@@ -249,6 +252,43 @@ public static class ItemEffectResolver
 
         GameEvents.FireToast($"Reset {reset} skill(s) to level 1.");
         Debug.Log($"[DevTools] Reset {reset} skill(s) on {character.characterName}.");
+        return true;
+    }
+
+    /// <summary>
+    /// Wears down a random worn piece. A testing tool, not a curse.
+    ///
+    /// Durability is slow by design — an hour of being hit to see a helmet break — so
+    /// everything downstream of it (the break message, stats dropping off, a set
+    /// falling below its threshold, the repair cost) was expensive to look at even
+    /// once. This makes all of that reachable in a click.
+    ///
+    /// The amount is jittered around the effect's magnitude rather than fixed, because
+    /// the interesting states are the ones either side of zero and a fixed number
+    /// walks a 70-point helmet down in exactly the same steps every time.
+    /// </summary>
+    private static bool ApplyDamageEquipment(ItemEffect effect)
+    {
+        var equipment = GameManager.Equipment;
+        if (equipment == null)
+        {
+            GameEvents.FireToast("You are not wearing anything.", ChatTone.Bad);
+            return false;
+        }
+
+        int nominal = Mathf.Max(1, Mathf.RoundToInt(effect.magnitude));
+        int points  = UnityEngine.Random.Range(Mathf.Max(1, nominal / 2), nominal * 2 + 1);
+
+        int lost = equipment.DamageRandom(points);
+        if (lost <= 0)
+        {
+            GameEvents.FireToast("Nothing you are wearing can wear out any further.", ChatTone.Bad);
+            return false;
+        }
+
+        // DamageSlot names the piece if this broke it; otherwise say what happened, or
+        // the hammer reads as having done nothing at all.
+        GameEvents.FireToast($"The hammer rings — {lost} durability gone.", ChatTone.Warning);
         return true;
     }
 
