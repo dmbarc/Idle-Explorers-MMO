@@ -24,8 +24,23 @@ verification, and the Play Games token exchange. The rules live in C#.
 | Path | What it is |
 |---|---|
 | `src/IdleExplorers.Rules/` | **No source of its own.** Every file is linked from `../Assets/Scripts/Rules`. |
+| `src/IdleExplorers.Content/` | Reads the twelve StreamingAssets files into the shared catalogue. |
 | `tests/IdleExplorers.Rules.Tests/` | xUnit over the shared rules. |
+| `tests/IdleExplorers.Content.Tests/` | Imports the real shipping content and validates it. |
 | `supabase/` | Local stack config and, later, SQL migrations. |
+
+### Why content loading is NOT shared
+
+The catalogue is: `GameContent` indexes and validates, and both hosts call it. The
+loading is not, because the two hosts genuinely cannot share it — Unity has no
+filesystem on the web and fetches the same files over HTTP with `JsonUtility`, while
+this side reads bytes with `System.Text.Json`.
+
+The two parsers agree on exactly one thing, and the shared content classes are written
+to stay inside it: **public fields, matched by name**. `System.Text.Json` ignores fields
+unless `IncludeFields` is set — and without it every file parses successfully into a
+catalogue of empty objects. Nothing throws; the server just quietly believes the game
+has no items in it. There is a test named for that failure.
 
 ### The shared rules project
 

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Loads all JSON content files from StreamingAssets and provides typed lookups.
@@ -18,19 +19,36 @@ using UnityEngine.Networking;
 public class ContentManager : MonoBehaviour
 {
     // ── Typed catalogues ─────────────────────────────────────────────────────
-    public Dictionary<string, ItemData>    Items       { get; } = new Dictionary<string, ItemData>();
-    public Dictionary<string, MonsterData> Monsters    { get; } = new Dictionary<string, MonsterData>();
-    public Dictionary<string, ZoneData>    Zones       { get; } = new Dictionary<string, ZoneData>();
-    public Dictionary<string, MapData>     Maps        { get; } = new Dictionary<string, MapData>();
-    public Dictionary<string, SkillData>   Skills      { get; } = new Dictionary<string, SkillData>();
-    public Dictionary<string, ClassData>   Classes     { get; } = new Dictionary<string, ClassData>();
-    public List<MergeRecipe>               MergeRecipes { get; } = new List<MergeRecipe>();
-    public List<SlotUnlockRequirement>     SlotUnlocks  { get; } = new List<SlotUnlockRequirement>();
-    public List<CraftRecipe>               CraftRecipes { get; } = new List<CraftRecipe>();
-    public List<RelicCoinPack>             CoinPacks    { get; } = new List<RelicCoinPack>();
-    public List<ShopProduct>               ShopProducts { get; } = new List<ShopProduct>();
-    public Dictionary<string, ItemSetData> ItemSets     { get; } = new Dictionary<string, ItemSetData>();
-    public List<SpecCombo>                 SpecCombos   { get; } = new List<SpecCombo>();
+
+    /// <summary>
+    /// The authored game, indexed -- and indexed by code the SERVER also runs.
+    ///
+    /// This used to be thirteen dictionaries and lists owned here, with the lookups
+    /// written beside them. They moved into the shared rules tree, because the server
+    /// has to answer the same questions from the same twelve files and a second index
+    /// over the same data is a second thing to get wrong.
+    ///
+    /// What is left on this side is the half the two hosts genuinely cannot share:
+    /// fetching the files (UnityWebRequest here, the filesystem there), parsing them
+    /// (JsonUtility here, System.Text.Json there), and sprites, which mean nothing to
+    /// a server. The properties below forward so that every existing call site --
+    /// GameManager.Content.Items[id] and the rest -- keeps working unchanged.
+    /// </summary>
+    public GameContent Catalogue { get; } = new GameContent();
+
+    public Dictionary<string, ItemData>    Items        => Catalogue.Items;
+    public Dictionary<string, MonsterData> Monsters     => Catalogue.Monsters;
+    public Dictionary<string, ZoneData>    Zones        => Catalogue.Zones;
+    public Dictionary<string, MapData>     Maps         => Catalogue.Maps;
+    public Dictionary<string, SkillData>   Skills       => Catalogue.Skills;
+    public Dictionary<string, ClassData>   Classes      => Catalogue.Classes;
+    public Dictionary<string, ItemSetData> ItemSets     => Catalogue.ItemSets;
+    public List<MergeRecipe>               MergeRecipes => Catalogue.MergeRecipes;
+    public List<SlotUnlockRequirement>     SlotUnlocks  => Catalogue.SlotUnlocks;
+    public List<CraftRecipe>               CraftRecipes => Catalogue.CraftRecipes;
+    public List<RelicCoinPack>             CoinPacks    => Catalogue.CoinPacks;
+    public List<ShopProduct>               ShopProducts => Catalogue.ShopProducts;
+    public List<SpecCombo>                 SpecCombos   => Catalogue.SpecCombos;
 
     /// <summary>
     /// The stat baseline every character starts from, before any class.
@@ -38,7 +56,7 @@ public class ContentManager : MonoBehaviour
     /// Never null: a missing or malformed base_stats.json leaves an empty block rather
     /// than a null reference, so combat still runs — badly, and loudly, but it runs.
     /// </summary>
-    public StatBlock BaseStats { get; private set; } = new StatBlock();
+    public StatBlock BaseStats => Catalogue.BaseStats;
 
     public bool IsLoaded { get; private set; }
 
@@ -63,79 +81,39 @@ public class ContentManager : MonoBehaviour
         _onComplete   = onComplete;
         _pendingLoads = 12;
 
-        LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
-        LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
-        // zone_data embeds maps — extract both in one pass
-        LoadJson<ZoneList>   ("zone_data",     "zones",    j =>
-        {
-            foreach (var zone in j.zones)
-            {
-                Zones[zone.id] = zone;
-                if (zone.maps != null)
-                    foreach (var map in zone.maps)
-                        Maps[map.id] = map;
-            }
-        });
-        LoadJson<SkillList>  ("skill_data",    "skills",   j => { foreach (var x in j.skills)  Skills[x.id]  = x; });
-        LoadJson<ClassList>  ("class_data",    "classes",  j => { foreach (var x in j.classes) Classes[x.id] = x; });
-        LoadJson<MergeList>  ("merge_recipes", "recipes",  j => MergeRecipes.AddRange(j.recipes));
-        LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
-        LoadJson<CraftList>  ("recipe_data",   "recipes",  j => CraftRecipes.AddRange(j.recipes));
-        LoadJson<SetList>    ("set_data",      "sets",     j => { foreach (var x in j.sets) ItemSets[x.id] = x; });
+        // Parsing is ours; indexing belongs to the shared catalogue. The server calls
+        // the same Ingest methods with the same arrays, having read the same files a
+        // different way — see IdleExplorers.Content.ContentFiles. The SET of files
+        // here and there has to stay in step, which is why both sides list them.
+        LoadJson<ItemList>   ("item_data",     "items",    j => Catalogue.IngestItems(j.items));
+        LoadJson<MonsterList>("monster_data",  "monsters", j => Catalogue.IngestMonsters(j.monsters));
+        LoadJson<ZoneList>   ("zone_data",     "zones",    j => Catalogue.IngestZones(j.zones));
+        LoadJson<SkillList>  ("skill_data",    "skills",   j => Catalogue.IngestSkills(j.skills));
+        LoadJson<ClassList>  ("class_data",    "classes",  j => Catalogue.IngestClasses(j.classes));
+        LoadJson<MergeList>  ("merge_recipes", "recipes",  j => Catalogue.IngestMergeRecipes(j.recipes));
+        LoadJson<SlotList>   ("slot_unlock",   "slots",    j => Catalogue.IngestSlotUnlocks(j.slots));
+        LoadJson<CraftList>  ("recipe_data",   "recipes",  j => Catalogue.IngestCraftRecipes(j.recipes));
+        LoadJson<SetList>    ("set_data",      "sets",     j => Catalogue.IngestItemSets(j.sets));
+        LoadJson<SpecList>   ("spec_data",     "specs",    j => Catalogue.IngestSpecCombos(j.specs));
 
-        // A root OBJECT, like shop_data.json — it is one stat block, not a list, so the
-        // array wrapper below is bypassed and wrapField goes unused.
-        LoadJson<StatBlock>  ("base_stats",    "",         j => { if (j != null) BaseStats = j; });
-        LoadJson<SpecList>   ("spec_data",     "specs",    j => { if (j.specs != null) SpecCombos.AddRange(j.specs); });
-
-        // shop_data.json is a root OBJECT, not an array — it carries two lists, and
-        // the array wrapper below only handles one. The wrapField is unused for it.
-        LoadJson<ShopCatalog>("shop_data",     "",         j =>
-        {
-            if (j.coinPacks != null) CoinPacks.AddRange(j.coinPacks);
-            if (j.products  != null) ShopProducts.AddRange(j.products);
-        });
+        // The two root OBJECTS. They are not lists, so the array wrapper in
+        // LoadJsonRoutine is bypassed and their wrapField goes unused.
+        LoadJson<StatBlock>  ("base_stats",    "",         j => Catalogue.IngestBaseStats(j));
+        LoadJson<ShopCatalog>("shop_data",     "",         j => Catalogue.IngestShop(j));
     }
 
     // ── Shop ──────────────────────────────────────────────────────────────────
 
-    public RelicCoinPack GetCoinPack(string id)
-    {
-        if (string.IsNullOrEmpty(id)) return null;
-        foreach (var pack in CoinPacks)
-            if (pack != null && pack.id == id) return pack;
-        return null;
-    }
-
-    public ShopProduct GetShopProduct(string id)
-    {
-        if (string.IsNullOrEmpty(id)) return null;
-        foreach (var product in ShopProducts)
-            if (product != null && product.id == id) return product;
-        return null;
-    }
+    public RelicCoinPack GetCoinPack(string id)    => Catalogue.GetCoinPack(id);
+    public ShopProduct   GetShopProduct(string id) => Catalogue.GetShopProduct(id);
 
     // ── Crafting recipes ──────────────────────────────────────────────────────
 
-    public CraftRecipe GetRecipe(string recipeId)
-    {
-        if (string.IsNullOrEmpty(recipeId)) return null;
-
-        foreach (var r in CraftRecipes)
-            if (r.id == recipeId) return r;
-        return null;
-    }
+    public CraftRecipe GetRecipe(string recipeId) => Catalogue.GetRecipe(recipeId);
 
     /// <summary>Every recipe a given station offers, in file order.</summary>
-    public List<CraftRecipe> GetRecipesForStation(string stationType)
-    {
-        var results = new List<CraftRecipe>();
-        if (string.IsNullOrEmpty(stationType)) return results;
-
-        foreach (var r in CraftRecipes)
-            if (r.stationType == stationType) results.Add(r);
-        return results;
-    }
+    public List<CraftRecipe> GetRecipesForStation(string stationType) =>
+        Catalogue.GetRecipesForStation(stationType);
 
     // ── Sprite loading ────────────────────────────────────────────────────────
 
@@ -249,28 +227,17 @@ public class ContentManager : MonoBehaviour
     }
 
     // ── Lookup helpers ────────────────────────────────────────────────────────
-    public ItemData    GetItem(string id)    => Items.TryGetValue(id,    out var v) ? v : null;
-    public MonsterData GetMonster(string id) => Monsters.TryGetValue(id, out var v) ? v : null;
-    public SkillData   GetSkill(string id)   => Skills.TryGetValue(id,   out var v) ? v : null;
-    public ClassData   GetClass(string id)   => Classes.TryGetValue(id,  out var v) ? v : null;
-    public MapData     GetMap(string id)     => Maps.TryGetValue(id,     out var v) ? v : null;
-    public ZoneData    GetZone(string id)    => Zones.TryGetValue(id,    out var v) ? v : null;
+    public ItemData    GetItem(string id)    => Catalogue.GetItem(id);
+    public MonsterData GetMonster(string id) => Catalogue.GetMonster(id);
+    public SkillData   GetSkill(string id)   => Catalogue.GetSkill(id);
+    public ClassData   GetClass(string id)   => Catalogue.GetClass(id);
+    public MapData     GetMap(string id)     => Catalogue.GetMap(id);
+    public ZoneData    GetZone(string id)    => Catalogue.GetZone(id);
 
-    public MergeRecipe GetMergeRecipe(string inputItemId)
-    {
-        foreach (var r in MergeRecipes)
-            if (r.inputItemId == inputItemId) return r;
-        return null;
-    }
+    public MergeRecipe GetMergeRecipe(string inputItemId) => Catalogue.GetMergeRecipe(inputItemId);
 
-    public bool IsSlotUnlocked(int slotIndex, int accountLevel, int highestCharLevel)
-    {
-        foreach (var req in SlotUnlocks)
-            if (req.slot == slotIndex)
-                return accountLevel >= req.reqAccountLevel &&
-                       highestCharLevel >= req.reqAnyCharLevel;
-        return false;
-    }
+    public bool IsSlotUnlocked(int slotIndex, int accountLevel, int highestCharLevel) =>
+        Catalogue.IsSlotUnlocked(slotIndex, accountLevel, highestCharLevel);
 
     // ── Private: load from StreamingAssets ────────────────────────────────────
     private void LoadJson<T>(string fileName, string wrapField, Action<T> onParsed)
