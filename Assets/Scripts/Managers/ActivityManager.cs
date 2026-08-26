@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Tracks what the active character is currently doing (skill node / combat).
@@ -54,11 +55,8 @@ public class ActivityManager : MonoBehaviour
     /// Actions completed per hour. The single definition used by live ticking and by
     /// offline accrual, so the two can no longer drift apart.
     /// </summary>
-    public static float ActionsPerHour(float secondsPerAction, float rateMulti)
-    {
-        float effective = Mathf.Max(0.01f, secondsPerAction) / Mathf.Max(0.01f, rateMulti);
-        return 3600f / Mathf.Max(0.01f, effective);
-    }
+    public static float ActionsPerHour(float secondsPerAction, float rateMulti) =>
+        RateMath.ActionsPerHour(secondsPerAction, rateMulti);
 
     // ── Talent adjustments ────────────────────────────────────────────────────
     //
@@ -66,17 +64,20 @@ public class ActivityManager : MonoBehaviour
     // offline. Adjusting only the live tick is the exact shape of the bug that made
     // AFK gathering 60x worse than its own multiplier claimed: two code paths, two
     // formulas, no way to notice they disagreed.
+    //
+    // The arithmetic itself now lives in IdleExplorers.Rules.RateMath, which the game
+    // server compiles too. These methods survive as the seam that resolves the talent
+    // tree and the stat block -- neither of which the rules can reach -- and then hand
+    // the resolved numbers over. So the client and the server agree by construction
+    // rather than by two people remembering to change two files.
 
     /// <summary>
     /// Seconds per action after speed talents. Called by the live node tick AND by
     /// offline accrual — the stored snapshot keeps the raw figure, and both sides
     /// adjust it the same way at the moment of use.
     /// </summary>
-    public static float TalentAdjustedSeconds(float secondsPerAction, bool crafting)
-    {
-        string effect = crafting ? TalentManager.CraftSpeedPercent : TalentManager.GatherRatePercent;
-        return Mathf.Max(0.05f, secondsPerAction * TalentManager.ReductionMultiplier(effect));
-    }
+    public static float TalentAdjustedSeconds(float secondsPerAction, bool crafting) =>
+        RateMath.AdjustedSeconds(secondsPerAction, SpeedTalentMultiplier(crafting), 1f);
 
     /// <summary>
     /// Seconds per action after talents AND the class affinity for that skill.
@@ -85,12 +86,15 @@ public class ActivityManager : MonoBehaviour
     /// is being worked, and the older signature only knew whether it was crafting.
     /// Both live and offline paths call this, so a Ranger chops faster in both.
     /// </summary>
-    public static float AdjustedSeconds(float secondsPerAction, bool crafting, string skillId)
-    {
-        float seconds = TalentAdjustedSeconds(secondsPerAction, crafting);
+    public static float AdjustedSeconds(float secondsPerAction, bool crafting, string skillId) =>
+        RateMath.AdjustedSeconds(secondsPerAction,
+                                 SpeedTalentMultiplier(crafting),
+                                 GameManager.Stats?.SkillMultiplier(skillId) ?? 1f);
 
-        float affinity = GameManager.Stats?.SkillMultiplier(skillId) ?? 1f;
-        return Mathf.Max(0.05f, seconds / Mathf.Max(0.25f, affinity));
+    private static float SpeedTalentMultiplier(bool crafting)
+    {
+        string effect = crafting ? TalentManager.CraftSpeedPercent : TalentManager.GatherRatePercent;
+        return TalentManager.ReductionMultiplier(effect);
     }
 
     /// <summary>
@@ -104,7 +108,7 @@ public class ActivityManager : MonoBehaviour
         if (activity == null) return 0f;
 
         float diligence = GameManager.Stats?.Current.diligence ?? 0f;
-        return activity.afkRateMulti * (1f + diligence);
+        return RateMath.EffectiveAfkRate(activity.afkRateMulti, diligence);
     }
 
     // ── Momentum ──────────────────────────────────────────────────────────────
