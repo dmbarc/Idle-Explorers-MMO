@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// What the active character is wearing across the 25 slots.
@@ -111,6 +112,33 @@ public class EquipmentManager : MonoBehaviour
             return false;
         }
 
+        // ── The two-handed rule, enforced in both directions ──────────────────
+        //
+        // Checked BEFORE anything is removed from the inventory, because the refusal
+        // below has to leave the character exactly as it found them.
+
+        if (target == "offhand" && !WeaponProfile.CanHoldOffHand(GetEquippedItem("mainhand")))
+        {
+            GameEvents.FireToast("Both your hands are on that weapon.", ChatTone.Bad);
+            return false;
+        }
+
+        // A two-hander displaces the off hand as well as the main hand, so there are
+        // two items to find room for rather than one. Refuse up front rather than
+        // discovering it halfway through — the alternative ends with a shield deleted.
+        string bumped = null;
+        if (target == "mainhand" && WeaponProfile.NeedsBothHands(item))
+        {
+            bumped = GetEquipped("offhand");
+
+            if (!string.IsNullOrEmpty(bumped) && GameManager.Inventory?.CanAddItem(bumped) != true)
+            {
+                GameEvents.FireToast("No room for the off-hand item you would be taking off.",
+                                     ChatTone.Bad);
+                return false;
+            }
+        }
+
         string displaced = GetEquipped(target);
 
         // Remove the incoming item first so the displaced one has somewhere to land
@@ -128,6 +156,9 @@ public class EquipmentManager : MonoBehaviour
             GameEvents.FireToast("No room for the item you would be taking off.", ChatTone.Bad);
             return false;
         }
+
+        // Room was confirmed above, so this cannot strand the shield.
+        if (!string.IsNullOrEmpty(bumped)) Unequip("offhand");
 
         Set(target, item.id);
         RestoreCondition(target, item);

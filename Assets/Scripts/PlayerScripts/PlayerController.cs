@@ -5,6 +5,7 @@ using UnityEngine.AI;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using IdleExplorers.Rules;
 
 public class PlayerController : MonoBehaviour
 {
@@ -21,7 +22,13 @@ public class PlayerController : MonoBehaviour
     public double maxHealthPoints = 100;
     public double healthRegenAmount = 1;
     public float healthRegenSpeed = 1f;
-    public float attackDistance = 2f;
+    /// <summary>
+    /// Reach with nothing equipped. The weapon decides the real figure — see
+    /// EffectiveAttackRange — and this is what a bare-handed character falls back to.
+    /// </summary>
+    public float attackDistance = WeaponProfile.UnarmedRange;
+
+    /// <summary>Swing interval from the stat block, before the weapon has its say.</summary>
     public float attackSpeed = 2f;
     public bool autoAttack = false;
     public double dropMultiplier = 1;
@@ -583,7 +590,7 @@ public class PlayerController : MonoBehaviour
         agent.SetDestination(targetPos);
 
         float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
-        if (dist <= attackDistance)
+        if (dist <= EffectiveAttackRange)
         {
             _lastProgressAt = Time.time;      // in range counts as progress
             agent.isStopped = true;
@@ -1360,7 +1367,7 @@ public class PlayerController : MonoBehaviour
 
         // Only once we are actually engaged — casting Cleave while still jogging
         // across the map wastes the cooldown on nothing.
-        if (Vector3.Distance(transform.position, currentTarget.transform.position) > attackDistance * 1.5f)
+        if (Vector3.Distance(transform.position, currentTarget.transform.position) > EffectiveAttackRange * 1.5f)
             return;
 
         // Walks the bar in order, so slot position is now a player-facing auto-cast
@@ -1601,7 +1608,16 @@ public class PlayerController : MonoBehaviour
     {
         if (target == null) return 0d;
 
-        double dealt = Stats.Resolve().Roll(UnityRandomSource.Instance, out bool wasCrit);
+        var profile = Stats.Resolve();
+
+        // The weapon widens the band rather than replacing it, so an unarmed
+        // character is weak instead of harmless — and so a swing still crits at the
+        // character's own rate rather than the weapon having to restate it.
+        var weapon = WeaponProfile.WeaponDamage(MainHand);
+        profile.Min += weapon.Min;
+        profile.Max += weapon.Max;
+
+        double dealt = profile.Roll(UnityRandomSource.Instance, out bool wasCrit);
         dealt *= StatBlock.DamageThrough(target.Armor);
         dealt  = System.Math.Max(1d, dealt);
 
@@ -1621,11 +1637,38 @@ public class PlayerController : MonoBehaviour
         get
         {
             var profile = Stats.Resolve();
-            return (profile.Min + profile.Max) * 0.5d;
+            var weapon  = WeaponProfile.WeaponDamage(MainHand);
+
+            return (profile.Min + weapon.Min + profile.Max + weapon.Max) * 0.5d;
         }
     }
 
-    /// <summary>Attack interval after any active haste buff.</summary>
-    private float EffectiveAttackSpeed =>
-        Time.time < _hasteUntil ? attackSpeed / _hasteMultiplier : attackSpeed;
+    /// <summary>Whatever is in the right hand, or null for bare knuckles.</summary>
+    private ItemData MainHand => GameManager.Equipment?.GetEquippedItem("mainhand");
+
+    /// <summary>
+    /// How close to get before swinging.
+    ///
+    /// This was a hard-coded 2f, which is why a bow and a fist had identical reach.
+    /// Resolved through the shared rules so the server validates against the same
+    /// number the client walks to.
+    /// </summary>
+    public float EffectiveAttackRange
+    {
+        get
+        {
+            var weapon = MainHand;
+            return weapon != null ? WeaponProfile.AttackRange(weapon) : attackDistance;
+        }
+    }
+
+    /// <summary>Attack interval from the weapon, then the stat block, then any haste.</summary>
+    private float EffectiveAttackSpeed
+    {
+        get
+        {
+            float seconds = WeaponProfile.AttackSeconds(MainHand, attackSpeed);
+            return Time.time < _hasteUntil ? seconds / _hasteMultiplier : seconds;
+        }
+    }
 }
