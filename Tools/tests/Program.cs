@@ -40,6 +40,9 @@ internal static class Program
         Console.WriteLine("Crafting economy");
         EconomyChecks.Run(Check, RepoRoot());
 
+        Console.WriteLine("Armour sets");
+        SetBonusChecks.Run(Check, RepoRoot());
+
         Console.WriteLine("Shared rules purity");
         RulesPurity.Run(Check, RepoRoot());
 

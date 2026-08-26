@@ -22,13 +22,13 @@
       },
       {
         "piecesRequired": 6,
-        "description": "When taking damage, has a chance to steal durability from the rest of your armor and pour it into whichever piece is worst off. When dealing damage, has a chance to scoop up and re-equip armor lying on the ground.",
+        "description": "When taking damage, has a chance to steal durability from the rest of your armor and pour it into whichever piece is worst off.",
         "action": "durabilitySiphon",
         "chance": 0.20
       },
       {
-        "piecesRequired": 6,
-        "description": "",
+        "piecesRequired": 4,
+        "description": "When dealing damage, has a chance to scoop up armor lying on the ground nearby and put it straight back on.",
         "action": "scavenge",
         "chance": 0.25,
         "radius": 8.0

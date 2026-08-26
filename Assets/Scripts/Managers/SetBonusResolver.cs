@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Runs armour set bonuses.
@@ -54,6 +55,36 @@ public static class SetBonusResolver
 
     /// <summary>Whether an action string from JSON is one this file implements.</summary>
     public static bool Handles(string action) => !string.IsNullOrEmpty(action) && Actions.Contains(action);
+
+    // ── Armour that has left the character ────────────────────────────────────
+
+    /// <summary>
+    /// Pieces thrown by armorThrow, still counted as worn for a grace window.
+    ///
+    /// Without this the set disarms itself: the throw drops the worn count from six
+    /// to five, which switches off every 6-piece bonus — including scavenge, whose
+    /// only job is fetching the thrown piece back. See InFlightPieces for the whole
+    /// argument.
+    /// </summary>
+    public static readonly InFlightPieces InFlight = new InFlightPieces();
+
+    /// <summary>
+    /// Monotonic seconds for the grace window.
+    ///
+    /// realtimeSinceStartup rather than Time.time: this state outlives a scene load,
+    /// and Time.time is measured from the start of the current one.
+    ///
+    /// TODO(Phase 1): when set bonuses resolve server-side, this becomes the database
+    /// clock. InFlightPieces already takes now as an argument for exactly that reason.
+    /// </summary>
+    private static double Now => Time.realtimeSinceStartupAsDouble;
+
+    /// <summary>
+    /// Static state survives between play sessions when domain reload is disabled,
+    /// so a piece thrown in the last session would still be counted in this one.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics() => InFlight.Clear();
 
     // ── Passive contributions ─────────────────────────────────────────────────
 
@@ -268,8 +299,14 @@ public static class SetBonusResolver
         if (!SpawnArmorOnGround(item.id, durability, target.transform.position))
         {
             equipment.PutOn(slotId, item.id, durability);
+            InFlight.Clear(item.id);
             return;
         }
+
+        // Booked as in flight BEFORE anything else reads the paperdoll. The piece is
+        // off the character now, and the 6-piece bonus that fetches it back is only
+        // active while the set still counts as complete.
+        InFlight.Record(item.id, slotId, Now);
 
         target.TakeDamage(player.AttackDamage * bonus.magnitude);
         AbilityVFX.Play("impact", target.transform.position);
@@ -324,9 +361,13 @@ public static class SetBonusResolver
             var item = GameManager.Content?.GetItem(drop.itemId);
             if (item == null || !item.IsEquippable) continue;
 
-            string slotId = item.equipSlot;
-            if (!EquipmentSlots.Exists(slotId)) continue;
-            if (!string.IsNullOrEmpty(equipment.GetEquipped(slotId))) continue;
+            // An item declares a FAMILY, not a numbered slot. Testing equipSlot with
+            // Exists happens to work for "chest", which is also a real slot id, and
+            // never works for a ring or an amulet — the slots are ring1..ring10, and
+            // Exists("ring") is false. So a thrown ring could not be scavenged at all.
+            // This is the exact mistake EquipmentSlots.Family was written to prevent.
+            string slotId = FirstFreeSlotFor(equipment, item.equipSlot);
+            if (slotId == null) continue;
 
             // -1 means the drop was looted rather than thrown, so it has no recorded
             // condition. Clamping that to 0 would put a shattered helmet on someone
@@ -337,6 +378,9 @@ public static class SetBonusResolver
 
             if (!equipment.PutOn(slotId, item.id, condition)) continue;
 
+            // Back on the character, so it is no longer owed to the set.
+            InFlight.Clear(item.id);
+
             GameEvents.FireToast($"✦ You scoop up your {item.DisplayName} and put it back on.", ChatTone.Good);
             Object.Destroy(drop.gameObject);
             return;   // one per proc, so a field of loot is not vacuumed in a frame
@@ -344,6 +388,21 @@ public static class SetBonusResolver
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The first empty slot an item declaring this family could go in, or null.
+    ///
+    /// Only empty ones, so scavenging cannot strip a better item off the character
+    /// to make room for the one they just threw.
+    /// </summary>
+    private static string FirstFreeSlotFor(EquipmentManager equipment, string declaredSlot)
+    {
+        foreach (var slot in EquipmentSlots.Family(declaredSlot))
+            if (string.IsNullOrEmpty(equipment.GetEquipped(slot.SlotId)))
+                return slot.SlotId;
+
+        return null;
+    }
 
     private static bool Roll(ItemSetBonus bonus) =>
         bonus.chance > 0f && Random.value <= EffectiveChance(bonus);

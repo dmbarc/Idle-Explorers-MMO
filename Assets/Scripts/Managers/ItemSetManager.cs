@@ -62,11 +62,19 @@ public static class ItemSetManager
     }
 
     /// <summary>
-    /// How many of a set's pieces are worn.
+    /// How many of a set's pieces are worn, or briefly owed.
     ///
     /// A broken piece does NOT count. Set bonuses are the payoff for maintaining a
     /// full set, and letting shattered armour keep them would make durability
     /// decorative for exactly the players it is aimed at.
+    ///
+    /// A piece IN FLIGHT does count, for a grace window. The tin set throws its own
+    /// armour at things, and counting only what is worn meant the throw dropped the
+    /// set from six pieces to five — switching off the very bonus that picks the
+    /// piece back up. See InFlightPieces for the full argument.
+    ///
+    /// The two questions are asked separately, and in this order, so a piece that has
+    /// already been re-equipped is counted once rather than twice.
     /// </summary>
     public static int EquippedCount(ItemSetData set)
     {
@@ -80,16 +88,24 @@ public static class ItemSetManager
         {
             if (string.IsNullOrEmpty(itemId)) continue;
 
-            foreach (var slot in EquipmentSlots.All)
+            if (IsWornUnbroken(equipment, itemId) ||
+                SetBonusResolver.InFlight.IsInFlight(itemId, Time.realtimeSinceStartupAsDouble))
             {
-                if (equipment.GetEquipped(slot.SlotId) != itemId) continue;
-                if (equipment.IsBroken(slot.SlotId))              continue;
-
                 count++;
-                break;
             }
         }
         return count;
+    }
+
+    private static bool IsWornUnbroken(EquipmentManager equipment, string itemId)
+    {
+        foreach (var slot in EquipmentSlots.All)
+        {
+            if (equipment.GetEquipped(slot.SlotId) != itemId) continue;
+
+            return !equipment.IsBroken(slot.SlotId);
+        }
+        return false;
     }
 
     /// <summary>Every set with at least one unbroken piece worn, and how many.</summary>
