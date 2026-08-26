@@ -247,11 +247,21 @@ public class ContentManager : MonoBehaviour
 
     private IEnumerator LoadJsonRoutine<T>(string fileName, string wrapField, Action<T> onParsed)
     {
-        // StreamingAssets requires UnityWebRequest on all platforms (including Android)
+        // StreamingAssets requires UnityWebRequest on every platform, but what
+        // streamingAssetsPath MEANS differs by three, and getting it wrong is total:
+        // the catalogue comes back empty and the game boots into a world with no
+        // items, no monsters and no recipes.
         string uri = Path.Combine(Application.streamingAssetsPath, fileName);
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // Android StreamingAssets are inside the APK — must use jar:// URI as-is
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Already an absolute http(s) URL on the web -- the build is being served,
+        // not read. Prefixing file:/// produces "file:///https://..." and every one
+        // of the twelve loads fails.
+        uri = uri.Replace("\\", "/");
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        // Android StreamingAssets live inside the APK -- the jar:// URI is used as-is.
 #else
+        // A real path on disk, which UnityWebRequest needs as a file URL.
         uri = "file:///" + uri.Replace("\\", "/");
 #endif
 
