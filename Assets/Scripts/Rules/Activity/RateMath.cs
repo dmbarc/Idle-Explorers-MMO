@@ -72,6 +72,19 @@ namespace IdleExplorers.Rules
         }
 
         /// <summary>
+        /// Wall-clock seconds one action actually takes, after the rate multiplier.
+        ///
+        /// The inverse of <see cref="ActionsPerHour"/>, exposed because settlement
+        /// accumulates PROGRESS rather than seconds. A window can span a change of
+        /// rate -- the player closes the tab halfway through, and the second half
+        /// accrues at the offline rate -- and carrying leftover seconds across that
+        /// boundary would silently value them at the wrong rate. Carrying a fraction
+        /// of an action instead is rate-agnostic and cannot drift.
+        /// </summary>
+        public static double SecondsEach(float secondsPerAction, float rateMultiplier) =>
+            3600d / ActionsPerHour(secondsPerAction, rateMultiplier);
+
+        /// <summary>
         /// The offline multiplier after everything that improves idle rate.
         ///
         /// Diligence rather than the AFK talent directly: the stat block already folds
