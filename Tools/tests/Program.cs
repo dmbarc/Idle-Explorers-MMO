@@ -232,6 +232,33 @@ internal static class Program
         Check(EquipmentSlots.Representative("ring")?.SlotId == "ring1",
               "'ring' resolves to ring1 first");
 
+        // The hands, which the boss drops depend on existing.
+        Check(EquipmentSlots.Exists("mainhand"), "there is a main hand to hold a weapon");
+        Check(EquipmentSlots.Exists("offhand"),  "there is an off hand to hold a shield");
+
+        // P_Weapon and P_Shield each appear twice on the rig, once per arm, so a
+        // find-first lookup dresses whichever the hierarchy happens to list first.
+        // The qualifier is what keeps a sword out of the shield hand.
+        Check(EquipmentSlots.Get("mainhand")?.AncestorFor(0) == "P_RArm",
+              "the main hand is qualified to the right arm");
+        Check(EquipmentSlots.Get("offhand")?.AncestorFor(0) == "P_LArm",
+              "the off hand is qualified to the left arm");
+
+        foreach (var slot in EquipmentSlots.All)
+            Check(slot.SpumAncestors == null || slot.SpumAncestors.Length <= slot.SpumParts.Length,
+                  $"'{slot.SlotId}' has no ancestor without a part to qualify");
+
+        // GameContent carries its own copy of these ids, because it is compiled into
+        // the server and EquipmentSlots is not. That copy is only safe while this
+        // holds.
+        var declared = new HashSet<string>(IdleExplorers.Rules.GameContent.KnownSlotIds);
+        foreach (var slot in EquipmentSlots.All)
+            Check(declared.Remove(slot.SlotId),
+                  $"the shared catalogue knows about slot '{slot.SlotId}'");
+
+        Check(declared.Count == 0,
+              $"the shared catalogue invents no slots (extra: {string.Join(", ", declared)})");
+
         // Every equippable item in the shipping data.
         string path = Path.Combine(RepoRoot(), "Assets", "StreamingAssets", "item_data.json");
         if (!File.Exists(path)) { Check(false, $"cannot find {path}"); return; }

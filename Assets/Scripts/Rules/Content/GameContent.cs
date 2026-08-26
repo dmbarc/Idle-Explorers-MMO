@@ -254,6 +254,32 @@ namespace IdleExplorers.Rules
                         problems.Add($"set '{pair.Key}' names unknown item '{itemId}'");
             }
 
+            foreach (var pair in Items)
+            {
+                var item = pair.Value;
+                if (item == null) continue;
+
+                if (!string.IsNullOrEmpty(item.equipSlot) && !SlotFamilyExists(item.equipSlot))
+                    problems.Add($"item '{pair.Key}' equips to unknown slot '{item.equipSlot}'");
+
+                if (!item.IsWeapon) continue;
+
+                if (item.weaponType != "melee" && item.weaponType != "ranged")
+                    problems.Add($"item '{pair.Key}' has weaponType '{item.weaponType}'");
+
+                // A weapon that is not in a hand is a weapon nobody can swing, and
+                // nothing in the game would say so -- it equips, sits on an armour
+                // slot, and contributes none of its damage.
+                if (item.equipSlot != "mainhand" && item.equipSlot != "offhand")
+                    problems.Add($"weapon '{pair.Key}' equips to '{item.equipSlot}' rather than a hand");
+
+                if (item.damageMax < item.damageMin)
+                    problems.Add($"weapon '{pair.Key}' has max damage below min");
+
+                if (item.projectilesPerShot > 0 && !item.IsRanged)
+                    problems.Add($"melee weapon '{pair.Key}' declares projectiles");
+            }
+
             foreach (var recipe in MergeRecipes)
             {
                 if (recipe == null) continue;
@@ -268,6 +294,35 @@ namespace IdleExplorers.Rules
             problems.AddRange(_duplicates);
             return problems;
         }
+
+        /// <summary>
+        /// Whether a declared slot names anything real, exactly or as a family.
+        ///
+        /// Duplicated from EquipmentSlots deliberately: that type is Unity-side and the
+        /// server cannot see it, but the RULE -- an item names a family, and ring1
+        /// through ring10 all answer to "ring" -- has to hold on both. Kept to the
+        /// prefix test alone so there is only one line that could drift, and
+        /// SlotFamilies in the standalone suite asserts the two agree.
+        /// </summary>
+        private bool SlotFamilyExists(string declared)
+        {
+            foreach (string slotId in KnownSlotIds)
+                if (slotId == declared || slotId.StartsWith(declared, StringComparison.Ordinal))
+                    return true;
+
+            return false;
+        }
+
+        /// <summary>Mirrors EquipmentSlots.All. Asserted equal by the standalone suite.</summary>
+        internal static readonly string[] KnownSlotIds =
+        {
+            "helmet", "cape", "chest", "shirt", "shoulders", "legs", "boots", "bracers",
+            "gloves", "tabard", "aura",
+            "mainhand", "offhand",
+            "ring1", "ring2", "ring3", "ring4", "ring5",
+            "ring6", "ring7", "ring8", "ring9", "ring10",
+            "amulet1", "amulet2", "trinket1", "trinket2", "companion",
+        };
 
         // ── Internals ─────────────────────────────────────────────────────────
 

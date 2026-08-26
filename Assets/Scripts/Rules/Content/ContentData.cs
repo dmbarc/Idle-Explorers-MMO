@@ -96,12 +96,48 @@ public class ItemData
     /// </summary>
     public string   equipSpriteAddress;
 
+    // ── Weapons ───────────────────────────────────────────────────────────────
+    //
+    // Additive, so no save migration: an item authored before these existed reads
+    // back as an empty weaponType, which is exactly what "not a weapon" means.
+    //
+    // Damage lives on the item rather than being derived from a tier, because the
+    // boss drops are meant to feel individually authored — a spear that reaches
+    // further, a bow that fires three arrows — and a formula would flatten them.
+
+    /// <summary>Empty, "melee" or "ranged". Empty means this is not a weapon.</summary>
+    public string weaponType;
+
+    /// <summary>
+    /// How close the character has to get. Zero falls back to the unarmed reach,
+    /// which is what an item with no authored range should behave as.
+    /// </summary>
+    public float  attackRange;
+
+    /// <summary>Seconds between swings. Zero means "use the character's own speed".</summary>
+    public float  attackSpeedSeconds;
+
+    public float  damageMin;
+    public float  damageMax;
+
+    /// <summary>Arrows per shot. Zero and one both mean one; the Trisong Bow is three.</summary>
+    public int    projectilesPerShot;
+
+    /// <summary>Occupies both hands: equipping it takes the off hand off.</summary>
+    public bool   twoHanded;
+
     public ItemEffect[] effects;
 
     // convenience aliases
     public string DisplayName => name;
 
     public bool IsEquippable => !string.IsNullOrEmpty(equipSlot);
+
+    /// <summary>True when this item can be swung or fired.</summary>
+    public bool IsWeapon => !string.IsNullOrEmpty(weaponType);
+
+    /// <summary>True when attacking with it launches a projectile.</summary>
+    public bool IsRanged => weaponType == "ranged";
 
     /// <summary>True when this piece wears out and can be repaired.</summary>
     public bool HasDurability => maxDurability > 0;

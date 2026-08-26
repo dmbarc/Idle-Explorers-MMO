@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 
 /// <summary>
-/// The 26 equipment slots, defined once so the paperdoll UI, the save format and
+/// The 28 equipment slots, defined once so the paperdoll UI, the save format and
 /// item validation cannot disagree about what exists.
 ///
 /// Cosmetic slots change how the character looks; functional slots carry stats and
@@ -31,7 +31,26 @@ public static class EquipmentSlots
         /// </summary>
         public string[] SpumParts = System.Array.Empty<string>();
 
+        /// <summary>
+        /// Ancestor that disambiguates each part in SpumParts, index for index.
+        ///
+        /// Needed because the rig carries TWO P_Weapon transforms and TWO P_Shield
+        /// transforms, one per arm, and a find-first lookup would dress whichever the
+        /// hierarchy happened to list first. The main hand is the right arm and the
+        /// off hand the left, which is also where SpumAppearance puts the cosmetic
+        /// weapon — so an equipped weapon overrides the cosmetic one rather than
+        /// fighting it for the same layer.
+        ///
+        /// Empty, or a null entry, accepts any match. That is right for every part
+        /// that appears once, which is most of them.
+        /// </summary>
+        public string[] SpumAncestors = System.Array.Empty<string>();
+
         public bool RendersOnCharacter => SpumParts != null && SpumParts.Length > 0;
+
+        /// <summary>The ancestor qualifier for SpumParts[index], or null for any.</summary>
+        public string AncestorFor(int index) =>
+            SpumAncestors != null && index < SpumAncestors.Length ? SpumAncestors[index] : null;
     }
 
     public static readonly Slot[] All =
@@ -63,6 +82,17 @@ public static class EquipmentSlots
         new Slot { SlotId = "aura",      DisplayName = "Aura",      IsCosmetic = true },
 
         // ── Functional ────────────────────────────────────────────────────────
+
+        // The hands. Both render, because the rig ships a P_Weapon and a P_Shield on
+        // each arm — verified against the prefab rather than assumed, since a find-
+        // first lookup on either name silently dresses the wrong side.
+        new Slot { SlotId = "mainhand",  DisplayName = "Main Hand",
+                   SpumParts     = new[] { "P_Weapon" },
+                   SpumAncestors = new[] { "P_RArm" } },
+        new Slot { SlotId = "offhand",   DisplayName = "Off Hand",
+                   SpumParts     = new[] { "P_Shield" },
+                   SpumAncestors = new[] { "P_LArm" } },
+
         new Slot { SlotId = "ring1",     DisplayName = "Ring 1"  },
         new Slot { SlotId = "ring2",     DisplayName = "Ring 2"  },
         new Slot { SlotId = "ring3",     DisplayName = "Ring 3"  },

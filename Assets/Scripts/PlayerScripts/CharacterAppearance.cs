@@ -190,8 +190,11 @@ public class CharacterAppearance : MonoBehaviour
 
         if (slot.RendersOnCharacter)
         {
-            foreach (var partName in slot.SpumParts)
-                layers.AddRange(SpumRig.Collect(transform, partName));
+            // The ancestor is load-bearing for the hands: P_Weapon and P_Shield each
+            // appear twice, once per arm, and Collect without a qualifier returns
+            // both — so a sword would be drawn into the shield hand as well.
+            for (int i = 0; i < slot.SpumParts.Length; i++)
+                layers.AddRange(SpumRig.Collect(transform, slot.SpumParts[i], slot.AncestorFor(i)));
 
             if (layers.Count == 0)
                 Debug.LogWarning($"[CharacterAppearance] No SPUM part for slot '{slot.SlotId}' " +
