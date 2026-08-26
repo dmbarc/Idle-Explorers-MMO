@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Every number that describes a character, in one composable bundle.
@@ -165,7 +165,7 @@ public class StatBlock
     /// </summary>
     public void Add(string statId, float value)
     {
-        if (string.IsNullOrEmpty(statId) || Mathf.Approximately(value, 0f)) return;
+        if (string.IsNullOrEmpty(statId) || RulesMath.IsZero(value)) return;
 
         switch (Stats.Canonical(statId))
         {
@@ -199,7 +199,7 @@ public class StatBlock
             case Stats.MoveSpeed: moveSpeed += value; return;
         }
 
-        Debug.LogWarning($"[StatBlock] Nothing applies a stat called '{statId}'. " +
+        RulesLog.Warn($"[StatBlock] Nothing applies a stat called '{statId}'. " +
                          "Check the spelling against Stats.All, or the bonus does nothing.");
     }
 
@@ -251,7 +251,7 @@ public class StatBlock
 
     public void AddSkillAffinity(string skillId, float value)
     {
-        if (string.IsNullOrEmpty(skillId) || Mathf.Approximately(value, 0f)) return;
+        if (string.IsNullOrEmpty(skillId) || RulesMath.IsZero(value)) return;
 
         skillAffinity ??= new List<SkillAffinity>();
 
@@ -266,7 +266,7 @@ public class StatBlock
 
     // ── Derived combat values ─────────────────────────────────────────────────
 
-    public float EffectiveMaxHit => Mathf.Max(1f, maxHit * (1f + maxHitMultiplier));
+    public float EffectiveMaxHit => Math.Max(1f, maxHit * (1f + maxHitMultiplier));
 
     /// <summary>
     /// The damage band, after the min-hit cascade.
@@ -283,10 +283,10 @@ public class StatBlock
     public DamageProfile Resolve()
     {
         float max = EffectiveMaxHit;
-        float min = Mathf.Max(0f, minHit * (1f + minHitMultiplier));
+        float min = Math.Max(0f, minHit * (1f + minHitMultiplier));
 
         float chance     = critChance;
-        float critFactor = 1f + Mathf.Max(0f, critMultiplier);
+        float critFactor = 1f + Math.Max(0f, critMultiplier);
 
         if (min > max)
         {
@@ -307,7 +307,7 @@ public class StatBlock
         {
             Min            = min,
             Max            = max,
-            CritChance     = Mathf.Clamp01(chance),
+            CritChance     = RulesMath.Clamp01(chance),
             CritMultiplier = critFactor,
         };
     }
@@ -322,10 +322,10 @@ public class StatBlock
     /// attack rate.
     /// </summary>
     public float EffectiveAttackSpeed =>
-        Mathf.Max(0.2f, attackSpeed / Mathf.Max(0.1f, 1f + attackSpeedMultiplier));
+        Math.Max(0.2f, attackSpeed / Math.Max(0.1f, 1f + attackSpeedMultiplier));
 
-    public float EffectiveArmor  => Mathf.Max(0f, armor * (1f + armorMultiplier));
-    public float EffectiveHealth => Mathf.Max(1f, health * (1f + healthMultiplier));
+    public float EffectiveArmor  => Math.Max(0f, armor * (1f + armorMultiplier));
+    public float EffectiveHealth => Math.Max(1f, health * (1f + healthMultiplier));
 
     /// <summary>
     /// Fraction of incoming damage that gets through this much armour.
@@ -337,7 +337,7 @@ public class StatBlock
     public static float DamageThrough(float armor)
     {
         const float Softness = 120f;   // armour needed to halve incoming damage
-        return Softness / (Softness + Mathf.Max(0f, armor));
+        return Softness / (Softness + Math.Max(0f, armor));
     }
 }
 
@@ -357,11 +357,24 @@ public struct DamageProfile
     public float CritChance;
     public float CritMultiplier;
 
-    /// <summary>Rolls one hit. <paramref name="wasCrit"/> drives the damage number's colour.</summary>
-    public double Roll(out bool wasCrit)
+    /// <summary>
+    /// Rolls one hit against a supplied source of randomness.
+    ///
+    /// The source is a parameter rather than a global because the same roll happens
+    /// in two places for two reasons. The server rolls it to DECIDE the damage, from
+    /// a counter-based generator whose seed and index are recorded, so the hit can be
+    /// re-derived from the audit log. The client rolls it to DRAW a number while it
+    /// waits, from whatever it likes, because that number is a prediction and the
+    /// server's answer replaces it.
+    ///
+    /// <paramref name="wasCrit"/> drives the damage number's colour.
+    /// </summary>
+    public double Roll(IRandomSource rng, out bool wasCrit)
     {
-        double damage = UnityEngine.Random.Range(Min, Mathf.Max(Min, Max));
-        wasCrit = UnityEngine.Random.value < CritChance;
+        if (rng == null) { wasCrit = false; return Min; }
+
+        double damage = rng.Range(Min, Math.Max(Min, Max));
+        wasCrit = rng.Next01() < CritChance;
         if (wasCrit) damage *= CritMultiplier;
         return damage;
     }

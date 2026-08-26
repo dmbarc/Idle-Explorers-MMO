@@ -1601,7 +1601,7 @@ public class PlayerController : MonoBehaviour
     {
         if (target == null) return 0d;
 
-        double dealt = Stats.Resolve().Roll(out bool wasCrit);
+        double dealt = Stats.Resolve().Roll(UnityRandomSource.Instance, out bool wasCrit);
         dealt *= StatBlock.DamageThrough(target.Armor);
         dealt  = System.Math.Max(1d, dealt);
 

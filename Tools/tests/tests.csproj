@@ -26,8 +26,10 @@
   </ItemGroup>
 
   <ItemGroup Label="Real game source, linked so it cannot drift">
-    <Compile Include="../../Assets/Scripts/Core/Data/StatBlock.cs"    Link="Game/StatBlock.cs" />
-    <Compile Include="../../Assets/Scripts/Core/Data/Stats.cs"        Link="Game/Stats.cs" />
+    <!-- The whole shared-rules tree, by glob, so a new rules file is covered the
+         moment it is written rather than when somebody remembers to list it. -->
+    <Compile Include="../../Assets/Scripts/Rules/**/*.cs" LinkBase="Rules" />
+
     <Compile Include="../../Assets/Scripts/Managers/EquipmentSlots.cs" Link="Game/EquipmentSlots.cs" />
   </ItemGroup>
 

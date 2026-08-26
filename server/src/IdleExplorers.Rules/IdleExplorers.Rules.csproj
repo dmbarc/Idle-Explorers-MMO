@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The game's rules, compiled for the server.
+
+    THERE IS NO SOURCE IN THIS DIRECTORY. Every file is linked from
+    Assets/Scripts/Rules, so the server and the Unity client run the same code rather
+    than two implementations somebody has to keep in step. That is the single largest
+    risk in a server-authoritative migration, and this is how it is designed out
+    instead of tested for.
+
+    netstandard2.1 because Unity is on .NET Standard 2.1 (apiCompatibilityLevel 6).
+    Targeting anything newer would compile here and fail there, which would defeat the
+    whole arrangement quietly.
+
+    The tree must not reference UnityEngine, read a clock, or use unseeded randomness.
+    Those three rules are asserted by RulesPurity in Tools/tests, because a broken
+    boundary shows up here as a confusing build error and there as nothing at all.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <RootNamespace>IdleExplorers.Rules</RootNamespace>
+    <AssemblyName>IdleExplorers.Rules</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../../../Assets/Scripts/Rules/**/*.cs" LinkBase="Rules" />
+  </ItemGroup>
+
+</Project>

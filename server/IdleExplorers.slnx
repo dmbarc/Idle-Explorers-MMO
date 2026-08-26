@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IdleExplorers.Rules/IdleExplorers.Rules.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IdleExplorers.Rules.Tests/IdleExplorers.Rules.Tests.csproj" />
+  </Folder>
+</Solution>

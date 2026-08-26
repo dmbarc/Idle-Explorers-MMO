@@ -37,6 +37,9 @@ internal static class Program
         DropSizing();
         SlotFamilies();
 
+        Console.WriteLine("Shared rules purity");
+        RulesPurity.Run(Check, RepoRoot());
+
         AssetChecks.RigMasking(Check, RepoRoot());
         AssetChecks.MapCameras(Check, RepoRoot());
 

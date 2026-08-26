@@ -116,6 +116,8 @@ InitTestScene*.unity*
 # Local check harness output (Tools/check.sh)
 /Tools/verify/build/
 /Tools/**/bin/
+/server/**/bin/
+/server/**/obj/
 /Tools/**/obj/
 
 # ...but the harness and server projects are real, hand-written ones. The rule above
@@ -124,3 +126,4 @@ InitTestScene*.unity*
 !/Tools/**/*.csproj
 !/server/**/*.csproj
 !/server/**/*.sln
+!/server/**/*.slnx
