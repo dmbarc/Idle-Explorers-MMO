@@ -37,6 +37,9 @@ internal static class Program
         DropSizing();
         SlotFamilies();
 
+        Console.WriteLine("Crafting economy");
+        EconomyChecks.Run(Check, RepoRoot());
+
         Console.WriteLine("Shared rules purity");
         RulesPurity.Run(Check, RepoRoot());
 
