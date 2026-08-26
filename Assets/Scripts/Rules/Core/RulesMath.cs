@@ -37,6 +37,9 @@ namespace IdleExplorers.Rules
         public static float Clamp(float value, float min, float max) =>
             value < min ? min : (value > max ? max : value);
 
+        public static double Clamp(double value, double min, double max) =>
+            value < min ? min : (value > max ? max : value);
+
         public static long Clamp(long value, long min, long max) =>
             value < min ? min : (value > max ? max : value);
 
