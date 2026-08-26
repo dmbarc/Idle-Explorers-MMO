@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Standalone checks over the project's own source, run outside Unity.
+
+    The game's real files are LINKED, not copied. An earlier version of this project
+    kept its own duplicates of StatBlock.cs, Stats.cs and EquipmentSlots.cs, which
+    meant a change to the game could not fail a test here - the test was reading a
+    stale twin. Linking makes that impossible: there is one file, compiled twice.
+
+    UnityStubs.cs supplies only the UnityEngine surface these files actually touch.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <AssemblyName>IdleExplorersTests</AssemblyName>
+    <RootNamespace>IdleExplorersTests</RootNamespace>
+    <NoWarn>CS0649;CS0414;CS0169</NoWarn>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Label="Real game source, linked so it cannot drift">
+    <Compile Include="../../Assets/Scripts/Core/Data/StatBlock.cs"    Link="Game/StatBlock.cs" />
+    <Compile Include="../../Assets/Scripts/Core/Data/Stats.cs"        Link="Game/Stats.cs" />
+    <Compile Include="../../Assets/Scripts/Managers/EquipmentSlots.cs" Link="Game/EquipmentSlots.cs" />
+  </ItemGroup>
+
+</Project>
