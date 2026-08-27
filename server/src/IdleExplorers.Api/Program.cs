@@ -56,12 +56,33 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // ══ THE PORT COMES FROM THE HOST ══════════════════════════════════════
+        //
+        // Every container platform — Railway, Render, Cloud Run, Heroku — assigns a
+        // port through PORT and routes to it. ASP.NET does not read that variable; it
+        // reads ASPNETCORE_URLS. So an image with a hard-coded URL listens on the
+        // wrong port and the platform's health check fails against a server that is
+        // running perfectly.
+        //
+        // Decided HERE rather than in the Dockerfile so there is one source of truth
+        // and it is not platform-specific. 8080 stays the default, so a plain
+        // `docker run`, the compose stack and the test harness are unchanged.
+        //
+        // ASPNETCORE_URLS still wins if something sets it explicitly, because an
+        // operator overriding the binding should not have to fight the code.
+        if (string.IsNullOrEmpty(builder.Configuration["ASPNETCORE_URLS"]))
+        {
+            string port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+
+            builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+        }
+
         // ── Configuration ─────────────────────────────────────────────────────
         //
         // The connection string carries the database password, so it comes from the
         // environment and never from a file in the repository. In production it is a
-        // Fly secret; locally it defaults to the stack `supabase start` prints, whose
-        // credentials are identical on every machine and listen on loopback only.
+        // platform secret; locally it defaults to the stack `supabase start` prints,
+        // whose credentials are identical on every machine and listen on loopback only.
         string connectionString =
             builder.Configuration["IDLE_EXPLORERS_DB"]
             ?? Environment.GetEnvironmentVariable("IDLE_EXPLORERS_DB")

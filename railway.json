@@ -1,0 +1,49 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+
+  "build": {
+    "builder": "DOCKERFILE",
+
+    "//dockerfilePath": [
+      "Relative to the REPOSITORY ROOT, which is also the build context.",
+      "",
+      "The Dockerfile copies Assets/Scripts/Rules and Assets/StreamingAssets, both of",
+      "which live outside server/. So the context has to be the root, and this file",
+      "sits at the root so Railway uses the root. Moving either one breaks the build",
+      "with a COPY error naming a path that plainly exists.",
+      "",
+      "The previous host's config got this wrong in exactly that way."
+    ],
+    "dockerfilePath": "server/Dockerfile"
+  },
+
+  "deploy": {
+    "//numReplicas": [
+      "ONE, deliberately and permanently.",
+      "",
+      "A single small machine serves three hundred players of an idle game",
+      "comfortably -- measured, 763 requests a second with a settle p99 of 61ms. More",
+      "replicas would also multiply the bill, which is the thing this whole host",
+      "choice exists to keep predictable."
+    ],
+    "numReplicas": 1,
+
+    "//healthcheckPath": [
+      "/readyz touches the database, so it answers the question the platform is",
+      "actually asking: should traffic be routed here. /healthz is liveness only and",
+      "is what the container's own HEALTHCHECK uses -- a server that cannot reach",
+      "Postgres is still alive, and restarting it would turn a database blip into a",
+      "restart loop."
+    ],
+    "healthcheckPath": "/readyz",
+    "healthcheckTimeout": 30,
+
+    "//restartPolicyType": [
+      "Restart on failure, but bounded. An unbounded retry against a misconfiguration",
+      "-- a bad connection string, a missing JWT secret -- is a container that burns",
+      "compute forever while never becoming healthy, and compute is billed."
+    ],
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

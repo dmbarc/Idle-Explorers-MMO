@@ -204,87 +204,87 @@ namespace IdleExplorersTests
         // ══ THE DEPLOY CONFIG POINTS AT REAL FILES ════════════════════════════
 
         /// <summary>
-        /// Every path in fly.toml resolves from the REPOSITORY ROOT.
+        /// The deploy config points at files that exist, from the right place.
         ///
         /// ══ WHY THIS IS WORTH A CHECK ═════════════════════════════════════════
         ///
         /// The Dockerfile copies Assets/Scripts/Rules and Assets/StreamingAssets, which
-        /// live outside server/ -- so the build context must be the repo root, and
-        /// flyctl takes its context from the directory you run it in.
+        /// live outside server/. So the build context must be the repository ROOT, and
+        /// every host takes its context from where the config sits or where you run the
+        /// command.
         ///
-        /// fly.toml lives in server/, which makes "relative to the root" look wrong to
-        /// anybody editing it, and the natural correction breaks the build. The first
-        /// version of that file said dockerfile = "Dockerfile" and
-        /// ignorefile = "../.dockerignore" -- correct-looking, and impossible: from
-        /// server/ the context has no Assets/ in it.
+        /// The previous host's config got this exactly wrong -- it named "Dockerfile"
+        /// and "../.dockerignore", which reads as "build from server/", and from there
+        /// the context has no Assets/ in it. That fails on deploy day with a COPY error
+        /// naming a path that plainly exists, which is a genuinely confusing hour.
         ///
-        /// That fails on deploy day with a COPY error naming a path that plainly
-        /// exists, which is a genuinely confusing hour.
+        /// The config has since moved hosts. The trap did not move, so neither did the
+        /// check.
         /// </summary>
         internal static void DeployConfig(Action<bool, string> check, string root)
         {
-            string path = Path.Combine(root, "server", "fly.toml");
+            string path = Path.Combine(root, "railway.json");
+            string json = Safely(path);
 
-            // COMMENTS STRIPPED FIRST. fly.toml explains at length what its paths used
-            // to say and why that was wrong -- and Regex.Match returns the FIRST match,
-            // which was the sentence describing the bug rather than the setting. The
-            // check failed against a file that was already correct.
-            //
-            // Third time this exact trap has appeared in this suite. Prose that names
-            // the thing it warns about will always be found before the code.
-            string toml = StripToml(Safely(path));
+            check(json.Length > 0, "railway.json is at the repository root, which is the build context");
 
-            check(toml.Length > 0, "server/fly.toml exists");
+            if (json.Length == 0) return;
 
-            if (toml.Length == 0) return;
+            // ══ THE PATHS ═════════════════════════════════════════════════════
 
-            foreach (var (key, mustExist) in new[]
-                     {
-                         ("dockerfile", "server/Dockerfile"),
-                         ("ignorefile", ".dockerignore"),
-                     })
+            var dockerfile = Regex.Match(json, @"""dockerfilePath""\s*:\s*""([^""]+)""");
+
+            check(dockerfile.Success, "railway.json names a dockerfilePath");
+
+            if (dockerfile.Success)
             {
-                var match = Regex.Match(toml, key + @"\s*=\s*""([^""]+)""");
-
-                check(match.Success, $"fly.toml names a {key}");
-
-                if (!match.Success) continue;
-
-                string named = match.Groups[1].Value;
+                string named = dockerfile.Groups[1].Value;
 
                 check(!named.StartsWith(".."),
-                      $"fly.toml {key} does not climb out of the repo -- the context IS the root");
+                      "the dockerfilePath does not climb out of the repo -- the context IS the root");
 
                 check(File.Exists(Path.Combine(root, named.Replace('/', Path.DirectorySeparatorChar))),
-                      $"fly.toml {key} '{named}' resolves from the repository root");
-
-                check(named == mustExist,
-                      $"fly.toml {key} is '{mustExist}', so `fly deploy --config server/fly.toml` " +
-                      "from the root finds it");
+                      $"dockerfilePath '{named}' resolves from the repository root");
             }
 
-            // The port the container listens on and the port Fly routes to are two
-            // numbers that must agree, in two files, neither of which mentions the
-            // other. A mismatch is a deploy that passes its build and fails every
-            // health check.
-            var port = Regex.Match(toml, @"internal_port\s*=\s*(\d+)");
+            check(File.Exists(Path.Combine(root, ".dockerignore")),
+                  "a .dockerignore sits at the root, so Library/ and obj/ stay out of the context");
 
-            check(port.Success && port.Groups[1].Value == "8080",
-                  "fly.toml routes to 8080, which is what the container exposes");
+            // ══ WHAT IT ASKS THE PLATFORM FOR ═════════════════════════════════
 
-            // 256 MB is the Fly default and it is not enough for a .NET server holding
-            // a 25-connection pool and the whole content catalogue.
-            var memory = Regex.Match(toml, @"memory\s*=\s*""(\d+)mb""", RegexOptions.IgnoreCase);
+            var replicas = Regex.Match(json, @"""numReplicas""\s*:\s*(\d+)");
 
-            check(memory.Success && int.Parse(memory.Groups[1].Value) >= 512,
-                  "fly.toml asks for at least 512mb");
+            check(replicas.Success && replicas.Groups[1].Value == "1",
+                  "exactly one replica -- more would multiply a bill this host was chosen to bound");
 
-            check(Regex.IsMatch(toml, @"min_machines_running\s*=\s*1"),
-                  "one machine stays warm, so nobody meets a cold .NET start mid-fight");
+            check(Regex.IsMatch(json, @"""healthcheckPath""\s*:\s*""/readyz"""),
+                  "the platform polls /readyz, which touches the database, not /healthz which does not");
+
+            // An unbounded restart against a bad connection string is a container that
+            // burns billed compute forever while never becoming healthy.
+            check(Regex.IsMatch(json, @"""restartPolicyMaxRetries""\s*:\s*\d+"),
+                  "restarts are bounded, so a misconfiguration cannot bill indefinitely");
+
+            // ══ THE PORT ══════════════════════════════════════════════════════
+            //
+            // Railway, Render and Cloud Run all assign a port through PORT. ASP.NET
+            // reads ASPNETCORE_URLS instead, so an image that hard-codes the URL binds
+            // to the wrong port and every health check fails against a server that is
+            // running perfectly.
+
+            string dockerfileText = Safely(Path.Combine(root, "server", "Dockerfile"));
+
+            check(!Regex.IsMatch(StripHash(dockerfileText), @"ASPNETCORE_URLS\s*="),
+                  "the Dockerfile does not pin ASPNETCORE_URLS, so the platform's PORT wins");
+
+            string program = Safely(Path.Combine(root, "server", "src", "IdleExplorers.Api", "Program.cs"));
+
+            check(program.Contains("UseUrls") && program.Contains("\"PORT\""),
+                  "the app binds to PORT when the host assigns one");
         }
 
-        /// <summary>TOML with its # comments removed. See DeployConfig.</summary>
-        private static string StripToml(string source) =>
+        /// <summary>Text with its # comments removed, so prose cannot answer for code.</summary>
+        private static string StripHash(string source) =>
             Regex.Replace(source, @"^\s*#.*$", "", RegexOptions.Multiline);
 
         // ── Machinery ─────────────────────────────────────────────────────────

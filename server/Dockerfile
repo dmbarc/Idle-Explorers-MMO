@@ -52,8 +52,12 @@ RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin explorer \
  && chown -R explorer:explorer /app
 USER explorer
 
+# PORT only. ASPNETCORE_URLS is deliberately NOT set here: Program.Build reads PORT and
+# binds to it, so a platform that assigns its own port -- Railway, Render, Cloud Run --
+# is honoured without the image knowing which platform it is on. Setting the URL here
+# would silently win over the platform and route traffic to a port nothing listens on,
+# which presents as a healthy container failing every health check.
 ENV PORT=8080 \
-    ASPNETCORE_URLS=http://0.0.0.0:8080 \
     ASPNETCORE_ENVIRONMENT=Production \
     IDLE_EXPLORERS_CONTENT=/app/content \
     DOTNET_gcServer=1
