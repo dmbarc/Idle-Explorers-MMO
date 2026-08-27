@@ -123,8 +123,9 @@ public sealed class SettlementService(Db db, ContentCache content)
 
         Outcome outcome = activity.Kind switch
         {
-            ActivityKind.Gather  => await GatherAsync(connection, tx, characterId, row, window, cancellation),
-            _                    => Outcome.Nothing,
+            ActivityKind.Gather => await GatherAsync(connection, tx, characterId, row, window, cancellation),
+            ActivityKind.Craft  => await CraftAsync(connection, tx, characterId, row, window, cancellation),
+            _                   => Outcome.Nothing,
         };
 
         // The clock moves whether or not anything was earned. An idle character still
@@ -237,6 +238,154 @@ public sealed class SettlementService(Db db, ContentCache content)
             await GrantXpAsync(connection, tx, characterId, activity.SkillId, result.XpGained, cancellation);
 
         return outcome;
+    }
+
+    // ── Crafting ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Integrates a crafting window and moves the materials.
+    ///
+    /// ══ WHY THE STOCK IS COUNTED BEFORE THE RULES RUN ═════════════════════════
+    ///
+    /// Settlement.Craft decides how many crafts the TIME allowed; the bag decides how
+    /// many the materials allowed; the answer is the smaller. Handing the rules the
+    /// stock figure up front is what lets them report ran-out honestly rather than
+    /// the caller discovering it afterwards and having to reverse-engineer why.
+    ///
+    /// Consumption is all-or-nothing and inside the same transaction as the output.
+    /// A crash between the two would otherwise charge a player for goods they never
+    /// received, which is the single worst-feeling bug an economy can have.
+    /// </summary>
+    private async Task<Outcome> CraftAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                           Guid characterId, Row row, SettlementWindow window,
+                                           CancellationToken cancellation)
+    {
+        ActivityState activity = row.Activity;
+
+        CraftRecipe? recipe = content.Catalogue.GetRecipe(activity.RecipeId);
+
+        // A recipe that has been removed from content since the activity was set. Pay
+        // nothing rather than guess -- see IsActivityValid on the client for the same
+        // decision: a stale snapshot used to conjure its target item forever.
+        if (recipe is null) return Outcome.Nothing;
+
+        List<InventoryEntry> bag = await ReadInventoryAsync(connection, tx, characterId, cancellation);
+
+        long affordable = MaxCraftsFrom(bag, recipe);
+        long roomFor    = string.IsNullOrEmpty(recipe.outputItemId)
+            ? 0L
+            : SlotContainer.FreeCapacityFor(bag, recipe.outputItemId);
+
+        SettlementResult result = Settlement.Craft(
+            activity, recipe, window,
+            diligence:         row.Diligence,
+            outputMultiplier:  1f,
+            maxCraftsByInputs: affordable,
+            roomForOutput:     roomFor);
+
+        row.PendingProgress = result.Progress;
+
+        if (result.Actions <= 0L)
+        {
+            return Outcome.Nothing with { RanOutOfInputs = result.RanOutOfInputs };
+        }
+
+        // Spend first. If the bag disagrees with the count taken a moment ago -- which
+        // it cannot, inside this lock, but the check costs nothing -- grant nothing.
+        if (!ConsumeFor(bag, recipe, result.Actions))
+            return Outcome.Nothing;
+
+        long produced  = Math.Max(1L, recipe.outputQuantity) * result.Actions;
+        long delivered = SlotContainer.AddUpTo(bag, recipe.outputItemId, Math.Min(produced, roomFor));
+
+        await WriteInventoryAsync(connection, tx, characterId, bag, cancellation);
+
+        // Both halves of the trade are ledgered, because "where did this chestplate
+        // come from" and "where did two thousand bars go" are the same question asked
+        // from opposite ends.
+        foreach (var input in recipe.inputs ?? [])
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) continue;
+
+            await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                       input.itemId, -(input.quantity * result.Actions),
+                                       "craft_input", cancellation);
+        }
+
+        if (delivered > 0L)
+        {
+            await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                       recipe.outputItemId, delivered, "craft_output", cancellation);
+        }
+
+        if (result.XpGained > 0L && !string.IsNullOrEmpty(recipe.skillId))
+            await GrantXpAsync(connection, tx, characterId, recipe.skillId, result.XpGained, cancellation);
+
+        var outcome = new Outcome
+        {
+            Actions             = result.Actions,
+            SupervisedActions   = result.SupervisedActions,
+            XpGained            = result.XpGained,
+            StoppedForRoom      = result.StoppedForRoom,
+            LostToFullInventory = result.LostToFullInventory,
+            RanOutOfInputs      = result.RanOutOfInputs,
+        };
+
+        if (delivered > 0L) outcome.Items[recipe.outputItemId] = delivered;
+
+        return outcome;
+    }
+
+    /// <summary>
+    /// How many times this recipe can be made from what is in the bag.
+    ///
+    /// The limiting ingredient decides, which is the whole of it -- but it is worth
+    /// being explicit that a recipe with NO inputs would otherwise be unbounded, and
+    /// content is hand-authored.
+    /// </summary>
+    private static long MaxCraftsFrom(List<InventoryEntry> bag, CraftRecipe recipe)
+    {
+        if (recipe.inputs == null || recipe.inputs.Length == 0) return 0L;
+
+        long limit = long.MaxValue;
+
+        foreach (var input in recipe.inputs)
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) continue;
+            if (input.quantity <= 0L) return 0L;
+
+            long held = SlotContainer.GetQuantity(bag, input.itemId);
+            limit = Math.Min(limit, held / input.quantity);
+
+            if (limit == 0L) return 0L;
+        }
+
+        return limit == long.MaxValue ? 0L : limit;
+    }
+
+    /// <summary>Spends the inputs for a batch, or changes nothing and says no.</summary>
+    private static bool ConsumeFor(List<InventoryEntry> bag, CraftRecipe recipe, long crafts)
+    {
+        if (crafts <= 0L || recipe.inputs == null) return false;
+
+        // Checked in full before anything is removed. A partial spend that then fails
+        // is materials destroyed for nothing.
+        foreach (var input in recipe.inputs)
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) continue;
+
+            if (SlotContainer.GetQuantity(bag, input.itemId) < input.quantity * crafts)
+                return false;
+        }
+
+        foreach (var input in recipe.inputs)
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) continue;
+
+            SlotContainer.RemoveItem(bag, input.itemId, input.quantity * crafts);
+        }
+
+        return true;
     }
 
     // ── Storage ───────────────────────────────────────────────────────────────
