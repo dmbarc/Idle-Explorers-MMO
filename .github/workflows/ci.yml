@@ -1,0 +1,113 @@
+name: checks
+
+# Every push and every pull request. The suite is the thing that makes this
+# migration safe to keep moving, so it runs on everything rather than on a schedule
+# somebody has to remember to look at.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  # One run per branch. A second push while the first is still going supersedes it —
+  # there is no value in learning that a commit somebody has already replaced was red.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: rules, content, schema and API
+    runs-on: ubuntu-latest
+
+    # ══ A REAL POSTGRES, AND SPECIFICALLY SUPABASE'S ══════════════════════════
+    #
+    # Not postgres:17. Verified by trying it: the migration fails immediately with
+    # 'schema "auth" does not exist', because account.id references auth.users -- and
+    # the row-level-security tests need the anon, authenticated and service_role
+    # roles, of which a plain image has none.
+    #
+    # The same image `supabase start` pulls, so CI and a laptop are testing the same
+    # database rather than two things that agree until they do not.
+    #
+    # SQLite was never a candidate: the tests assert row locks, triggers and RLS, and
+    # the abuse suite is entirely about behaviour under contention.
+    services:
+      postgres:
+        image: public.ecr.aws/supabase/postgres:17.6.1.165
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["54322:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The rules tree is plain source, and the LFS payload is 551 MB of art the
+          # server never reads. Skipping it turns a three-minute checkout into
+          # seconds.
+          lfs: false
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Apply the schema
+        # The migrations are the schema of record, applied the same way locally and
+        # here. A CI database built by a script that drifted from the migrations
+        # would test a schema nobody deploys.
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends postgresql-client
+          for file in server/supabase/migrations/*.sql; do
+            echo "applying $(basename "$file")"
+            PGPASSWORD=postgres psql -h 127.0.0.1 -p 54322 -U postgres -d postgres \
+              -v ON_ERROR_STOP=1 -f "$file"
+          done
+        env:
+          PGPASSWORD: postgres
+
+      - name: Standalone checks
+        # Content, maps, economy, armour sets, rules purity. No database, no Unity.
+        run: dotnet run --project Tools/tests -v q --nologo
+
+      - name: Server suite
+        run: dotnet test server/IdleExplorers.slnx -v q --nologo
+        env:
+          IDLE_EXPLORERS_DB: "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres"
+
+  container:
+    name: the image builds and serves
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+
+      - name: Build
+        # From the repository root, because the shared rules tree lives outside
+        # server/ — see the Dockerfile.
+        run: docker build -f server/Dockerfile -t idle-explorers-api .
+
+      - name: It answers
+        # A container that builds and does not start is a deploy that fails at three
+        # in the morning instead of here. No database: /healthz is liveness only and
+        # deliberately touches nothing.
+        run: |
+          docker run -d --name api -p 8080:8080 idle-explorers-api
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/healthz > /dev/null; then
+              echo "healthy after ${i}s"
+              docker rm -f api
+              exit 0
+            fi
+            sleep 1
+          done
+
+          echo "the container never became healthy"
+          docker logs api
+          exit 1

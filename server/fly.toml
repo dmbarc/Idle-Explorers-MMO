@@ -1,0 +1,76 @@
+# Fly.io deployment for the game server.
+app = "idle-explorers-api"
+
+# Chosen when the app is created. One region, deliberately: a single small machine
+# serves three hundred players of an idle game comfortably (measured — 763 requests a
+# second with a settle p99 of 61ms), and multi-region invites replication questions
+# nobody here needs answering yet.
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+  # The shared rules tree lives outside server/, so the build context has to be the
+  # repository root. Without this the container cannot see half its own source.
+  ignorefile = "../.dockerignore"
+
+[env]
+  ASPNETCORE_ENVIRONMENT = "Production"
+  IDLE_EXPLORERS_CONTENT = "/app/content"
+
+[http_service]
+  internal_port = 8080
+  force_https   = true
+
+  # ══ WHY THE MACHINE STAYS WARM ═════════════════════════════════════════════
+  #
+  # Fly can stop idle machines, which is excellent for cost and wrong for this.
+  # A cold .NET start in the middle of somebody's boss fight is the wrong first
+  # impression, and an idle game by definition has quiet stretches — exactly when
+  # auto-stop would fire and exactly when a returning player settles eight hours.
+  auto_stop_machines  = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # Concurrency, sized against the connection pool rather than guessed. Each
+  # instance holds at most 25 database connections (Db.MaxPoolSize), and the load
+  # simulation showed requests queueing on the pool long before the web server
+  # became the bottleneck.
+  [http_service.concurrency]
+    type       = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+  # Readiness, not liveness. /readyz verifies the database, so an instance that
+  # cannot reach Postgres is pulled from rotation rather than serving five hundred
+  # errors a second — while the container's own HEALTHCHECK stays on /healthz so a
+  # database blip does not become a restart loop.
+  [[http_service.checks]]
+    interval        = "15s"
+    timeout         = "5s"
+    grace_period    = "20s"
+    method          = "GET"
+    path            = "/readyz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+
+  # 512 MB is comfortable for a .NET server holding a 25-connection pool and the
+  # content catalogue in memory. Worth revisiting only if the catalogue grows by an
+  # order of magnitude.
+  memory = "512mb"
+
+# ══ SECRETS — NEVER IN THIS FILE ═══════════════════════════════════════════════
+#
+# Set once, on the machine, and never committed:
+#
+#   fly secrets set IDLE_EXPLORERS_DB="Host=...;Port=5432;Database=postgres;Username=postgres;Password=..."
+#   fly secrets set SUPABASE_JWT_SECRET="..."
+#
+# The connection string carries the database password and the JWT secret can MINT
+# tokens for any player. Neither goes in a repository, a Unity build, or a
+# client-visible config — anything shipped inside a WebGL build is public.
+#
+# Use Supabase's POOLER connection string rather than the direct one. The free tier
+# allows sixty direct connections for everything, and two instances of this API at
+# twenty-five each plus Supabase's own services is already over.

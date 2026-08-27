@@ -1,0 +1,53 @@
+# What the container build must NOT see.
+#
+# ══ WHY THIS FILE IS LOAD-BEARING ═════════════════════════════════════════════
+#
+# Two separate problems, both of which cost a build before this existed.
+#
+# 1. obj/ and bin/ from a Windows machine carry project.assets.json with absolute
+#    Windows NuGet paths in it. Copied into a Linux container the restore appears to
+#    succeed and the publish fails with "Unable to find fallback package folder
+#    'C:\Program Files (x86)\...'", which reads like a broken SDK rather than a stale
+#    file that should never have been there.
+#
+# 2. The build context is the repository ROOT, because the shared rules tree lives
+#    under Assets/. Without exclusions that ships 1.2 GB of Kenney art and every
+#    Unity Library artefact to the daemon on every build.
+
+# Build output, from any machine
+**/bin/
+**/obj/
+Tools/verify/build/
+
+# Unity's own, none of which the server needs
+Library/
+Temp/
+Logs/
+UserSettings/
+obj/
+*.csproj.user
+*.sln
+*.slnx.user
+
+# Art and audio. The server reads StreamingAssets and nothing else under Assets/,
+# and the Dockerfile copies exactly the two directories it wants.
+Assets/Kenney Game Assets All-in-1 3.7.0/
+Assets/JMO Assets/
+Assets/Imports/
+Assets/Scenes/
+Assets/Prefabs/
+Assets/Materials/
+Assets/Shaders/
+Assets/Resources/
+Assets/TextMesh Pro/
+Assets/UnityTechnologies/
+Assets/Fantasy Wooden GUI  Free/
+Assets/*Music*/
+Assets/*.meta
+
+# The local stack's containers and volumes
+server/supabase/.branches/
+server/supabase/.temp/
+
+.git/
+.github/

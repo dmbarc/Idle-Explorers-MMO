@@ -7,7 +7,43 @@ namespace IdleExplorers.Api;
 
 public class Program
 {
-    public static void Main(string[] args) => Build(args).Run();
+    public static int Main(string[] args)
+    {
+        // The container's HEALTHCHECK runs the binary against itself rather than
+        // shelling out to curl, which the aspnet runtime image does not ship. Adding
+        // curl to a production image to ask one question is a larger attack surface
+        // than answering it in six lines.
+        if (args.Contains("--healthcheck")) return HealthCheck();
+
+        Build(args).Run();
+        return 0;
+    }
+
+    /// <summary>
+    /// Asks the running server whether it is alive. Zero means yes.
+    ///
+    /// Liveness, not readiness. A container that cannot reach Postgres is still
+    /// alive, and killing it would turn a database blip into a restart loop across
+    /// every instance at once -- which is how a brief outage becomes a long one.
+    /// </summary>
+    private static int HealthCheck()
+    {
+        string port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(4) };
+
+            HttpResponseMessage response =
+                client.GetAsync($"http://127.0.0.1:{port}/healthz").GetAwaiter().GetResult();
+
+            return response.IsSuccessStatusCode ? 0 : 1;
+        }
+        catch (Exception)
+        {
+            return 1;
+        }
+    }
 
     /// <summary>
     /// Composed in a method rather than top-level statements so the scenario tests can
