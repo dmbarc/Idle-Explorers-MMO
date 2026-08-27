@@ -6,7 +6,11 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 using IdleExplorers.Api.Auth;
+using IdleExplorers.Api.Infrastructure;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Xunit;
@@ -51,7 +55,54 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
     }
 
-    public Task InitializeAsync() => Task.CompletedTask;
+    /// <summary>
+    /// The clock the server reads, which these tests own.
+    ///
+    /// ══ WHY NOT JUST EDIT last_settled_at ═════════════════════════════════════
+    ///
+    /// Because the schema forbids it, correctly. The first version of these tests
+    /// simulated an elapsed hour by pushing that column an hour into the past, and
+    /// the trigger refused — which is the trigger doing its job: settling a window,
+    /// winding the clock back and settling it again is the cheapest duplication
+    /// exploit there is, and a test helper is not exempt from the rule.
+    ///
+    /// So time moves FORWARD instead, the way it does in production. The server still
+    /// computes elapsed the same way, still writes the same column, and the trigger
+    /// stays armed for the whole run rather than being worked around.
+    ///
+    /// Started slightly ahead of the database so the first write to last_settled_at —
+    /// which the row defaults to database now() — is still an advance.
+    /// </summary>
+    public FixedClock Clock { get; private set; }
+
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGameClock>();
+            services.AddSingleton<IGameClock>(_ => Clock);
+        });
+    }
+
+    public async Task InitializeAsync()
+    {
+        if (!DatabaseReachable)
+        {
+            Clock = new FixedClock(DateTimeOffset.UtcNow);
+            return;
+        }
+
+        await using var connection = new NpgsqlConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = "select now();";
+
+        await using var reader = await command.ExecuteReaderAsync();
+        await reader.ReadAsync();
+
+        Clock = new FixedClock(reader.GetFieldValue<DateTimeOffset>(0).AddMinutes(1));
+    }
 
     async Task IAsyncLifetime.DisposeAsync()
     {

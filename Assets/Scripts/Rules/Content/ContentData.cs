@@ -204,6 +204,20 @@ public class SkillNodeEntry
     /// </summary>
     public string   stationType;
     public int      reqSkillLevel;
+
+    /// <summary>
+    /// Seconds per action at 1.0x, before talents and class affinity.
+    ///
+    /// Additive, defaulting to the three seconds the scene component has always used
+    /// as its Inspector value -- which is exactly the problem it fixes. The rate used
+    /// to live on SkillNodeController, in the SCENE, where the server cannot see it:
+    /// a server that has to decide what four hours of mining produced cannot read a
+    /// number out of a Unity prefab.
+    ///
+    /// A file that does not mention it keeps three, so no existing content changes.
+    /// </summary>
+    public float    baseSecondsPerAction = 3f;
+
     public float    activeRateMulti;    // active play rate multiplier
     public float    afkRateMulti;       // AFK rate multiplier
     public float    xpPerAction;

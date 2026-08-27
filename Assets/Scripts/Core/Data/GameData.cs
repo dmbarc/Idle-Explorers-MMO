@@ -234,13 +234,6 @@ public class SkillProgress
     public long     xp;
 }
 
-[Serializable]
-public class InventoryEntry
-{
-    public string   itemId;
-    public long     quantity;
-}
-
 /// <summary>Condition remembered for a piece of gear while it is off the character.</summary>
 [Serializable]
 public class ItemDurability

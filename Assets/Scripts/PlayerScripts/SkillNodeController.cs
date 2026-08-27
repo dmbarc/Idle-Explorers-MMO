@@ -19,8 +19,21 @@ public class SkillNodeController : MonoBehaviour
     [Tooltip("How close the player must be to gather.")]
     public float interactionRange = 2.5f;
 
-    [Tooltip("Seconds per gather action at 1.0x rate.")]
+    [Tooltip("Fallback only. zone_data.json decides the real figure — see NodeSeconds.")]
     public float baseSecondsPerAction = 3f;
+
+    /// <summary>
+    /// Seconds per action, from content.
+    ///
+    /// The Inspector field below it is a fallback for a node the catalogue does not
+    /// know about. Content wins because the SERVER reads content and cannot read a
+    /// scene — and two different answers to "how long does this take" is two different
+    /// answers to "what did four hours of it earn".
+    /// </summary>
+    private float NodeSeconds =>
+        _entry != null && _entry.baseSecondsPerAction > 0.01f
+            ? _entry.baseSecondsPerAction
+            : baseSecondsPerAction;
 
     /// <summary>Ceiling on actions completed in a single frame. See TickGather.</summary>
     private const int MaxActionsPerFrame = 20;
@@ -52,7 +65,7 @@ public class SkillNodeController : MonoBehaviour
 
             float perAction = _recipe != null
                 ? _recipe.SecondsPerCraft(GameManager.Skills?.GetSkillLevel(_recipe.skillId) ?? 1)
-                : baseSecondsPerAction;
+                : NodeSeconds;
 
             string workedSkill = _recipe != null ? _recipe.skillId : _entry.skillId;
             perAction = ActivityManager.AdjustedSeconds(perAction, crafting: _recipe != null, workedSkill);
@@ -164,7 +177,7 @@ public class SkillNodeController : MonoBehaviour
             specialChance:    _entry.specialChance,
             specialLabel:     _entry.specialLabel,
             xpPerHour:        XpPerHour(),
-            secondsPerAction: baseSecondsPerAction);
+            secondsPerAction: NodeSeconds);
 
         GameEvents.OnSkillNodeInteracted?.Invoke(nodeId);
     }
@@ -443,7 +456,7 @@ public class SkillNodeController : MonoBehaviour
     private float XpPerHour()
     {
         if (_entry == null) return 0f;
-        float secondsPerAction = baseSecondsPerAction / Mathf.Max(0.01f, _entry.activeRateMulti);
+        float secondsPerAction = NodeSeconds / Mathf.Max(0.01f, _entry.activeRateMulti);
         float actionsPerHour   = 3600f / Mathf.Max(0.01f, secondsPerAction);
         return actionsPerHour * _entry.xpPerAction;
     }

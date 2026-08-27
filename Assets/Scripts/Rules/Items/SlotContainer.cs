@@ -1,5 +1,31 @@
+using System;
 using System.Collections.Generic;
-using UnityEngine;
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  Slot-based storage: the inventory, the bank, and the merge board.
+//
+//  ══ WHY THIS IS IN THE SHARED RULES TREE ══════════════════════════════════════
+//
+//  "How much of this will fit?" is a question the SERVER has to answer, on every
+//  settlement, because a gathering run that outpaces the bag has to stop at the bag
+//  rather than at the rate. And it is a question the CLIENT has to answer, for every
+//  tooltip and every drag.
+//
+//  Answering it twice means two definitions of a full bag. The failure mode is not
+//  subtle: the client shows twenty-nine ore going in and the server stores twenty-
+//  eight, and the difference reappears as an item vanishing on the next read.
+//
+//  So the stacking arithmetic lives here and both hosts run it. What stays outside is
+//  everything that needs a bag to exist -- persistence, events, the UI.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// <summary>One stack: an item id and how many of it.</summary>
+[Serializable]
+public class InventoryEntry
+{
+    public string   itemId;
+    public long     quantity;
+}
 
 /// <summary>
 /// Slot-list mechanics shared by the character inventory and the account bank.
@@ -115,7 +141,7 @@ public static class SlotContainer
         {
             // FreeCapacityFor said it would fit, so this cannot happen — and if it
             // ever does, the two are disagreeing and that is worth knowing about.
-            Debug.LogError($"[SlotContainer] Capacity check passed but only {added} of " +
+            IdleExplorers.Rules.RulesLog.Warn($"[SlotContainer] Capacity check passed but only {added} of " +
                            $"{quantity}x '{itemId}' fit. This is a bug in SlotContainer.");
         }
 

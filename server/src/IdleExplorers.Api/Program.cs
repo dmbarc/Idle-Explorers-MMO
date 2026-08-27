@@ -1,6 +1,7 @@
 using IdleExplorers.Api.Auth;
 using IdleExplorers.Api.Endpoints;
 using IdleExplorers.Api.Infrastructure;
+using IdleExplorers.Api.Services;
 
 namespace IdleExplorers.Api;
 
@@ -34,6 +35,7 @@ public class Program
         builder.Services.AddSingleton<IGameClock, DatabaseClock>();
         builder.Services.AddSingleton<ContentCache>();
         builder.Services.AddScoped<Caller>();
+        builder.Services.AddScoped<SettlementService>();
 
         builder.Services.AddSupabaseAuth(builder.Configuration);
 
@@ -54,6 +56,7 @@ public class Program
         MapHealth(app);
         AccountEndpoints.Map(app);
         CharacterEndpoints.Map(app);
+        ActivityEndpoints.Map(app);
 
         return app;
     }
