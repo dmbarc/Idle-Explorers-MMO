@@ -108,7 +108,21 @@ namespace IdleExplorers.Backend
                                       () => _auth?.AccessToken ?? "",
                                       _config.shadowMode);
 
-                if (_auth is { HasStoredSession: true })
+                // ══ A WEB SIGN-IN COMING BACK ═════════════════════════════════
+                //
+                // Tried BEFORE the stored session, because this page load may be the
+                // return leg of a Google redirect -- and a stale refresh token from a
+                // previous account would otherwise win and sign the player into the
+                // wrong one. Does nothing on every other page load, and nothing at all
+                // off the web.
+                AuthResult resumed = await GoogleSignIn.ResumeAsync();
+
+                if (resumed.Ok)
+                {
+                    Debug.Log("[Session] Completed a Google sign-in.");
+                    SignedInChanged?.Invoke(true);
+                }
+                else if (_auth is { HasStoredSession: true })
                 {
                     AuthResult restored = await _auth.RestoreAsync();
 
@@ -155,6 +169,24 @@ namespace IdleExplorers.Backend
             if (_auth == null) return AuthResult.Failed("This build is not connected to a server.");
 
             AuthResult result = await _auth.SignUpAsync(email, password);
+
+            if (result.Ok) SignedInChanged?.Invoke(true);
+
+            return result;
+        }
+
+        /// <summary>
+        /// Sign in with Google.
+        ///
+        /// On the web this does not return in the ordinary sense -- the page navigates
+        /// away mid-call and a later page load finishes the job through ResumeAsync.
+        /// On desktop it waits for the browser and comes back with a session.
+        /// </summary>
+        public static async Awaitable<AuthResult> SignInWithGoogleAsync()
+        {
+            if (_auth == null) return AuthResult.Failed("This build is not connected to a server.");
+
+            AuthResult result = await GoogleSignIn.SignInAsync();
 
             if (result.Ok) SignedInChanged?.Invoke(true);
 

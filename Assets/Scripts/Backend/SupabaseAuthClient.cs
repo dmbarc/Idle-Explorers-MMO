@@ -137,6 +137,25 @@ namespace IdleExplorers.Backend
             return result;
         }
 
+        /// <summary>
+        /// Swaps an OAuth authorisation code for a session.
+        ///
+        /// ══ WHY THE VERIFIER GOES IN THE BODY ═════════════════════════════════
+        ///
+        /// This is the second half of PKCE. The challenge went out with the
+        /// authorisation request; the verifier it was derived from arrives here, and
+        /// Supabase checks that hashing one gives the other. That is what proves the
+        /// party redeeming the code is the party that asked for it -- which matters
+        /// enormously on desktop, where the redirect lands on a loopback port any
+        /// other local process could have tried to answer.
+        ///
+        /// In the BODY, never the query string. A verifier in a URL is a verifier in
+        /// an access log.
+        /// </summary>
+        public Awaitable<AuthResult> ExchangeCodeAsync(string code, string verifier) =>
+            PostAsync("/auth/v1/token?grant_type=pkce",
+                      $"{{\"auth_code\":{Quote(code)},\"code_verifier\":{Quote(verifier)}}}");
+
         /// <summary>Renews before expiry. Safe to call often; does nothing when not needed.</summary>
         public async Awaitable RenewAsync()
         {

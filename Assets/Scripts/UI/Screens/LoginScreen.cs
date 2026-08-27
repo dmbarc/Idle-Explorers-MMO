@@ -78,25 +78,57 @@ public class LoginScreen : UIScreen
 
         var createBtn = UIFactory.Button(transform, "CREATE ACCOUNT", AttemptCreate, width: 0f);
         UIFactory.At(createBtn, 0.35f, 0.19f, 0.65f, 0.26f);
+
+        // ══ ONLY WHEN THERE IS SOMEWHERE TO SIGN IN TO ════════════════════════
+        //
+        // Offline there is no provider, and a Google button that explains it cannot
+        // work is worse than no button -- it reads as broken rather than as absent.
+        if (!IdleExplorers.Backend.GoogleSignIn.IsAvailable) return;
+
+        var googleBtn = UIFactory.Button(transform, "SIGN IN WITH GOOGLE", AttemptGoogle, width: 0f);
+        UIFactory.At(googleBtn, 0.35f, 0.10f, 0.65f, 0.17f);
+
+        var or = UIFactory.Label(transform, "— or —", theme.fontSizeSmall,
+                                  theme.textSecondary, TextAlignmentOptions.Center);
+        UIFactory.At(or, 0.35f, 0.165f, 0.65f, 0.19f);
     }
+
+    /// <summary>Remembers the last email signed in with. Not the password.</summary>
+    private const string LastEmailKey = "idle.auth.email";
 
     public override void OnShow()
     {
         ClearHint();
 
-        // Pre-fill the saved account so returning players just press LOGIN.
-        //
-        // Only when a save actually exists. AccountManager.Awake fabricates a stub
-        // named "Adventurer" when there is none, and pre-filling that handed every
-        // first-time player the placeholder — press CREATE ACCOUNT without clearing
-        // the field and your account is named after it.
-        bool hasSave = GameManager.Save?.HasSave ?? false;
+        if (_nameField == null) return;
+
+        if (Connected)
+        {
+            // ══ THE LOCAL ACCOUNT NAME IS NOT AN EMAIL ════════════════════════
+            //
+            // This used to pre-fill from AccountManager, which in offline mode holds a
+            // name like "Adventurer". Connected, that put a non-email in the email
+            // field -- so the email check passed, the password check failed, and the
+            // player was told "Enter your password" while looking at a form that
+            // appeared to be filled in. The one message that could not explain itself.
+            //
+            // The last EMAIL is worth remembering; the local account name never was.
+            _nameField.text = PlayerPrefs.GetString(LastEmailKey, "");
+
+            if (_passField != null) _passField.text = "";
+            return;
+        }
+
+        // Offline, the field really is an account name. Pre-filled only when a save
+        // exists: AccountManager fabricates a stub named "Adventurer" when there is
+        // none, and offering that to a first-time player is how an account ends up
+        // named after the placeholder.
+        bool hasSave  = GameManager.Save?.HasSave ?? false;
         var  existing = AccountManager.Current;
 
-        if (_nameField != null)
-            _nameField.text = (hasSave && !string.IsNullOrEmpty(existing?.accountName))
-                ? existing.accountName
-                : "";
+        _nameField.text = (hasSave && !string.IsNullOrEmpty(existing?.accountName))
+            ? existing.accountName
+            : "";
     }
 
     // ── Actions ───────────────────────────────────────────────────────────────
@@ -164,6 +196,41 @@ public class LoginScreen : UIScreen
     }
 
     /// <summary>
+    /// Hands the whole thing to the browser.
+    ///
+    /// No email field, no password field, and nothing typed into this game -- which is
+    /// the point of it. On desktop the browser comes back to a loopback port this
+    /// process listens on for a few minutes; on the web the page itself goes to Google
+    /// and a later page load finishes the job.
+    /// </summary>
+    private async void AttemptGoogle()
+    {
+        if (_busy) return;
+
+        _busy = true;
+        ShowHint("Opening your browser…");
+
+        try
+        {
+            var result = await IdleExplorers.Backend.Session.SignInWithGoogleAsync();
+
+            if (result.Ok)
+            {
+                GameManager.Instance?.GoToCharacterSelect();
+                return;
+            }
+
+            // An empty message is the web platform on its way out -- the page is
+            // navigating and there is nothing to report. Anything else is worth saying.
+            if (!string.IsNullOrEmpty(result.Message)) ShowHint(result.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    /// <summary>
     /// Signs in or signs up, and says what happened.
     ///
     /// One method for both, because the only difference is which call is made and the
@@ -193,6 +260,12 @@ public class LoginScreen : UIScreen
                 // anywhere, and leaving it in a field is one screenshot away from
                 // being somewhere.
                 if (_passField != null) _passField.text = "";
+
+                // The email, so a returning player presses one field fewer. Saved only
+                // on SUCCESS -- remembering an address that failed to sign in would
+                // helpfully re-offer the typo every time.
+                PlayerPrefs.SetString(LastEmailKey, email);
+                PlayerPrefs.Save();
 
                 GameManager.Instance?.GoToCharacterSelect();
                 return;
