@@ -277,11 +277,7 @@ namespace IdleExplorers.Backend
                 inventory   = inventory.ToArray(),
                 equipment   = equipment.ToArray(),
 
-                // TODO(Phase 1): the client has no persisted kill counter yet, so this
-                // is empty rather than wrong. Shadow mode will report every kill count
-                // as a divergence until it exists, which is the correct signal -- the
-                // client genuinely does not know.
-                kills       = Array.Empty<KillSnapshot>(),
+                kills       = Kills(character),
             };
         }
 
@@ -319,6 +315,27 @@ namespace IdleExplorers.Backend
                 lostToFullInventory = 0L,
                 ranOutOfInputs      = summary.WasTruncated,
             };
+        }
+
+        private static KillSnapshot[] Kills(CharacterData character)
+        {
+            if (character.kills == null) return Array.Empty<KillSnapshot>();
+
+            var rows = new List<KillSnapshot>();
+
+            foreach (var kill in character.kills)
+            {
+                if (kill == null || string.IsNullOrEmpty(kill.monsterId)) continue;
+
+                rows.Add(new KillSnapshot
+                {
+                    monsterId   = kill.monsterId,
+                    activeKills = kill.activeKills,
+                    afkKills    = kill.afkKills,
+                });
+            }
+
+            return rows.ToArray();
         }
 
         private static CharacterSummary[] Summaries(AccountData account)
@@ -400,11 +417,25 @@ namespace IdleExplorers.Backend
         }
 
         /// <summary>
-        /// TODO(Phase 1): read a real client-side kill ledger once one exists. Zero is
-        /// the honest answer today -- GameEvents.OnMonsterKilled has never had a
-        /// subscriber, so the client genuinely does not know how many goblins it killed.
+        /// From the client's own mirror, which KillTracker keeps.
+        ///
+        /// A mirror rather than the truth: it exists so the portal can draw a number
+        /// without a round trip. The server's kill_counter decides whether the portal
+        /// opens, and shadow mode compares the two.
         /// </summary>
-        private static long KillsOf(CharacterData character, string monsterId, bool supervised) => 0L;
+        private static long KillsOf(CharacterData character, string monsterId, bool supervised)
+        {
+            if (character?.kills == null) return 0L;
+
+            foreach (var row in character.kills)
+            {
+                if (row == null || row.monsterId != monsterId) continue;
+
+                return supervised ? row.activeKills : row.afkKills;
+            }
+
+            return 0L;
+        }
 
         // ── Completed awaitables ──────────────────────────────────────────────
 

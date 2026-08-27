@@ -90,6 +90,12 @@ public class GameManager : MonoBehaviour
         Slayer     = Require<SlayerManager>();
         Shop       = Require<ShopManager>();
 
+        // Counts kills as they happen, which nothing did before -- the kill event has
+        // fired since it was written and never had a subscriber. No static accessor:
+        // it is a listener, not something other code asks questions of, and KillTracker
+        // exposes its reads as statics.
+        Require<KillTracker>();
+
         // Last: it reads from equipment, talents and the content catalogue, so every
         // one of those has to exist before its first recompute.
         Stats      = Require<StatsManager>();

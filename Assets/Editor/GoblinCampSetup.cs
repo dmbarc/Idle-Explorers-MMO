@@ -49,7 +49,7 @@ public static class GoblinCampSetup
         "C...TTTTTTT..............RR1RR.C",
         "C..TTT3TTTT..............RRRRR.C",
         "C...TTTTTT....g.........RR2RR..C",
-        "C....TTT.................RRR...C",
+        "C....TTT.................RRR..XC",
         "C.........ffff..ffff...........C",
         "C.........f........f....~~~~...C",
         "C..g......f...t....f...~~~~~~..C",
@@ -86,6 +86,22 @@ public static class GoblinCampSetup
         ['5'] = new("campfire_1",    "Campfire",    Nature   + "campfire_logs.fbx",   0.40f),
         ['6'] = new("anvil_1",       "Anvil",       Survival + "workbench-anvil.fbx", 0.50f),
         ['7'] = new("bank_chest_1",  "Bank Chest",  Survival + "chest.fbx",           0.55f),
+    };
+
+    /// <summary>
+    /// The way to the Goblin King, marked 'X'.
+    ///
+    /// Placed in the north-east past the rocks rather than beside the spawn, so that
+    /// finding it is a walk. A boss door in the first three seconds of a new game
+    /// reads as content the player has already missed.
+    /// </summary>
+    private static readonly Dictionary<char, GridMapSetup.PortalSpec> Portals = new()
+    {
+        ['X'] = new(IdleExplorers.Backend.BossGate.Monster,
+                    IdleExplorers.Backend.BossGate.RequiredActiveKills,
+                    "goblin_throne",
+                    Nature + "stone_tallG.fbx",
+                    2.20f),
     };
 
     private static readonly Dictionary<char, GridMapSetup.ScatterSpec> Scatter = new()
@@ -193,6 +209,7 @@ public static class GoblinCampSetup
         CliffModel  = "cliff_block_stone",
 
         Nodes   = Nodes,
+        Portals = Portals,
         Scatter = Scatter,
         Mood    = Mood,
     };

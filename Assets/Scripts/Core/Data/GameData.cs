@@ -111,6 +111,20 @@ public class CharacterData
     public List<TalentRank> talents;
 
     /// <summary>
+    /// How many of each monster this character has killed, split by supervision.
+    ///
+    /// A LIST and never a Dictionary. JsonUtility writes a Dictionary as an empty
+    /// object without warning or error, so a save written that way loses every count
+    /// the first time it round-trips -- and a boss gate that silently resets to zero
+    /// is a night's play gone with nothing to point at.
+    ///
+    /// The client's copy is a MIRROR. It exists so the portal can draw a number
+    /// without a round trip; the server's kill_counter decides whether the portal
+    /// actually opens, and disagreement between them resolves in the server's favour.
+    /// </summary>
+    public List<KillCount> kills;
+
+    /// <summary>
     /// The five action-bar slots, as ability ids. An empty string is an empty slot.
     ///
     /// This is the indirection that makes the bar arrangeable. Abilities used to be
@@ -224,6 +238,15 @@ public class CharacterData
         skills.Add(created);
         return created;
     }
+}
+
+/// <summary>One monster's tally, as the save stores it.</summary>
+[Serializable]
+public class KillCount
+{
+    public string monsterId;
+    public long   activeKills;
+    public long   afkKills;
 }
 
 [Serializable]

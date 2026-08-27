@@ -78,6 +78,16 @@ public static class GameEvents
 
     // ── Combat ───────────────────────────────────────────────────────────────
     public static Action<string>          OnMonsterKilled;        // monsterId
+
+    /// <summary>
+    /// A monster's ACTIVE kill count moved. (monsterId, newActiveTotal)
+    ///
+    /// Separate from OnMonsterKilled because the two answer different questions: one
+    /// says a goblin died, the other says how many have. The portal needs the second
+    /// and would otherwise have to count them itself, which is how a second tally
+    /// starts existing.
+    /// </summary>
+    public static Action<string, long>    OnKillCountChanged;
     public static Action<double>          OnPlayerDamageTaken;
     public static Action<double, double>  OnPlayerHealthChanged;  // current, max
 
@@ -179,6 +189,7 @@ public static class GameEvents
         OnSkillNodeInteracted    = null;
 
         OnMonsterKilled          = null;
+        OnKillCountChanged       = null;
         OnPlayerDamageTaken      = null;
         OnPlayerHealthChanged    = null;
         OnPlayerResourcesChanged = null;

@@ -250,6 +250,14 @@ internal static class MapChecks
                 if (cell == 'g')
                     check(reached[r, c], $"{name}: the camp at column {c}, row {r} is connected " +
                                          "to the spawn");
+
+                // A boss portal has exactly the same failure as the fishing spot did:
+                // it renders, it is clickable, and the character walks to the nearest
+                // land and stops. Worse here, because the player will assume the door
+                // is gated rather than unreachable and go and grind a thousand kills.
+                if (cell == 'X')
+                    check(reached[r, c], $"{name}: the boss portal at column {c}, row {r} " +
+                                         "can be walked to from the spawn");
             }
     }
 

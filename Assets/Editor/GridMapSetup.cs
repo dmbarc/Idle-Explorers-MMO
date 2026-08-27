@@ -129,7 +129,37 @@ public class GridMapSetup
         public Dictionary<char, NodeSpec>    Nodes   = new();
         public Dictionary<char, ScatterSpec> Scatter = new();
 
+        /// <summary>
+        /// Boss portals, by grid character.
+        ///
+        /// Separate from Nodes because a portal is not a skill node: nothing is
+        /// gathered from it, it carries no rates, and it is gated on something a
+        /// skill node has no concept of. Sharing the dictionary would have meant a
+        /// SkillNodeController with every field empty and a special case reading it.
+        /// </summary>
+        public Dictionary<char, PortalSpec>  Portals = new();
+
         public MapSceneSetup.MapMood Mood;
+    }
+
+    /// <summary>A boss door: what opens it, and where it goes.</summary>
+    public class PortalSpec
+    {
+        public string GateMonsterId;
+        public long   RequiredKills;
+        public string DestinationMapId;
+        public string Model;
+        public float  HeightVsPlayer;
+
+        public PortalSpec(string gateMonsterId, long requiredKills, string destinationMapId,
+                          string model, float heightVsPlayer)
+        {
+            GateMonsterId    = gateMonsterId;
+            RequiredKills    = requiredKills;
+            DestinationMapId = destinationMapId;
+            Model            = model;
+            HeightVsPlayer   = heightVsPlayer;
+        }
     }
 
     private const string SOURCE_SCENE = "Assets/Scenes/SampleScene.unity";
@@ -174,8 +204,9 @@ public class GridMapSetup
         var root  = new GameObject(_recipe.DisplayName);
         int cells = BuildGround(root.transform, out Vector3 spawnPoint);
         int props = BuildProps(root.transform);
-        int nodes = BuildNodes(root.transform);
-        int camps = BuildCamps(root.transform);
+        int nodes   = BuildNodes(root.transform);
+        int portals = BuildPortals(root.transform);
+        int camps   = BuildCamps(root.transform);
 
         // Slightly above the tiles; the agent drops onto the NavMesh on the first frame.
         MapSceneSetup.EnsurePlayer(spawnPoint + Vector3.up * 0.5f);
@@ -203,7 +234,7 @@ public class GridMapSetup
         MapSceneSetup.AddSceneToBuildSettings(_recipe.ScenePath);
 
         Debug.Log($"[{tag}] {_recipe.ScenePath} saved — {cells} ground tile(s), {props} prop(s), " +
-                  $"{nodes} skill node(s), {camps} monster camp(s), " +
+                  $"{nodes} skill node(s), {portals} portal(s), {camps} monster camp(s), " +
                   $"NavMesh {(baked ? "baked" : "NOT baked")}.");
 
         if (showDialog)
@@ -591,6 +622,58 @@ public class GridMapSetup
                 IgnoreInNavMesh(go);
 
                 MapSceneSetup.AddFloatingLabel(go.transform, spec.Label);
+                placed++;
+            }
+        }
+
+        return placed;
+    }
+
+    /// <summary>
+    /// Places the boss portals the layout marks.
+    ///
+    /// Given a collider and a floating label like a skill node, and kept OUT of the
+    /// NavMesh for the same reason: a portal that carves a hole puts the hole exactly
+    /// where the player has to stand to walk through it.
+    /// </summary>
+    private int BuildPortals(Transform parent)
+    {
+        if (_recipe.Portals.Count == 0) return 0;
+
+        var holder = new GameObject("BossPortals");
+        holder.transform.SetParent(parent, false);
+
+        int placed = 0;
+
+        for (int row = 0; row < Height; row++)
+        {
+            for (int col = 0; col < Width; col++)
+            {
+                char cell = At(col, row);
+                if (!_recipe.Portals.TryGetValue(cell, out var spec)) continue;
+
+                var go = PlaceByHeight(spec.Model, holder.transform,
+                                        CellToWorld(col, row), 0f, spec.HeightVsPlayer);
+                if (go == null)
+                {
+                    Debug.LogWarning($"[{_recipe.Tag}] Model missing for portal to " +
+                                     $"'{spec.DestinationMapId}': {spec.Model}");
+                    continue;
+                }
+
+                go.name = $"Portal_{spec.DestinationMapId}";
+                MapSceneSetup.EnsureCollider(go);
+
+                var portal = go.AddComponent<BossPortalController>();
+                portal.gateMonsterId    = spec.GateMonsterId;
+                portal.requiredKills    = spec.RequiredKills;
+                portal.destinationMapId = spec.DestinationMapId;
+
+                IgnoreInNavMesh(go);
+
+                // The label is rewritten at runtime with the live count; this is what
+                // it says in the editor and before the first refresh.
+                MapSceneSetup.AddFloatingLabel(go.transform, "The Throne");
                 placed++;
             }
         }
