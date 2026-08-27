@@ -5,7 +5,12 @@
     "skillId": "cooking",
     "stationType": "campfire",
     "reqSkillLevel": 1,
-    "inputs": [ { "itemId": "raw_shrimp", "quantity": 1 } ],
+    "inputs": [
+      {
+        "itemId": "raw_shrimp",
+        "quantity": 1
+      }
+    ],
     "outputItemId": "shrimp",
     "outputQuantity": 1,
     "xpPerCraft": 30,
@@ -17,7 +22,16 @@
     "skillId": "cooking",
     "stationType": "campfire",
     "reqSkillLevel": 5,
-    "inputs": [ { "itemId": "raw_shrimp", "quantity": 1 }, { "itemId": "tin_ore", "quantity": 1 } ],
+    "inputs": [
+      {
+        "itemId": "raw_shrimp",
+        "quantity": 1
+      },
+      {
+        "itemId": "tin_ore",
+        "quantity": 1
+      }
+    ],
     "outputItemId": "gritty_shrimp",
     "outputQuantity": 1,
     "xpPerCraft": 75,
@@ -29,7 +43,12 @@
     "skillId": "cooking",
     "stationType": "campfire",
     "reqSkillLevel": 20,
-    "inputs": [ { "itemId": "raw_trout", "quantity": 1 } ],
+    "inputs": [
+      {
+        "itemId": "raw_trout",
+        "quantity": 1
+      }
+    ],
     "outputItemId": "trout",
     "outputQuantity": 1,
     "xpPerCraft": 70,
@@ -41,110 +60,636 @@
     "skillId": "cooking",
     "stationType": "campfire",
     "reqSkillLevel": 40,
-    "inputs": [ { "itemId": "raw_lobster", "quantity": 1 } ],
+    "inputs": [
+      {
+        "itemId": "raw_lobster",
+        "quantity": 1
+      }
+    ],
     "outputItemId": "lobster",
     "outputQuantity": 1,
     "xpPerCraft": 120,
     "baseSecondsPerCraft": 4.0
   },
-
-  { "id": "smelt_tin_bar", "name": "Tin Bar", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 1,
-    "inputs": [ { "itemId": "tin_ore", "quantity": 2 } ],
-    "outputItemId": "tin_bar", "outputQuantity": 1, "xpPerCraft": 12, "baseSecondsPerCraft": 1.5 },
-
-  { "id": "smelt_copper_bar", "name": "Copper Bar", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 10,
-    "inputs": [ { "itemId": "copper_ore", "quantity": 4 } ],
-    "outputItemId": "copper_bar", "outputQuantity": 1, "xpPerCraft": 28, "baseSecondsPerCraft": 1.8 },
-
-  { "id": "smelt_bronze_bar", "name": "Bronze Bar", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 20,
-    "inputs": [ { "itemId": "tin_ore", "quantity": 4 }, { "itemId": "copper_ore", "quantity": 8 } ],
-    "outputItemId": "bronze_bar", "outputQuantity": 1, "xpPerCraft": 70, "baseSecondsPerCraft": 2.4 },
-
-  { "id": "smelt_iron_bar", "name": "Iron Bar", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 30,
-    "inputs": [ { "itemId": "iron_ore", "quantity": 2 }, { "itemId": "coal", "quantity": 1 } ],
-    "outputItemId": "iron_bar", "outputQuantity": 1, "xpPerCraft": 110, "baseSecondsPerCraft": 2.4 },
-
-  { "id": "smith_tin_helmet", "name": "Tin Helmet", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 3,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 1000 }, { "itemId": "normal_logs", "quantity": 100 } ],
-    "outputItemId": "tin_helmet", "outputQuantity": 1, "xpPerCraft": 275, "baseSecondsPerCraft": 42.0 },
-
-  { "id": "smith_tin_platebody", "name": "Tin Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 6,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 2000 }, { "itemId": "normal_logs", "quantity": 200 } ],
-    "outputItemId": "tin_platebody", "outputQuantity": 1, "xpPerCraft": 550, "baseSecondsPerCraft": 60.0 },
-
-  { "id": "smith_tin_boots", "name": "Tin Boots", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 2,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 600 }, { "itemId": "normal_logs", "quantity": 60 } ],
-    "outputItemId": "tin_boots", "outputQuantity": 1, "xpPerCraft": 210, "baseSecondsPerCraft": 32.0 },
-
-  { "id": "smith_tin_gloves", "name": "Tin Gauntlets", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 1,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 480 }, { "itemId": "normal_logs", "quantity": 48 } ],
-    "outputItemId": "tin_gloves", "outputQuantity": 1, "xpPerCraft": 140, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_tin_bracers", "name": "Tin Bracers", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 1,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 480 }, { "itemId": "normal_logs", "quantity": 48 } ],
-    "outputItemId": "tin_bracers", "outputQuantity": 1, "xpPerCraft": 140, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_tin_shoulders", "name": "Tin Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 4,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 840 }, { "itemId": "normal_logs", "quantity": 84 } ],
-    "outputItemId": "tin_shoulders", "outputQuantity": 1, "xpPerCraft": 340, "baseSecondsPerCraft": 38.0 },
-
-  { "id": "smith_tin_legguards", "name": "Tin Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 5,
-    "inputs": [ { "itemId": "tin_bar", "quantity": 1400 }, { "itemId": "normal_logs", "quantity": 140 } ],
-    "outputItemId": "tin_legguards", "outputQuantity": 1, "xpPerCraft": 410, "baseSecondsPerCraft": 50.0 },
-
-  { "id": "smith_copper_helmet", "name": "Copper Helmet", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 13,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 2500 }, { "itemId": "normal_logs", "quantity": 250 } ],
-    "outputItemId": "copper_helmet", "outputQuantity": 1, "xpPerCraft": 650, "baseSecondsPerCraft": 42.0 },
-
-  { "id": "smith_copper_platebody", "name": "Copper Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 16,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 5000 }, { "itemId": "normal_logs", "quantity": 500 } ],
-    "outputItemId": "copper_platebody", "outputQuantity": 1, "xpPerCraft": 1300, "baseSecondsPerCraft": 60.0 },
-
-  { "id": "smith_copper_boots", "name": "Copper Boots", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 12,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 1500 }, { "itemId": "normal_logs", "quantity": 150 } ],
-    "outputItemId": "copper_boots", "outputQuantity": 1, "xpPerCraft": 490, "baseSecondsPerCraft": 32.0 },
-
-  { "id": "smith_copper_gloves", "name": "Copper Gauntlets", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 10,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 1200 }, { "itemId": "normal_logs", "quantity": 120 } ],
-    "outputItemId": "copper_gloves", "outputQuantity": 1, "xpPerCraft": 325, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_copper_bracers", "name": "Copper Bracers", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 10,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 1200 }, { "itemId": "normal_logs", "quantity": 120 } ],
-    "outputItemId": "copper_bracers", "outputQuantity": 1, "xpPerCraft": 325, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_copper_shoulders", "name": "Copper Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 14,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 2100 }, { "itemId": "normal_logs", "quantity": 210 } ],
-    "outputItemId": "copper_shoulders", "outputQuantity": 1, "xpPerCraft": 800, "baseSecondsPerCraft": 38.0 },
-
-  { "id": "smith_copper_legguards", "name": "Copper Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 15,
-    "inputs": [ { "itemId": "copper_bar", "quantity": 3500 }, { "itemId": "normal_logs", "quantity": 350 } ],
-    "outputItemId": "copper_legguards", "outputQuantity": 1, "xpPerCraft": 975, "baseSecondsPerCraft": 50.0 },
-
-  { "id": "smith_bronze_helmet", "name": "Bronze Helmet", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 23,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 3000 }, { "itemId": "normal_logs", "quantity": 300 }, { "itemId": "bones", "quantity": 150 } ],
-    "outputItemId": "bronze_helmet", "outputQuantity": 1, "xpPerCraft": 1600, "baseSecondsPerCraft": 42.0 },
-
-  { "id": "smith_bronze_platebody", "name": "Bronze Chestplate", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 26,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 6000 }, { "itemId": "normal_logs", "quantity": 600 }, { "itemId": "bones", "quantity": 300 } ],
-    "outputItemId": "bronze_platebody", "outputQuantity": 1, "xpPerCraft": 3200, "baseSecondsPerCraft": 60.0 },
-
-  { "id": "smith_bronze_boots", "name": "Bronze Boots", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 22,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 1800 }, { "itemId": "normal_logs", "quantity": 180 }, { "itemId": "bones", "quantity": 90 } ],
-    "outputItemId": "bronze_boots", "outputQuantity": 1, "xpPerCraft": 1200, "baseSecondsPerCraft": 32.0 },
-
-  { "id": "smith_bronze_gloves", "name": "Bronze Gauntlets", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 20,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 1440 }, { "itemId": "normal_logs", "quantity": 144 }, { "itemId": "bones", "quantity": 72 } ],
-    "outputItemId": "bronze_gloves", "outputQuantity": 1, "xpPerCraft": 800, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_bronze_bracers", "name": "Bronze Bracers", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 20,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 1440 }, { "itemId": "normal_logs", "quantity": 144 }, { "itemId": "bones", "quantity": 72 } ],
-    "outputItemId": "bronze_bracers", "outputQuantity": 1, "xpPerCraft": 800, "baseSecondsPerCraft": 30.0 },
-
-  { "id": "smith_bronze_shoulders", "name": "Bronze Shoulders", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 24,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 2520 }, { "itemId": "normal_logs", "quantity": 252 }, { "itemId": "bones", "quantity": 126 } ],
-    "outputItemId": "bronze_shoulders", "outputQuantity": 1, "xpPerCraft": 2000, "baseSecondsPerCraft": 38.0 },
-
-  { "id": "smith_bronze_legguards", "name": "Bronze Legguards", "skillId": "smithing", "stationType": "anvil", "reqSkillLevel": 25,
-    "inputs": [ { "itemId": "bronze_bar", "quantity": 4200 }, { "itemId": "normal_logs", "quantity": 420 }, { "itemId": "bones", "quantity": 210 } ],
-    "outputItemId": "bronze_legguards", "outputQuantity": 1, "xpPerCraft": 2400, "baseSecondsPerCraft": 50.0 }
+  {
+    "id": "smelt_tin_bar",
+    "name": "Tin Bar",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 1,
+    "inputs": [
+      {
+        "itemId": "tin_ore",
+        "quantity": 2
+      }
+    ],
+    "outputItemId": "tin_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 12,
+    "baseSecondsPerCraft": 1.5
+  },
+  {
+    "id": "smelt_copper_bar",
+    "name": "Copper Bar",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 10,
+    "inputs": [
+      {
+        "itemId": "copper_ore",
+        "quantity": 4
+      }
+    ],
+    "outputItemId": "copper_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 28,
+    "baseSecondsPerCraft": 1.8
+  },
+  {
+    "id": "smelt_bronze_bar",
+    "name": "Bronze Bar",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 20,
+    "inputs": [
+      {
+        "itemId": "tin_ore",
+        "quantity": 4
+      },
+      {
+        "itemId": "copper_ore",
+        "quantity": 8
+      }
+    ],
+    "outputItemId": "bronze_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 70,
+    "baseSecondsPerCraft": 2.4
+  },
+  {
+    "id": "smelt_iron_bar",
+    "name": "Iron Bar",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 30,
+    "inputs": [
+      {
+        "itemId": "iron_ore",
+        "quantity": 2
+      },
+      {
+        "itemId": "coal",
+        "quantity": 1
+      }
+    ],
+    "outputItemId": "iron_bar",
+    "outputQuantity": 1,
+    "xpPerCraft": 110,
+    "baseSecondsPerCraft": 2.4
+  },
+  {
+    "id": "smith_tin_helmet",
+    "name": "Tin Helmet",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 3,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 1000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 100
+      }
+    ],
+    "outputItemId": "tin_helmet",
+    "outputQuantity": 1,
+    "xpPerCraft": 275,
+    "baseSecondsPerCraft": 42.0
+  },
+  {
+    "id": "smith_tin_platebody",
+    "name": "Tin Chestplate",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 6,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 2000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 200
+      }
+    ],
+    "outputItemId": "tin_platebody",
+    "outputQuantity": 1,
+    "xpPerCraft": 550,
+    "baseSecondsPerCraft": 60.0
+  },
+  {
+    "id": "smith_tin_boots",
+    "name": "Tin Boots",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 2,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 600
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 60
+      }
+    ],
+    "outputItemId": "tin_boots",
+    "outputQuantity": 1,
+    "xpPerCraft": 210,
+    "baseSecondsPerCraft": 32.0
+  },
+  {
+    "id": "smith_tin_gloves",
+    "name": "Tin Gauntlets",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 1,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 480
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 48
+      }
+    ],
+    "outputItemId": "tin_gloves",
+    "outputQuantity": 1,
+    "xpPerCraft": 140,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_tin_bracers",
+    "name": "Tin Bracers",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 1,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 480
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 48
+      }
+    ],
+    "outputItemId": "tin_bracers",
+    "outputQuantity": 1,
+    "xpPerCraft": 140,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_tin_shoulders",
+    "name": "Tin Shoulders",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 4,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 840
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 84
+      }
+    ],
+    "outputItemId": "tin_shoulders",
+    "outputQuantity": 1,
+    "xpPerCraft": 340,
+    "baseSecondsPerCraft": 38.0
+  },
+  {
+    "id": "smith_tin_legguards",
+    "name": "Tin Legguards",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 5,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 1400
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 140
+      }
+    ],
+    "outputItemId": "tin_legguards",
+    "outputQuantity": 1,
+    "xpPerCraft": 410,
+    "baseSecondsPerCraft": 50.0
+  },
+  {
+    "id": "smith_copper_helmet",
+    "name": "Copper Helmet",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 13,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 2500
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 250
+      }
+    ],
+    "outputItemId": "copper_helmet",
+    "outputQuantity": 1,
+    "xpPerCraft": 650,
+    "baseSecondsPerCraft": 42.0
+  },
+  {
+    "id": "smith_copper_platebody",
+    "name": "Copper Chestplate",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 16,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 5000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 500
+      }
+    ],
+    "outputItemId": "copper_platebody",
+    "outputQuantity": 1,
+    "xpPerCraft": 1300,
+    "baseSecondsPerCraft": 60.0
+  },
+  {
+    "id": "smith_copper_boots",
+    "name": "Copper Boots",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 12,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 1500
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 150
+      }
+    ],
+    "outputItemId": "copper_boots",
+    "outputQuantity": 1,
+    "xpPerCraft": 490,
+    "baseSecondsPerCraft": 32.0
+  },
+  {
+    "id": "smith_copper_gloves",
+    "name": "Copper Gauntlets",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 10,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 1200
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 120
+      }
+    ],
+    "outputItemId": "copper_gloves",
+    "outputQuantity": 1,
+    "xpPerCraft": 325,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_copper_bracers",
+    "name": "Copper Bracers",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 10,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 1200
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 120
+      }
+    ],
+    "outputItemId": "copper_bracers",
+    "outputQuantity": 1,
+    "xpPerCraft": 325,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_copper_shoulders",
+    "name": "Copper Shoulders",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 14,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 2100
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 210
+      }
+    ],
+    "outputItemId": "copper_shoulders",
+    "outputQuantity": 1,
+    "xpPerCraft": 800,
+    "baseSecondsPerCraft": 38.0
+  },
+  {
+    "id": "smith_copper_legguards",
+    "name": "Copper Legguards",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 15,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 3500
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 350
+      }
+    ],
+    "outputItemId": "copper_legguards",
+    "outputQuantity": 1,
+    "xpPerCraft": 975,
+    "baseSecondsPerCraft": 50.0
+  },
+  {
+    "id": "smith_bronze_helmet",
+    "name": "Bronze Helmet",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 23,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 3000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 300
+      },
+      {
+        "itemId": "bones",
+        "quantity": 150
+      }
+    ],
+    "outputItemId": "bronze_helmet",
+    "outputQuantity": 1,
+    "xpPerCraft": 1600,
+    "baseSecondsPerCraft": 42.0
+  },
+  {
+    "id": "smith_bronze_platebody",
+    "name": "Bronze Chestplate",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 26,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 6000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 600
+      },
+      {
+        "itemId": "bones",
+        "quantity": 300
+      }
+    ],
+    "outputItemId": "bronze_platebody",
+    "outputQuantity": 1,
+    "xpPerCraft": 3200,
+    "baseSecondsPerCraft": 60.0
+  },
+  {
+    "id": "smith_bronze_boots",
+    "name": "Bronze Boots",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 22,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 1800
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 180
+      },
+      {
+        "itemId": "bones",
+        "quantity": 90
+      }
+    ],
+    "outputItemId": "bronze_boots",
+    "outputQuantity": 1,
+    "xpPerCraft": 1200,
+    "baseSecondsPerCraft": 32.0
+  },
+  {
+    "id": "smith_bronze_gloves",
+    "name": "Bronze Gauntlets",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 20,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 1440
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 144
+      },
+      {
+        "itemId": "bones",
+        "quantity": 72
+      }
+    ],
+    "outputItemId": "bronze_gloves",
+    "outputQuantity": 1,
+    "xpPerCraft": 800,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_bronze_bracers",
+    "name": "Bronze Bracers",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 20,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 1440
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 144
+      },
+      {
+        "itemId": "bones",
+        "quantity": 72
+      }
+    ],
+    "outputItemId": "bronze_bracers",
+    "outputQuantity": 1,
+    "xpPerCraft": 800,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_bronze_shoulders",
+    "name": "Bronze Shoulders",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 24,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 2520
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 252
+      },
+      {
+        "itemId": "bones",
+        "quantity": 126
+      }
+    ],
+    "outputItemId": "bronze_shoulders",
+    "outputQuantity": 1,
+    "xpPerCraft": 2000,
+    "baseSecondsPerCraft": 38.0
+  },
+  {
+    "id": "smith_bronze_legguards",
+    "name": "Bronze Legguards",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 25,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 4200
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 420
+      },
+      {
+        "itemId": "bones",
+        "quantity": 210
+      }
+    ],
+    "outputItemId": "bronze_legguards",
+    "outputQuantity": 1,
+    "xpPerCraft": 2400,
+    "baseSecondsPerCraft": 50.0
+  },
+  {
+    "id": "smith_smiths_apron",
+    "name": "Smith's Apron",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 8,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 300
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 60
+      }
+    ],
+    "outputItemId": "smiths_apron",
+    "outputQuantity": 1,
+    "xpPerCraft": 90,
+    "baseSecondsPerCraft": 30.0
+  },
+  {
+    "id": "smith_tinplate_tabard",
+    "name": "Tinplate Tabard",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 10,
+    "inputs": [
+      {
+        "itemId": "tin_bar",
+        "quantity": 500
+      }
+    ],
+    "outputItemId": "tinplate_tabard",
+    "outputQuantity": 1,
+    "xpPerCraft": 150,
+    "baseSecondsPerCraft": 35.0
+  },
+  {
+    "id": "smith_chainlink_drape",
+    "name": "Chainlink Drape",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 22,
+    "inputs": [
+      {
+        "itemId": "copper_bar",
+        "quantity": 900
+      }
+    ],
+    "outputItemId": "chainlink_drape",
+    "outputQuantity": 1,
+    "xpPerCraft": 320,
+    "baseSecondsPerCraft": 45.0
+  },
+  {
+    "id": "smith_emberforge_aura",
+    "name": "Emberforge Aura",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 34,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 1500
+      },
+      {
+        "itemId": "bones",
+        "quantity": 400
+      }
+    ],
+    "outputItemId": "emberforge_aura",
+    "outputQuantity": 1,
+    "xpPerCraft": 600,
+    "baseSecondsPerCraft": 60.0
+  }
 ]

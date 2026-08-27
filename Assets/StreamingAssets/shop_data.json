@@ -1,22 +1,166 @@
 {
   "coinPacks": [
-    { "id": "relic_100",   "name": "Handful of Relics",   "productId": "com.idleexplorers.relics.100",   "coins": 100,   "priceUsd": 0.99,  "badge": "" },
-    { "id": "relic_210",   "name": "Pouch of Relics",     "productId": "com.idleexplorers.relics.210",   "coins": 210,   "priceUsd": 1.99,  "badge": "" },
-    { "id": "relic_600",   "name": "Sack of Relics",      "productId": "com.idleexplorers.relics.600",   "coins": 600,   "priceUsd": 4.99,  "badge": "" },
-    { "id": "relic_1300",  "name": "Chest of Relics",     "productId": "com.idleexplorers.relics.1300",  "coins": 1300,  "priceUsd": 9.99,  "badge": "POPULAR" },
-    { "id": "relic_3000",  "name": "Vault of Relics",     "productId": "com.idleexplorers.relics.3000",  "coins": 3000,  "priceUsd": 19.99, "badge": "" },
-    { "id": "relic_7500",  "name": "Hoard of Relics",     "productId": "com.idleexplorers.relics.7500",  "coins": 7500,  "priceUsd": 49.99, "badge": "" },
-    { "id": "relic_11000", "name": "Trove of Relics",     "productId": "com.idleexplorers.relics.11000", "coins": 11000, "priceUsd": 69.99, "badge": "" },
-    { "id": "relic_20000", "name": "Dragon's Ransom",     "productId": "com.idleexplorers.relics.20000", "coins": 20000, "priceUsd": 99.99, "badge": "BEST VALUE" }
+    {
+      "id": "relic_100",
+      "name": "Handful of Relics",
+      "productId": "com.idleexplorers.relics.100",
+      "coins": 100,
+      "priceUsd": 0.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_210",
+      "name": "Pouch of Relics",
+      "productId": "com.idleexplorers.relics.210",
+      "coins": 210,
+      "priceUsd": 1.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_600",
+      "name": "Sack of Relics",
+      "productId": "com.idleexplorers.relics.600",
+      "coins": 600,
+      "priceUsd": 4.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_1300",
+      "name": "Chest of Relics",
+      "productId": "com.idleexplorers.relics.1300",
+      "coins": 1300,
+      "priceUsd": 9.99,
+      "badge": "POPULAR"
+    },
+    {
+      "id": "relic_3000",
+      "name": "Vault of Relics",
+      "productId": "com.idleexplorers.relics.3000",
+      "coins": 3000,
+      "priceUsd": 19.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_7500",
+      "name": "Hoard of Relics",
+      "productId": "com.idleexplorers.relics.7500",
+      "coins": 7500,
+      "priceUsd": 49.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_11000",
+      "name": "Trove of Relics",
+      "productId": "com.idleexplorers.relics.11000",
+      "coins": 11000,
+      "priceUsd": 69.99,
+      "badge": ""
+    },
+    {
+      "id": "relic_20000",
+      "name": "Dragon's Ransom",
+      "productId": "com.idleexplorers.relics.20000",
+      "coins": 20000,
+      "priceUsd": 99.99,
+      "badge": "BEST VALUE"
+    }
   ],
-
   "products": [
-    { "id": "buy_gem_small",    "name": "Small Mystic Gem",    "description": "Skip forward 1 hour of your current activity.",  "itemId": "mystic_gem",          "quantity": 1, "relicCoinCost": 20 },
-    { "id": "buy_gem_medium",   "name": "Medium Mystic Gem",   "description": "Skip forward 4 hours of your current activity.", "itemId": "mystic_gem_medium",   "quantity": 1, "relicCoinCost": 75 },
-    { "id": "buy_gem_large",    "name": "Large Mystic Gem",    "description": "Skip forward 12 hours of your current activity.","itemId": "mystic_gem_large",    "quantity": 1, "relicCoinCost": 200 },
-    { "id": "buy_gem_massive",  "name": "Massive Mystic Gem",  "description": "Skip forward 24 hours of your current activity.","itemId": "mystic_gem_massive",  "quantity": 1, "relicCoinCost": 350 },
-    { "id": "buy_gem_gigantic", "name": "Gigantic Mystic Gem", "description": "Skip forward 72 hours of your current activity.","itemId": "mystic_gem_gigantic", "quantity": 1, "relicCoinCost": 1000 },
-
-    { "id": "buy_mirror",       "name": "Mirror of Faces",     "description": "Reopen the appearance editor for one character. Nothing but how you look changes.", "itemId": "mirror_of_faces", "quantity": 1, "relicCoinCost": 60 }
+    {
+      "id": "buy_gem_small",
+      "name": "Small Mystic Gem",
+      "description": "Skip forward 1 hour of your current activity.",
+      "itemId": "mystic_gem",
+      "quantity": 1,
+      "relicCoinCost": 20
+    },
+    {
+      "id": "buy_gem_medium",
+      "name": "Medium Mystic Gem",
+      "description": "Skip forward 4 hours of your current activity.",
+      "itemId": "mystic_gem_medium",
+      "quantity": 1,
+      "relicCoinCost": 75
+    },
+    {
+      "id": "buy_gem_large",
+      "name": "Large Mystic Gem",
+      "description": "Skip forward 12 hours of your current activity.",
+      "itemId": "mystic_gem_large",
+      "quantity": 1,
+      "relicCoinCost": 200
+    },
+    {
+      "id": "buy_gem_massive",
+      "name": "Massive Mystic Gem",
+      "description": "Skip forward 24 hours of your current activity.",
+      "itemId": "mystic_gem_massive",
+      "quantity": 1,
+      "relicCoinCost": 350
+    },
+    {
+      "id": "buy_gem_gigantic",
+      "name": "Gigantic Mystic Gem",
+      "description": "Skip forward 72 hours of your current activity.",
+      "itemId": "mystic_gem_gigantic",
+      "quantity": 1,
+      "relicCoinCost": 1000
+    },
+    {
+      "id": "buy_mirror",
+      "name": "Mirror of Faces",
+      "description": "Reopen the appearance editor for one character. Nothing but how you look changes.",
+      "itemId": "mirror_of_faces",
+      "quantity": 1,
+      "relicCoinCost": 60
+    },
+    {
+      "id": "buy_starlit_aura",
+      "name": "Starlit Aura",
+      "description": "A slow halo of light. Purely for looking at.",
+      "itemId": "starlit_aura",
+      "quantity": 1,
+      "relicCoinCost": 120
+    },
+    {
+      "id": "buy_gilded_aura",
+      "name": "Gilded Aura",
+      "description": "Suspended gold leaf. Purely for looking at.",
+      "itemId": "gilded_aura",
+      "quantity": 1,
+      "relicCoinCost": 120
+    },
+    {
+      "id": "buy_spectral_veil",
+      "name": "Spectral Veil",
+      "description": "A thin cold mist that follows you about.",
+      "itemId": "spectral_veil",
+      "quantity": 1,
+      "relicCoinCost": 150
+    },
+    {
+      "id": "buy_wanderers_cape",
+      "name": "Wanderer's Cape",
+      "description": "A cape with a past it will not discuss.",
+      "itemId": "wanderers_cape",
+      "quantity": 1,
+      "relicCoinCost": 90
+    },
+    {
+      "id": "buy_heralds_tabard",
+      "name": "Herald's Tabard",
+      "description": "Announces you. Loudly, and in a colour.",
+      "itemId": "heralds_tabard",
+      "quantity": 1,
+      "relicCoinCost": 90
+    },
+    {
+      "id": "buy_festival_shirt",
+      "name": "Festival Shirt",
+      "description": "Bright. Unrepentant.",
+      "itemId": "festival_shirt",
+      "quantity": 1,
+      "relicCoinCost": 60
+    }
   ]
 }

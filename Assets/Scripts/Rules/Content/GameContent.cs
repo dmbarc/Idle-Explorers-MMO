@@ -401,6 +401,42 @@ namespace IdleExplorers.Rules
                     problems.Add($"melee weapon '{pair.Key}' declares projectiles");
             }
 
+            // ══ NOTHING BOUGHT WITH REAL MONEY MAY CARRY A STAT ═══════════════
+            //
+            // This is the line between a cosmetic shop and a pay-to-win one, and it
+            // is exactly the kind of line that gets crossed by accident: somebody
+            // adds "+2 armour" to a cape that happens to be sold rather than crafted,
+            // and nothing anywhere objects.
+            //
+            // Asserted at import so it cannot ship. If a stat item ever SHOULD be
+            // sellable the check is the place to have that argument, in a diff,
+            // rather than discovering it in a store listing.
+            foreach (var product in ShopProducts)
+            {
+                if (product == null || string.IsNullOrEmpty(product.itemId)) continue;
+
+                if (!Items.TryGetValue(product.itemId, out var sold))
+                {
+                    problems.Add($"shop product '{product.id}' sells unknown item '{product.itemId}'");
+                    continue;
+                }
+
+                if (product.relicCoinCost > 0L && GrantsAStat(sold))
+                    problems.Add($"shop product '{product.id}' sells '{sold.id}', which carries a stat");
+            }
+
+            // Items in a slot that exists only to look a certain way. A stat here is
+            // a stat a player cannot decline without giving up the appearance, which
+            // makes the appearance a balance decision.
+            foreach (var pair in Items)
+            {
+                if (pair.Value == null) continue;
+                if (!IsPurelyCosmeticSlot(pair.Value.equipSlot)) continue;
+
+                if (GrantsAStat(pair.Value))
+                    problems.Add($"item '{pair.Key}' is in a cosmetic slot and carries a stat");
+            }
+
             foreach (var recipe in MergeRecipes)
             {
                 if (recipe == null) continue;
@@ -414,6 +450,35 @@ namespace IdleExplorers.Rules
 
             problems.AddRange(_duplicates);
             return problems;
+        }
+
+        /// <summary>
+        /// Slots that exist only to change how a character looks.
+        ///
+        /// Helmet and chest are NOT here: they render and carry stats, which is
+        /// exactly what armour is. These four are the ones no stat item competes
+        /// for, which is what makes them safe to fill with cosmetics.
+        /// </summary>
+        private static bool IsPurelyCosmeticSlot(string slotId) =>
+            slotId is "shirt" or "cape" or "tabard" or "aura";
+
+        /// <summary>Whether this item makes its wearer measurably better at anything.</summary>
+        private static bool GrantsAStat(ItemData item)
+        {
+            if (item?.effects == null) return false;
+
+            foreach (var effect in item.effects)
+            {
+                if (effect == null) continue;
+
+                // statBonus is the obvious one. grantAbility is the subtle one -- an
+                // ability is a stat with a button on it.
+                if (effect.action is "statBonus" or "grantAbility") return true;
+            }
+
+            // A weapon is a stat even with no effects at all: its damage band is on
+            // the item itself.
+            return item.IsWeapon || item.damageMax > 0f;
         }
 
         /// <summary>
