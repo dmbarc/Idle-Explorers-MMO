@@ -168,6 +168,87 @@ public class TalentAndBankTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, read.StatusCode);
     }
 
+    /// <summary>
+    /// The point of talents: they change what the SERVER computes.
+    ///
+    /// ══ WHY THIS IS THE TEST THAT MATTERS ═════════════════════════════════════
+    ///
+    /// Everything above proves points are stored and cannot be conjured. None of it
+    /// proves they DO anything -- and the endpoints shipped first with the settlement
+    /// service still ignoring the table, so a player could spend into a damage tree and
+    /// farm at exactly the same rate.
+    ///
+    /// A talent that persists and has no effect is worse than no talent system, because
+    /// it looks like one.
+    /// </summary>
+    [SkippableFact]
+    public async Task ASpentPointChangesWhatTheServerPaysOut()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Sharpened");
+
+        string node = await DamageNodeAsync(character);
+        Skip.If(node == null, "No damage-percent talent is authored.");
+
+        await GiveLevels(character, 30);
+
+        // A measured hour of fighting, before.
+        long before = await FightForAnHour(player, character);
+
+        Skip.If(before <= 0L, "The character kills nothing, so there is nothing to improve.");
+
+        (await OwnershipTests.Post(player, $"/talent/{character}", new { nodeId = node }))
+            .EnsureSuccessStatusCode();
+
+        long after = await FightForAnHour(player, character);
+
+        Assert.True(after > before,
+                    $"an attack-damage talent paid {after} kills against {before} without it");
+    }
+
+    /// <summary>
+    /// One hour of goblins, settled, counted in kills.
+    ///
+    /// The clock moves FORWARD, as it does in production -- the trigger refuses a
+    /// backwards last_settled_at, correctly.
+    /// </summary>
+    private async Task<long> FightForAnHour(Player player, Guid character)
+    {
+        (await OwnershipTests.Post(player, $"/activity/{character}/fight",
+                                   new { monsterId = "goblin" })).EnsureSuccessStatusCode();
+
+        api.Clock.Advance(TimeSpan.FromHours(1));
+
+        var settled = await OwnershipTests.Post(player, $"/activity/{character}/settle", new { });
+        settled.EnsureSuccessStatusCode();
+
+        return Body(await settled.Content.ReadAsStringAsync()).GetProperty("actions").GetInt64();
+    }
+
+    /// <summary>A first-tier node that raises attack damage, or null if none is authored.</summary>
+    private async Task<string> DamageNodeAsync(Guid character)
+    {
+        foreach (var entry in api.Content.Catalogue.Classes.Values)
+        {
+            if (entry?.talentTree == null) continue;
+
+            foreach (var node in entry.talentTree)
+            {
+                if (node == null || node.tier != 0)                      continue;
+                if (node.effectType != "attackDamagePercent")            continue;
+                if (!string.IsNullOrEmpty(node.abilityId))               continue;
+                if (node.effectValue <= 0f)                              continue;
+
+                await SetClass(character, entry.id);
+                return node.id;
+            }
+        }
+
+        return null;
+    }
+
     // ══ THE BANK ══════════════════════════════════════════════════════════════
 
     [SkippableFact]

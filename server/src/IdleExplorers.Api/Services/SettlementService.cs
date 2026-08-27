@@ -551,10 +551,13 @@ public sealed class SettlementService(Db db, ContentCache content)
     /// <summary>
     /// The character's stats, assembled from base, classes and worn gear.
     ///
-    /// TODO(Phase 1): armour set bonuses and talents. Both need state this does not
-    /// read yet, and both only ADD -- so a character is currently under-powered rather
-    /// than over-powered, which is the safe direction for a number that decides how
-    /// fast somebody farms.
+    /// Talents are read and applied. Armour set bonuses are not yet -- deciding which
+    /// sets are active needs the in-flight ledger and a clock, and they only ADD, so a
+    /// character is under-powered rather than over-powered until they are. That is the
+    /// safe direction for a number deciding how fast somebody farms.
+    ///
+    /// TODO(Phase 1): set bonuses, through the same setBonuses argument StatAssembly
+    /// already takes.
     /// </summary>
     private async Task<StatBlock> ResolveStatsAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                     Guid characterId, CancellationToken cancellation)
@@ -587,7 +590,67 @@ public sealed class SettlementService(Db db, ContentCache content)
             }
         }
 
-        return StatAssembly.Build(content.Catalogue.BaseStats, classes, equipped);
+        StatBlock block = StatAssembly.Build(content.Catalogue.BaseStats, classes, equipped);
+
+        // ══ TALENTS ═══════════════════════════════════════════════════════════
+        //
+        // Applied HERE rather than inside StatAssembly, because a talent bonus is a
+        // percentage OF the assembled block -- it multiplies what the gear and the
+        // class produced, so it has to come after both.
+        //
+        // Without this the talent endpoints would persist points that changed nothing
+        // the server computed: a player could spend into a damage tree and farm at
+        // exactly the same rate, which is worse than having no talents at all.
+        List<TalentRank> ranks = await ReadTalentsAsync(connection, tx, characterId, cancellation);
+
+        if (ranks.Count > 0)
+        {
+            List<TalentNode> nodes = Talents.NodesOf(classes);
+
+            // Through the MULTIPLIER fields the block already carries, not by scaling
+            // the raw values. StatBlock.Resolve and EffectiveAttackSpeed both read the
+            // multipliers and apply their own floors -- scaling the base numbers would
+            // bypass those and double-count against gear that also multiplies.
+            float damage = Talents.Bonus(ranks, nodes, "attackDamagePercent");
+
+            block.minHitMultiplier += damage;
+            block.maxHitMultiplier += damage;
+
+            block.healthMultiplier += Talents.Bonus(ranks, nodes, "maxHpPercent");
+
+            // attackSpeedPercent is a REDUCTION -- it shortens the interval between
+            // swings. EffectiveAttackSpeed is attackSpeed / (1 + attackSpeedMultiplier),
+            // so a POSITIVE addition here is a faster swing. That reads backwards at a
+            // glance, which is exactly why the sign is decided in one place.
+            block.attackSpeedMultiplier += Talents.Bonus(ranks, nodes, "attackSpeedPercent");
+        }
+
+        return block;
+    }
+
+    /// <summary>
+    /// The character's talent ranks.
+    ///
+    /// Read on every settlement, which sounds expensive and is not: a character has a
+    /// handful of rows and this rides a transaction that is already open. Caching it
+    /// would mean a respec that does not take effect until something evicts the entry,
+    /// which is a support ticket nobody can reproduce.
+    /// </summary>
+    private static async Task<List<TalentRank>> ReadTalentsAsync(
+        NpgsqlConnection connection, NpgsqlTransaction? tx, Guid characterId,
+        CancellationToken cancellation)
+    {
+        var ranks = new List<TalentRank>();
+
+        await using var command = connection.Sql(
+            "select node_id, rank from talent where character_id = $1;", tx, characterId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+        while (await reader.ReadAsync(cancellation))
+            ranks.Add(new TalentRank { nodeId = reader.GetString(0), rank = reader.GetInt32(1) });
+
+        return ranks;
     }
 
     private async Task<ItemData?> EquippedItemAsync(NpgsqlConnection connection, NpgsqlTransaction tx,

@@ -361,32 +361,10 @@ public static class TalentManager
     {
         if (character == null || string.IsNullOrEmpty(effectType)) return 0f;
 
-        float total = 0f;
-
-        // Every specced tree, not just the primary — that is what makes a second class
-        // contribute rather than sit there as a title.
-        foreach (var node in AllNodes(character))
-        {
-            if (node.effectType != effectType) continue;
-
-            // An ability-scoped talent is not a character-wide bonus. "Fireball costs
-            // 20% less mana" must not also make every other ability cheaper.
-            if (!string.IsNullOrEmpty(node.abilityId)) continue;
-
-            int rank = RankOf(character, node.id);
-            if (rank <= 0) continue;
-
-            total += node.effectValue * rank;
-        }
-
-        if (ReductionEffects.Contains(effectType))
-        {
-            // A reduction of 1.0 would divide the thing it reduces to nothing — an
-            // infinite attack rate, or a zero-second craft. Capped well short of it.
-            total = Mathf.Clamp(total, 0f, 0.75f);
-        }
-
-        return total;
+        // Delegated, so the number the client shows in a tooltip is the number the
+        // SERVER uses when it computes damage per second. Two implementations of this
+        // would show a player a talent that does nothing.
+        return IdleExplorers.Rules.Talents.Bonus(character.talents, NodesFor(character), effectType);
     }
 
     /// <summary>1 + Bonus, for the many callers that want a straight multiplier.</summary>
@@ -397,7 +375,7 @@ public static class TalentManager
     /// sign is decided here rather than at each of a dozen call sites.
     /// </summary>
     public static float ReductionMultiplier(string effectType) =>
-        Mathf.Max(0.25f, 1f - Bonus(effectType));
+        Mathf.Max(1f - IdleExplorers.Rules.Talents.MaxReduction, 1f - Bonus(effectType));
 
     // ── Abilities earned from the tree ────────────────────────────────────────
 

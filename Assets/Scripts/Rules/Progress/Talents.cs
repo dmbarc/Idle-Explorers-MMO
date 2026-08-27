@@ -190,6 +190,83 @@ namespace IdleExplorers.Rules
             return nodes;
         }
 
+        // ── What the points are actually worth ────────────────────────────
+
+        /// <summary>
+        /// Effect types whose value REDUCES something rather than adding to it.
+        ///
+        /// They need their own list because the sign is decided by the effect, not the
+        /// call site -- and because they need a cap. A reduction of 1.0 divides the
+        /// thing it reduces to nothing: an infinite attack rate, or a zero-second
+        /// craft. Both are printing presses, and both are one generous talent away.
+        /// </summary>
+        public static readonly string[] Reductions =
+        {
+            "attackSpeedPercent", "cooldownPercent", "craftSpeedPercent", "gatherRatePercent",
+        };
+
+        /// <summary>Hardest any reduction may bite, however many points go in.</summary>
+        public const float MaxReduction = 0.75f;
+
+        /// <summary>
+        /// Summed value of one effect across every talent taken.
+        ///
+        /// ══ WHY ABILITY-SCOPED NODES ARE SKIPPED ══════════════════════════════
+        ///
+        /// "Fireball costs 20% less mana" is not "every ability costs 20% less". A node
+        /// naming an ability contributes to that ability and nothing else, and counting
+        /// it here would quietly make every other ability cheaper too -- the kind of
+        /// bug that reads as generous tuning rather than as a mistake.
+        /// </summary>
+        public static float Bonus(IReadOnlyList<TalentRank> ranks,
+                                  IReadOnlyList<TalentNode> nodes,
+                                  string effectType)
+        {
+            if (nodes == null || string.IsNullOrEmpty(effectType)) return 0f;
+
+            float total = 0f;
+
+            foreach (var node in nodes)
+            {
+                if (node == null || node.effectType != effectType) continue;
+                if (!string.IsNullOrEmpty(node.abilityId))         continue;
+
+                int rank = RankOf(ranks, node.id);
+                if (rank <= 0) continue;
+
+                total += node.effectValue * rank;
+            }
+
+            if (IsReduction(effectType)) total = RulesMath.Clamp(total, 0f, MaxReduction);
+
+            return total;
+        }
+
+        public static bool IsReduction(string effectType)
+        {
+            foreach (string reduction in Reductions)
+                if (reduction == effectType) return true;
+
+            return false;
+        }
+
+        /// <summary>1 + Bonus, for the callers that want a straight multiplier.</summary>
+        public static float Multiplier(IReadOnlyList<TalentRank> ranks,
+                                       IReadOnlyList<TalentNode> nodes,
+                                       string effectType) =>
+            1f + Bonus(ranks, nodes, effectType);
+
+        /// <summary>
+        /// 1 - Bonus, for the reductions.
+        ///
+        /// Separate from Multiplier so the SIGN is decided once here rather than at
+        /// each of a dozen call sites, which is where a minus goes missing.
+        /// </summary>
+        public static float ReductionMultiplier(IReadOnlyList<TalentRank> ranks,
+                                                IReadOnlyList<TalentNode> nodes,
+                                                string effectType) =>
+            Math.Max(1f - MaxReduction, 1f - Bonus(ranks, nodes, effectType));
+
         private static TalentNode Find(IReadOnlyList<TalentNode> nodes, string nodeId)
         {
             if (nodes == null || string.IsNullOrEmpty(nodeId)) return null;
