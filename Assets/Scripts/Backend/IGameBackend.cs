@@ -77,6 +77,16 @@ namespace IdleExplorers.Backend
         /// </summary>
         Awaitable<SettlementSnapshot> SettleAsync(string characterId);
 
+        /// <summary>
+        /// Reports how well the player did at a minigame.
+        ///
+        /// GRADES, and nothing else -- no reward, no action count, no timing. The
+        /// server converts them against the actions its own clock produced, which is
+        /// what stops a scripted client claiming more than the design cap. See
+        /// IdleExplorers.Rules.Minigame.
+        /// </summary>
+        Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades);
+
         /// <summary>How close this character is to the boss portal.</summary>
         Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId);
 
@@ -233,6 +243,19 @@ namespace IdleExplorers.Backend
 
         /// <summary>True when this window produced nothing at all.</summary>
         public bool IsEmpty => actions <= 0L && xpGained <= 0L;
+    }
+
+    /// <summary>What a minigame report earned, on top of the window it was played in.</summary>
+    [Serializable]
+    public class MinigameSnapshot
+    {
+        public SettlementSnapshot settled;
+        public SettlementSnapshot bonus;
+
+        /// <summary>Extra actions the grades were worth. Zero when they were not.</summary>
+        public long bonusActions;
+
+        public static readonly MinigameSnapshot Nothing = new();
     }
 
     [Serializable]

@@ -91,6 +91,10 @@ namespace IdleExplorers.Backend
         public Awaitable<SettlementSnapshot> SettleAsync(string characterId) =>
             PostAsync<SettlementSnapshot>($"/activity/{characterId}/settle", null);
 
+        public Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades) =>
+            PostAsync<MinigameSnapshot>($"/activity/{characterId}/minigame",
+                                        new GradesBody { grades = grades });
+
         public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId) =>
             GetAsync<BossGateSnapshot>($"/boss/{characterId}/gate");
 
@@ -240,6 +244,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class NodeBody            { public string nodeId; }
         [Serializable] private class RecipeBody          { public string recipeId; }
         [Serializable] private class MonsterBody         { public string monsterId; }
+        [Serializable] private class GradesBody          { public string[] grades; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

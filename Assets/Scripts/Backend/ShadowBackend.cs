@@ -155,6 +155,23 @@ namespace IdleExplorers.Backend
             await MirrorAsync("Heartbeat", async () => { await _remote.HeartbeatAsync(characterId); return true; });
         }
 
+        /// <summary>
+        /// Mirrored, never compared.
+        ///
+        /// The local backend deliberately computes no bonus, so comparing the two
+        /// would report a divergence on every single report -- which is noise that
+        /// buries the findings shadow mode exists for. The server still receives the
+        /// grades, so its side of the feature is exercised.
+        /// </summary>
+        public async Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades)
+        {
+            var local = await _local.ReportMinigameAsync(characterId, grades);
+
+            await MirrorAsync("ReportMinigame", () => _remote.ReportMinigameAsync(characterId, grades));
+
+            return local;
+        }
+
         public async Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId)
         {
             var local = await _local.UnlockBossAsync(characterId);

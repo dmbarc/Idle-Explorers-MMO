@@ -332,6 +332,11 @@ public class SkillNodeController : MonoBehaviour
             if (_progressBar == null) return;
 
             _progressBar.AutoHide = false;
+
+            // The bar IS the minigame's timeline, so the game attaches where the bar
+            // does. Only for gathering nodes and stations -- a bank chest has no
+            // action to time against.
+            if (!IsPassiveStation) MinigameBar.Attach(this, _progressBar);
         }
 
         _progressBar.SetVisible(true);

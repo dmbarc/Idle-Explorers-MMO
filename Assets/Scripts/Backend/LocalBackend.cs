@@ -205,6 +205,17 @@ namespace IdleExplorers.Backend
         /// </summary>
         public Awaitable HeartbeatAsync(string characterId) => Completed();
 
+        /// <summary>
+        /// Nothing.
+        ///
+        /// The local backend has no concept of a settlement window to grade against,
+        /// so it cannot compute a bonus without inventing one -- and an invented
+        /// bonus would be a divergence shadow mode reported forever. Returning
+        /// nothing is the honest answer: the minigame is a server feature.
+        /// </summary>
+        public Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades) =>
+            Completed(MinigameSnapshot.Nothing);
+
         public Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId) =>
             GetBossGateAsync(characterId);
 

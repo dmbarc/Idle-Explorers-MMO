@@ -178,4 +178,46 @@ public class WorldStatusBar : MonoBehaviour
     {
         if (_canvas != null) _canvas.enabled = visible;
     }
+
+    // ── The minigame's target window ──────────────────────────────────────────
+
+    private Image _window;
+
+    /// <summary>
+    /// Marks the stretch of the bar worth striking in.
+    ///
+    /// Drawn UNDER the fill, so the fill sweeping across it is what tells the player
+    /// when to press. A marker on top would hide the very thing it is timing against.
+    ///
+    /// Passing a width of zero hides it, which is what a node with no minigame wants.
+    /// </summary>
+    public void ShowWindow(float centre, float halfWidth)
+    {
+        if (halfWidth <= 0f)
+        {
+            if (_window != null) _window.enabled = false;
+            return;
+        }
+
+        if (_window == null)
+        {
+            var go = new GameObject("Window", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(transform, false);
+            go.transform.SetSiblingIndex(1);
+
+            _window = go.GetComponent<Image>();
+            _window.color = new Color(1f, 0.85f, 0.30f, 0.5f);
+            _window.raycastTarget = false;
+        }
+
+        var rect = _window.GetComponent<RectTransform>();
+
+        rect.anchorMin = new Vector2(0f, 0.5f);
+        rect.anchorMax = new Vector2(0f, 0.5f);
+        rect.pivot     = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(BarWidth * halfWidth * 2f, BarHeight);
+        rect.anchoredPosition = new Vector2(BarWidth * Mathf.Clamp01(centre), 0f);
+
+        _window.enabled = true;
+    }
 }
