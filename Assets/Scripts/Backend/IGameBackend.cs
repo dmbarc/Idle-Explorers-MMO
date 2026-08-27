@@ -87,6 +87,40 @@ namespace IdleExplorers.Backend
         /// </summary>
         Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades);
 
+        // ── The boss ──────────────────────────────────────────────────────
+        //
+        // The one fight the server validates per action. Everything else in the game
+        // settles from two timestamps; this reports what the player DID, because in
+        // this one place what they did inside the window is meant to matter.
+        //
+        // Note what is not sent: no damage, no health, no position, no timestamp.
+        // The client says "I swung", and the server decides what that was worth
+        // against a snapshot frozen at engage and its own clock.
+
+        /// <summary>
+        /// Start the fight. The answer carries the WHOLE attack timeline.
+        ///
+        /// That is what makes a telegraphed boss playable over the internet: every
+        /// wind-up is drawn from this schedule with no further network involvement,
+        /// so a 200 ms connection does not turn a 1.2 second telegraph into a 1.0
+        /// second one.
+        /// </summary>
+        Awaitable<EncounterSnapshot> EngageBossAsync(string characterId, string monsterId);
+
+        /// <summary>
+        /// "I swung these times." Returns the authoritative health.
+        ///
+        /// Batched, at most a couple of times a second. The client predicts damage
+        /// locally from the shared rules and reconciles to what comes back.
+        /// </summary>
+        Awaitable<EncounterTick> ReportBossActionsAsync(string characterId, BossActionReport[] actions);
+
+        /// <summary>Ask the server how it went. It decides, from its own health value.</summary>
+        Awaitable<EncounterResult> ResolveBossAsync(string characterId);
+
+        /// <summary>Move earned loot from pending into the bag and the wallet.</summary>
+        Awaitable<LootClaim> ClaimLootAsync(string characterId);
+
         /// <summary>How close this character is to the boss portal.</summary>
         Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId);
 
@@ -256,6 +290,132 @@ namespace IdleExplorers.Backend
         public long bonusActions;
 
         public static readonly MinigameSnapshot Nothing = new();
+    }
+
+    // ══ The boss fight ════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// One swing, as the client reports it.
+    ///
+    /// A sequence number and optionally an ability, and deliberately nothing else. A
+    /// damage field would be a claim the server has to either trust or ignore, and a
+    /// field that is always ignored is one somebody eventually starts trusting.
+    /// </summary>
+    [Serializable]
+    public class BossActionReport
+    {
+        public long   sequence;
+        public string abilityId;
+    }
+
+    [Serializable]
+    public class EncounterSnapshot
+    {
+        public string encounterId;
+        public string monsterId;
+        public string name;
+
+        public long   bossHp;
+        public long   bossMaxHp;
+        public float  armor;
+
+        /// <summary>
+        /// The snapshot the server froze. Echoed so the client can predict its own
+        /// numbers from the shared rules -- it is a COPY of the authority, not the
+        /// authority, and the health that comes back from an action report wins.
+        /// </summary>
+        public double frozenDps;
+        public double frozenAttackSeconds;
+
+        public double enrageSeconds;
+        public double elapsedSeconds;
+
+        public EncounterPhase[] phases;
+
+        public static readonly EncounterSnapshot Nothing = new();
+
+        public bool Started => !string.IsNullOrEmpty(encounterId);
+    }
+
+    [Serializable]
+    public class EncounterPhase
+    {
+        public int    index;
+        public string name;
+        public float  fromHealthFraction;
+        public float  hasteMultiplier;
+        public int    addsPerWave;
+        public float  secondsBetweenWaves;
+
+        /// <summary>
+        /// The schedule, from the moment this phase begins.
+        ///
+        /// IdleExplorers.Rules.BossCast, the same class the server writes -- so a
+        /// field renamed on one side is renamed on both.
+        /// </summary>
+        public IdleExplorers.Rules.BossCast[] casts;
+    }
+
+    [Serializable]
+    public class EncounterTick
+    {
+        public string encounterId;
+
+        /// <summary>The authoritative health. Reconcile to this.</summary>
+        public long   bossHp;
+        public long   bossMaxHp;
+        public int    phase;
+
+        public double elapsedSeconds;
+        public double remainingSeconds;
+
+        public int    accepted;
+        public int    rejected;
+
+        /// <summary>
+        /// True when the server credited less than the actions were nominally worth.
+        ///
+        /// Honest clients see this in the first moments of a fight, when the whole
+        /// budget is the opening tolerance. A client seeing it repeatedly has a bug or
+        /// is being tampered with, and either way it is worth being able to see.
+        /// </summary>
+        public bool   clamped;
+
+        public bool   dead;
+        public bool   enraged;
+
+        public static readonly EncounterTick Nothing = new();
+    }
+
+    [Serializable]
+    public class EncounterResult
+    {
+        public string      encounterId;
+        public bool        won;
+        public long        xpGained;
+        public double      seconds;
+        public long        damageDealt;
+        public long        bossMaxHp;
+
+        /// <summary>Earned, and waiting to be claimed. Not in the bag yet.</summary>
+        public ItemStack[] pending;
+
+        public static readonly EncounterResult Nothing = new();
+    }
+
+    [Serializable]
+    public class LootClaim
+    {
+        public ItemStack[] claimed;
+        public long        stillWaiting;
+
+        /// <summary>
+        /// Said out loud, because the reason nothing arrived is almost always a full
+        /// bag -- and a silent no-op is indistinguishable from a broken button.
+        /// </summary>
+        public bool        bagWasFull;
+
+        public static readonly LootClaim Nothing = new();
     }
 
     [Serializable]

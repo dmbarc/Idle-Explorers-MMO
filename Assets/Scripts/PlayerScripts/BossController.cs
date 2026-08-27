@@ -26,28 +26,48 @@ using UnityEngine.AI;
 /// telegraph is drawn locally from a schedule, so the wind-up never waits on a
 /// packet.
 ///
-/// TODO(Phase 4): take the schedule from the server's engage response, generated
-/// deterministically from a seed, so client and server agree on every attack without
-/// a round trip per swing. The shape below is already that shape; it just rolls its
-/// own seed today.
+/// The schedule comes from the server's engage response, generated deterministically
+/// from a seed, so client and server agree on every attack without a round trip per
+/// swing. This file draws it; BossFight is the conversation that fetched it.
+///
+/// ══ WHAT THIS FILE IS NOT ALLOWED TO DECIDE ═══════════════════════════════════
+///
+/// The King's health, whether he died, whether the player won, and what dropped. All
+/// four live on the server. What is here is the arithmetic of the PICTURE: where he
+/// stands, which telegraph is on the ground, and a predicted health bar that the next
+/// report replaces.
 /// </summary>
 public class BossController : MonoBehaviour
 {
     public MonsterData Data { get; private set; }
 
-    public double MaxHealth     { get; private set; }
-    public double CurrentHealth { get; private set; }
+    /// <summary>
+    /// The server conversation. Every number that matters comes through it.
+    ///
+    /// Null only before Start, and when there is no server at all -- in which case
+    /// the King stands inert rather than fighting a battle nobody is scoring.
+    /// </summary>
+    public BossFight Fight { get; private set; }
+
+    public double MaxHealth     => Fight?.BossMaxHealth ?? 0d;
+    public double CurrentHealth => Fight?.BossHealth    ?? 0d;
 
     public bool IsAlive => CurrentHealth > 0d && _state != State.Dead;
 
     /// <summary>0-1, for the health bar at the top of the screen.</summary>
-    public float HealthFraction => MaxHealth > 0d ? (float)(CurrentHealth / MaxHealth) : 0f;
+    public float HealthFraction => Fight?.HealthFraction ?? 0f;
 
     /// <summary>Which phase it is in. Drives the pips on the bar.</summary>
     public BossPhase Phase { get; private set; }
 
-    /// <summary>Seconds until it gives up and wipes the arena.</summary>
-    public float EnrageRemaining => Mathf.Max(0f, _enrageAt - Time.time);
+    /// <summary>
+    /// Seconds until it gives up and wipes the arena.
+    ///
+    /// The SERVER's clock, folded forward on every report. A local countdown would
+    /// drift, and worse, a suspended tab would freeze it -- so a laptop lid closing
+    /// mid-fight would pause the enrage timer, which is a free win.
+    /// </summary>
+    public float EnrageRemaining => Fight?.EnrageRemaining ?? 0f;
 
     private enum State { Waiting, Fighting, Dead }
 
@@ -58,35 +78,41 @@ public class BossController : MonoBehaviour
     private SpriteFacing _facing;
     private WorldStatusBar _bar;
 
-    private float _enrageAt;
-    private float _nextAttackAt;
     private float _nextWaveAt;
 
-    /// <summary>When each ability may next be used, by id.</summary>
-    private readonly Dictionary<string, float> _cooldowns = new();
+    /// <summary>
+    /// How far into the server's schedule for this phase the King has got.
+    ///
+    /// An index rather than a set of local cooldowns, because the schedule is a
+    /// LIST now -- the server generated it from the seed and the client walks it.
+    /// Local cooldowns were a second implementation of the same decision, and the
+    /// two would disagree the first time anybody retuned an ability.
+    /// </summary>
+    private int   _nextCast;
+    private float _phaseStartedAt;
 
     /// <summary>Attacks that have been telegraphed and are waiting to land.</summary>
     private readonly List<Pending> _pending = new();
 
     private struct Pending
     {
-        public BossAbility Ability;
-        public AreaShape   Shape;
-        public float       ResolvesAt;
-        public int         PulsesLeft;
+        public IdleExplorers.Rules.BossCast Cast;
+        public AreaShape Shape;
+        public float     ResolvesAt;
+        public int       PulsesLeft;
     }
 
     // ── Setup ─────────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Which boss this is. Health and the enrage clock are NOT set here -- they come
+    /// from the server at engage, and a locally-invented starting health would be a
+    /// bar that jumps the moment the real one arrives.
+    /// </summary>
     public void Initialize(MonsterData data)
     {
-        Data = data;
-
-        MaxHealth     = data?.maxHp ?? 1d;
-        CurrentHealth = MaxHealth;
-
-        Phase     = data?.PhaseAt(1d);
-        _enrageAt = Time.time + Mathf.Max(30f, data?.enrageSeconds ?? 300f);
+        Data  = data;
+        Phase = data?.PhaseAt(1d);
     }
 
     private void Start()
@@ -115,6 +141,50 @@ public class BossController : MonoBehaviour
         var player = GameObject.Find("PlayerCharacter");
         if (player != null) _player = player.transform;
 
+        Begin();
+    }
+
+    /// <summary>
+    /// Asks the server to start the fight, and stands still if it says no.
+    ///
+    /// ══ WHY THE KING WAITS FOR AN ANSWER ══════════════════════════════════════
+    ///
+    /// Because the alternative is a King who starts swinging on a client that the
+    /// server does not believe is fighting anything -- an arena where telegraphs land,
+    /// health drops, and none of it counts. A player would rightly call that a stolen
+    /// twenty minutes.
+    ///
+    /// So: no encounter, no fight. The reason is already on screen, because
+    /// BossFight.EngageAsync raised it.
+    /// </summary>
+    private async void Begin()
+    {
+        Fight = gameObject.AddComponent<BossFight>();
+
+        Fight.PhaseChanged += EnterPhase;
+
+        // ══ THE SERVER'S VERDICT, NOT THE CLIENT'S ════════════════════════════
+        //
+        // Die() and Enrage() are reactions to an answer, never decisions. The client
+        // has a predicted health bar that reaches zero a fraction of a second early;
+        // that prediction is not evidence, and a King who fell because a client
+        // thought so would be a King anybody could fell.
+        Fight.Finished += Ended;
+
+        var started = await Fight.EngageAsync(Data?.id ?? "goblin_king");
+
+        if (started == null)
+        {
+            _state = State.Dead;   // inert, not dying: nothing happens and nothing counts
+
+            if (_bar != null) _bar.gameObject.SetActive(false);
+            return;
+        }
+
+        _state          = State.Waiting;
+        _phaseStartedAt = Time.time;
+        _nextCast       = 0;
+
         GameEvents.FireBossEngaged(Data?.DisplayName ?? "Boss", (float)MaxHealth);
     }
 
@@ -125,6 +195,14 @@ public class BossController : MonoBehaviour
         if (_state == State.Dead) return;
 
         ResolvePending();
+
+        // ══ NOTHING HAPPENS BEFORE THE SERVER SAYS SO ═════════════════════════
+        //
+        // Fight exists from the first frame of Begin(), but its encounter does not
+        // arrive until the round trip completes. In that gap EnrageRemaining is zero
+        // -- there is no timer yet -- and an unguarded check below read that as "the
+        // King gave up" and enraged the fight before it had started.
+        if (Fight == null || !Fight.IsLive) return;
 
         if (_player == null) return;
 
@@ -140,11 +218,13 @@ public class BossController : MonoBehaviour
 
         if (_facing != null) _facing.LookTarget = _player;
 
-        if (Time.time >= _enrageAt) { Enrage(); return; }
+        // The server's clock, not a local countdown. A suspended tab freezes
+        // Time.time, and an enrage timer that pauses when a laptop lid closes is a
+        // free win.
+        if (Fight.EnrageRemaining <= 0f) { Enrage(); return; }
 
-        UpdatePhase();
         Chase(distance);
-        MaybeAttack(distance);
+        RunSchedule();
         MaybeSpawnAdds();
 
         if (_bar != null)
@@ -152,17 +232,33 @@ public class BossController : MonoBehaviour
     }
 
     /// <summary>
-    /// Moves to the next phase when health crosses a threshold.
-    ///
     /// Announced rather than silent: a phase change that only shows up as the boss
     /// hitting harder reads as the player getting worse.
     /// </summary>
-    private void UpdatePhase()
+    /// <summary>
+    /// Enters a phase the SERVER has confirmed.
+    ///
+    /// ══ WHY NOT FROM THE HEALTH BAR ═══════════════════════════════════════════
+    ///
+    /// Because the health bar is a prediction between reports, and a phase driven off
+    /// a prediction flickers: the client crosses 66%, announces "Roused", the next
+    /// report puts the King back at 67%, and the announcement happens again. Phase is
+    /// a thing that happens once, so it comes from the party that knows.
+    ///
+    /// It also resets the schedule cursor, because the server's timeline for a phase
+    /// is measured from the moment that phase begins.
+    /// </summary>
+    private void EnterPhase(int index)
     {
-        BossPhase next = Data?.PhaseAt(HealthFraction);
+        BossPhase next = Data?.phases != null && index >= 0 && index < Data.phases.Length
+            ? Data.phases[index]
+            : null;
+
         if (next == null || ReferenceEquals(next, Phase)) return;
 
-        Phase = next;
+        Phase           = next;
+        _phaseStartedAt = Time.time;
+        _nextCast       = 0;
 
         GameEvents.FireBossPhaseChanged(Phase.name, HealthFraction);
         GameEvents.FireToast($"✦ {Data.DisplayName}: {Phase.name}", ChatTone.Warning);
@@ -191,60 +287,64 @@ public class BossController : MonoBehaviour
         }
     }
 
-    private void MaybeAttack(float distance)
+    /// <summary>
+    /// Walks the server's schedule for this phase.
+    ///
+    /// ══ WHY A LIST AND NOT A COOLDOWN LOOP ════════════════════════════════════
+    ///
+    /// The whole schedule arrived at engage, generated deterministically from a seed
+    /// the server holds. Walking it means the client and the server agree about every
+    /// attack without a single round trip -- so a 200 ms connection does not shorten a
+    /// 1.2 second telegraph, and a dropped packet does not delete a mechanic.
+    ///
+    /// The previous version rolled its own cooldowns here. That was a second
+    /// implementation of the same decision, and the two would have started disagreeing
+    /// the first time anybody retuned an ability.
+    /// </summary>
+    private void RunSchedule()
     {
-        if (Time.time < _nextAttackAt) return;
+        if (Fight == null) return;
 
-        BossAbility ability = ChooseAbility(distance);
-        if (ability == null) return;
+        var casts = Fight.CastsFor(Fight.PhaseIndex);
+        if (casts.Length == 0) return;
 
-        AreaShape shape = ShapeFor(ability);
+        float intoPhase = Time.time - _phaseStartedAt;
 
-        TelegraphDecal.Show(shape, ability.telegraphSeconds);
+        // A while, not an if: a frame hitch or a tab coming back from the background
+        // can leave several casts due at once, and skipping them would silently drop
+        // attacks the server believes happened.
+        while (_nextCast < casts.Length && casts[_nextCast].atSeconds <= intoPhase)
+        {
+            Cast(casts[_nextCast]);
+            _nextCast++;
+        }
+    }
+
+    /// <summary>
+    /// Telegraphs one scheduled attack.
+    ///
+    /// The shape comes off the CAST rather than out of the client's content copy, so a
+    /// player whose content is stale still sees the right marker. "Your download was
+    /// out of date" is not a boss mechanic.
+    /// </summary>
+    private void Cast(IdleExplorers.Rules.BossCast cast)
+    {
+        AreaShape shape = ShapeFor(cast);
+
+        TelegraphDecal.Show(shape, cast.telegraphSeconds);
 
         _pending.Add(new Pending
         {
-            Ability    = ability,
+            Cast       = cast,
             Shape      = shape,
-            ResolvesAt = Time.time + ability.telegraphSeconds,
-            PulsesLeft = Mathf.Max(1, ability.pulses),
+            ResolvesAt = Time.time + cast.telegraphSeconds,
+            PulsesLeft = Mathf.Max(1, cast.pulses),
         });
-
-        _cooldowns[ability.id] = Time.time + ability.cooldownSeconds;
-
-        // Haste shortens the gap between attacks, not the telegraphs. A phase that
-        // shortened wind-ups would make the fight harder to READ rather than harder
-        // to survive, which is the wrong kind of difficulty.
-        float haste = Phase?.hasteMultiplier > 0f ? Phase.hasteMultiplier : 1f;
-        _nextAttackAt = Time.time + (Data?.attackSpeedSeconds ?? 2f) / haste;
 
         SpumAnim.PlayAttack(_anim);
     }
 
-    /// <summary>
-    /// The first ability off cooldown and in range.
-    ///
-    /// In authored order rather than at random, so a phase's list reads as a priority
-    /// and a designer can put the dangerous one first. Random selection makes two
-    /// runs of the same fight feel unrelated, which is the opposite of learnable.
-    /// </summary>
-    private BossAbility ChooseAbility(float distance)
-    {
-        if (Phase?.abilities == null) return null;
-
-        foreach (var ability in Phase.abilities)
-        {
-            if (ability == null) continue;
-            if (_cooldowns.TryGetValue(ability.id, out float ready) && Time.time < ready) continue;
-            if (distance > ability.range + 1f) continue;
-
-            return ability;
-        }
-
-        return null;
-    }
-
-    private AreaShape ShapeFor(BossAbility ability)
+    private AreaShape ShapeFor(IdleExplorers.Rules.BossCast ability)
     {
         var origin = new Ground(transform.position.x, transform.position.z);
 
@@ -282,11 +382,11 @@ public class BossController : MonoBehaviour
 
             if (--pending.PulsesLeft > 0)
             {
-                pending.ResolvesAt = Time.time + Mathf.Max(0.1f, pending.Ability.secondsBetweenPulses);
+                pending.ResolvesAt = Time.time + Mathf.Max(0.1f, pending.Cast.secondsBetweenPulses);
 
                 // Each pulse gets its own marker, since a three-pulse quake the player
                 // cannot see the second and third of is one pulse and two ambushes.
-                TelegraphDecal.Show(pending.Shape, pending.Ability.secondsBetweenPulses);
+                TelegraphDecal.Show(pending.Shape, pending.Cast.secondsBetweenPulses);
 
                 _pending[i] = pending;
                 continue;
@@ -306,13 +406,16 @@ public class BossController : MonoBehaviour
         var controller = _player.GetComponent<PlayerController>();
         if (controller == null) return;
 
+        // From the CAST, so a stale content copy cannot quietly change what an attack
+        // does. Player health is presentation -- the fail condition is the enrage
+        // timer -- so this is about the fight being consistent, not about it counting.
         double damage = ((Data?.attackDamageMin ?? 1) + (Data?.attackDamageMax ?? 2)) * 0.5d
-                      * Mathf.Max(0.1f, pending.Ability.damageMultiplier);
+                      * Mathf.Max(0.1f, pending.Cast.damageMultiplier);
 
         controller.TakeDamage(damage);
         AbilityVFX.Play("impact", _player.position);
 
-        if (pending.Ability.knockback > 0f) Knock(controller, pending.Ability.knockback);
+        if (pending.Cast.knockback > 0f) Knock(controller, pending.Cast.knockback);
     }
 
     private void Knock(PlayerController player, float distance)
@@ -343,33 +446,66 @@ public class BossController : MonoBehaviour
 
     // ── Damage and death ──────────────────────────────────────────────────────
 
+    /// <summary>
+    /// "The player hit me."
+    ///
+    /// ══ WHY THE AMOUNT IS IGNORED ═════════════════════════════════════════════
+    ///
+    /// Because it is a number the client made up, and the whole architecture exists
+    /// so that no number a client made up ever reaches a health bar anybody is scored
+    /// on. The attack loop still calls this, exactly as it does for every ordinary
+    /// monster -- the King simply answers differently: he reports the SWING and lets
+    /// the server say what it was worth.
+    ///
+    /// The parameter stays so PlayerController needs no special case. A boss that had
+    /// to be attacked through a different code path would be a boss that stopped
+    /// working the next time somebody touched the attack loop.
+    ///
+    /// The damage number on screen is the prediction, which is honest: it is what the
+    /// client BELIEVES happened, drawn from the same shared rules the server runs, and
+    /// corrected within half a second if the two disagree.
+    /// </summary>
     public void TakeDamage(double amount) => TakeDamage(amount, false);
 
     public void TakeDamage(double amount, bool wasCrit)
     {
-        if (!IsAlive) return;
+        if (!IsAlive || Fight == null) return;
 
-        // Armour is stated rather than scaled from level: a boss is not balanced by
-        // its level, and the level-scaled figure every ordinary monster uses would
-        // make this one either trivial or immune depending on where it landed.
-        double through = StatBlock.DamageThrough(Data?.armor ?? 0f);
-        double dealt   = System.Math.Max(1d, amount * through);
+        double before = Fight.BossHealth;
 
-        CurrentHealth = System.Math.Max(0d, CurrentHealth - dealt);
+        Fight.Swung();
 
-        DamageNumber.Spawn(transform.position, dealt,
+        double predicted = System.Math.Max(0d, before - Fight.BossHealth);
+
+        DamageNumber.Spawn(transform.position, predicted,
                            wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt);
 
         GameEvents.FireBossHealthChanged(HealthFraction);
 
-        if (CurrentHealth <= 0d) Die();
+        // Predicted to zero. NOT a death -- the client does not get to decide that, and
+        // BossFight will ask. Die() runs when the answer comes back.
+        if (Fight.BossHealth <= 0d) Fight.Finish();
+    }
+
+    /// <summary>
+    /// The server said how it went.
+    ///
+    /// One handler for both outcomes, because from here they are the same event: the
+    /// fight is over and somebody else decided. What differs is only which animation
+    /// plays.
+    /// </summary>
+    private void Ended(IdleExplorers.Backend.EncounterResult result)
+    {
+        if (_state == State.Dead) return;
+
+        if (result != null && result.won) Die();
+        else                              Enrage();
     }
 
     private void Die()
     {
         _state = State.Dead;
 
-        foreach (var pending in _pending) { }
         _pending.Clear();
 
         if (_agent != null) _agent.enabled = false;
@@ -380,8 +516,9 @@ public class BossController : MonoBehaviour
 
         // Loot is the SERVER's. Nothing is dropped here: a client that spawned the
         // King's drops would be a client that decides what the King drops, which is
-        // the whole thing this architecture removes. The kill is reported; the
-        // rewards arrive from the next settlement.
+        // the whole thing this architecture removes. BossFight has already claimed
+        // what the server granted, and the items arrive through the normal pickup
+        // event as though they had been walked over.
         GameEvents.FireToast($"✦ {Data?.DisplayName} falls.", ChatTone.Good);
     }
 
@@ -395,7 +532,13 @@ public class BossController : MonoBehaviour
     /// </summary>
     private void Enrage()
     {
+        if (_state == State.Dead) return;
+
         _state = State.Dead;
+
+        // Asked, in case the timer got here before a report did. Finish() is a no-op
+        // once it has run, so arriving from both directions costs nothing.
+        Fight?.Finish();
 
         GameEvents.FireBossEnraged();
         GameEvents.FireToast($"✦ {Data?.DisplayName} tires of you.", ChatTone.Bad);

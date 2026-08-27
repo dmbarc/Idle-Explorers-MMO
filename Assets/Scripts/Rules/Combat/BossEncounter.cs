@@ -277,6 +277,8 @@ namespace IdleExplorers.Rules
                     innerRadius      = ability.innerRadius,
                     pulses           = Math.Max(1, ability.pulses),
                     secondsBetweenPulses = Math.Max(0f, ability.secondsBetweenPulses),
+                    damageMultiplier = ability.damageMultiplier,
+                    knockback        = ability.knockback,
                 });
 
                 double cooldown = Math.Max(MinCooldownSeconds, ability.cooldownSeconds) / haste;
@@ -365,5 +367,20 @@ namespace IdleExplorers.Rules
 
         public int    pulses;
         public float  secondsBetweenPulses;
+
+        /// <summary>
+        /// What it hits for, relative to the boss's base damage, and how far it shoves.
+        ///
+        /// Carried here rather than looked up from the client's content copy for the
+        /// same reason as the shape: a stale download must not change how the fight
+        /// plays. A knockback that silently does not happen is a mechanic the player
+        /// learned and then lost.
+        ///
+        /// Neither is authoritative -- player health is presentation, and the fail
+        /// condition is the enrage timer. They are here so the fight is CONSISTENT,
+        /// not so it is trusted.
+        /// </summary>
+        public float  damageMultiplier;
+        public float  knockback;
     }
 }

@@ -95,6 +95,21 @@ namespace IdleExplorers.Backend
             PostAsync<MinigameSnapshot>($"/activity/{characterId}/minigame",
                                         new GradesBody { grades = grades });
 
+        public Awaitable<EncounterSnapshot> EngageBossAsync(string characterId, string monsterId) =>
+            PostAsync<EncounterSnapshot>($"/encounter/{characterId}",
+                                         new MonsterBody { monsterId = monsterId });
+
+        public Awaitable<EncounterTick> ReportBossActionsAsync(string characterId,
+                                                               BossActionReport[] actions) =>
+            PostAsync<EncounterTick>($"/encounter/{characterId}/actions",
+                                     new ActionsBody { actions = actions });
+
+        public Awaitable<EncounterResult> ResolveBossAsync(string characterId) =>
+            PostAsync<EncounterResult>($"/encounter/{characterId}/resolve", null);
+
+        public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
+            PostAsync<LootClaim>($"/encounter/{characterId}/loot", null);
+
         public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId) =>
             GetAsync<BossGateSnapshot>($"/boss/{characterId}/gate");
 
@@ -245,6 +260,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class RecipeBody          { public string recipeId; }
         [Serializable] private class MonsterBody         { public string monsterId; }
         [Serializable] private class GradesBody          { public string[] grades; }
+        [Serializable] private class ActionsBody         { public BossActionReport[] actions; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

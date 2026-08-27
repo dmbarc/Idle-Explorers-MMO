@@ -69,6 +69,30 @@ namespace IdleExplorers.Backend
             return Completed(Describe(character));
         }
 
+        // ══ THE BOSS NEEDS A SERVER ═══════════════════════════════════════════
+        //
+        // Every other call here has a local answer because the managers already
+        // computed one -- this is a migration scaffold wrapping code that exists. The
+        // encounter has no local twin at all: it was never client-side, and inventing
+        // one would mean writing the fight twice and then deleting the harder copy.
+        //
+        // So these say NOTHING, loudly enough that the caller can tell. A local
+        // session simply cannot fight the King, which is honest -- and the scaffold
+        // is deleted at cutover anyway.
+
+        public Awaitable<EncounterSnapshot> EngageBossAsync(string characterId, string monsterId) =>
+            Completed(EncounterSnapshot.Nothing);
+
+        public Awaitable<EncounterTick> ReportBossActionsAsync(string characterId,
+                                                               BossActionReport[] actions) =>
+            Completed(EncounterTick.Nothing);
+
+        public Awaitable<EncounterResult> ResolveBossAsync(string characterId) =>
+            Completed(EncounterResult.Nothing);
+
+        public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
+            Completed(LootClaim.Nothing);
+
         public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId)
         {
             var character = Find(characterId);

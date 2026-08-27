@@ -172,6 +172,30 @@ namespace IdleExplorers.Backend
             return local;
         }
 
+        // ══ THE ONE PLACE THE SERVER'S ANSWER WINS ════════════════════════════
+        //
+        // Everywhere else in shadow mode the local answer is returned and the server
+        // is only observed -- that is what makes it safe to leave running, because a
+        // server bug cannot break a session.
+        //
+        // The boss is different, and the difference is not a compromise. There IS no
+        // local answer: LocalBackend deliberately computes nothing, so returning it
+        // would mean shadow mode makes the King unfightable. Passing the server's
+        // answer through costs nothing that was working before, because nothing was.
+
+        public Awaitable<EncounterSnapshot> EngageBossAsync(string characterId, string monsterId) =>
+            _remote.EngageBossAsync(characterId, monsterId);
+
+        public Awaitable<EncounterTick> ReportBossActionsAsync(string characterId,
+                                                               BossActionReport[] actions) =>
+            _remote.ReportBossActionsAsync(characterId, actions);
+
+        public Awaitable<EncounterResult> ResolveBossAsync(string characterId) =>
+            _remote.ResolveBossAsync(characterId);
+
+        public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
+            _remote.ClaimLootAsync(characterId);
+
         public async Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId)
         {
             var local = await _local.UnlockBossAsync(characterId);
