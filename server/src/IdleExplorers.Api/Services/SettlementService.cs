@@ -600,6 +600,152 @@ public sealed class SettlementService(Db db, ContentCache content)
         return string.IsNullOrEmpty(itemId) ? null : content.Catalogue.GetItem(itemId);
     }
 
+    // ── Bonus actions ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Pays extra actions of whatever the character is already doing.
+    ///
+    /// ══ WHY IT GOES THROUGH THE SAME PATHS ════════════════════════════════════
+    ///
+    /// A minigame bonus is not a special reward — it is more of the thing the player
+    /// was already earning. So it produces items through the same stacking rules,
+    /// respects the same bag capacity, writes the same ledger rows and pays the same
+    /// experience. A second reward path would be a second set of rules to get wrong,
+    /// and the one place a bag cap gets forgotten.
+    ///
+    /// The caller has already decided how many, from the server's own action count.
+    /// Nothing here reads anything a client sent.
+    /// </summary>
+    public async Task<Outcome> GrantBonusAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                               Guid characterId, long bonusActions,
+                                               CancellationToken cancellation = default)
+    {
+        if (bonusActions <= 0L) return Outcome.Nothing;
+
+        Row? row = await ReadActivityAsync(connection, tx, characterId, cancellation);
+        if (row is null) return Outcome.Nothing;
+
+        ActivityState activity = row.Activity;
+
+        // Only gathering and crafting have minigames. Combat has a boss for the same
+        // purpose, and a timed input during a fight is a different design argument.
+        if (activity.Kind is not (ActivityKind.Gather or ActivityKind.Craft))
+            return Outcome.Nothing;
+
+        if (activity.Kind == ActivityKind.Gather)
+            return await GrantGatherBonusAsync(connection, tx, characterId, row, bonusActions, cancellation);
+
+        return await GrantCraftBonusAsync(connection, tx, characterId, row, bonusActions, cancellation);
+    }
+
+    private async Task<Outcome> GrantGatherBonusAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                      Guid characterId, Row row, long actions,
+                                                      CancellationToken cancellation)
+    {
+        ActivityState activity = row.Activity;
+        if (string.IsNullOrEmpty(activity.TargetItemId)) return Outcome.Nothing;
+
+        var outcome = new Outcome
+        {
+            Actions   = actions,
+            XpGained  = MultiplyClamped(actions, (long)activity.XpPerAction),
+        };
+
+        if (Currency.IsCurrency(activity.TargetItemId))
+        {
+            string wallet = Currency.WalletFor(activity.TargetItemId)!;
+
+            await CreditWalletAsync(connection, tx, row.AccountId, characterId,
+                                    wallet, actions, "gather", cancellation);
+
+            outcome.Currency[wallet] = actions;
+        }
+        else
+        {
+            var bag = await ReadInventoryAsync(connection, tx, characterId, cancellation);
+
+            // The bag still decides. A minigame that overflowed capacity would be a
+            // minigame that destroyed ore as a reward for playing well.
+            long stored = SlotContainer.AddUpTo(bag, activity.TargetItemId, actions);
+
+            if (stored > 0L)
+            {
+                await WriteInventoryAsync(connection, tx, characterId, bag, cancellation);
+                await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                           activity.TargetItemId, stored, "gather", cancellation);
+
+                outcome.Items[activity.TargetItemId] = stored;
+            }
+        }
+
+        if (outcome.XpGained > 0L && !string.IsNullOrEmpty(activity.SkillId))
+            await GrantXpAsync(connection, tx, characterId, activity.SkillId, outcome.XpGained, cancellation);
+
+        return outcome;
+    }
+
+    /// <summary>
+    /// Extra crafts, which still cost their materials.
+    ///
+    /// The bonus is TIME, not free goods: a perfect run means the player got through
+    /// more of the queue, and the queue still consumes what it consumes. Handing out
+    /// free output instead would make the anvil a printing press for anyone who could
+    /// keep rhythm.
+    /// </summary>
+    private async Task<Outcome> GrantCraftBonusAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                     Guid characterId, Row row, long actions,
+                                                     CancellationToken cancellation)
+    {
+        CraftRecipe? recipe = content.Catalogue.GetRecipe(row.Activity.RecipeId);
+        if (recipe is null) return Outcome.Nothing;
+
+        var bag = await ReadInventoryAsync(connection, tx, characterId, cancellation);
+
+        long affordable = MaxCraftsFrom(bag, recipe);
+        long crafts     = Math.Min(actions, affordable);
+
+        if (crafts <= 0L) return Outcome.Nothing with { RanOutOfInputs = true };
+
+        if (!ConsumeFor(bag, recipe, crafts)) return Outcome.Nothing;
+
+        long produced  = Math.Max(1L, recipe.outputQuantity) * crafts;
+        long room      = SlotContainer.FreeCapacityFor(bag, recipe.outputItemId);
+        long delivered = SlotContainer.AddUpTo(bag, recipe.outputItemId, Math.Min(produced, room));
+
+        await WriteInventoryAsync(connection, tx, characterId, bag, cancellation);
+
+        foreach (var input in recipe.inputs ?? [])
+        {
+            if (input == null || string.IsNullOrEmpty(input.itemId)) continue;
+
+            await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                       input.itemId, -(input.quantity * crafts),
+                                       "craft_input", cancellation);
+        }
+
+        if (delivered > 0L)
+        {
+            await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                       recipe.outputItemId, delivered, "craft_output", cancellation);
+        }
+
+        long xp = MultiplyClamped(crafts, (long)recipe.xpPerCraft);
+
+        if (xp > 0L && !string.IsNullOrEmpty(recipe.skillId))
+            await GrantXpAsync(connection, tx, characterId, recipe.skillId, xp, cancellation);
+
+        var outcome = new Outcome
+        {
+            Actions        = crafts,
+            XpGained       = xp,
+            RanOutOfInputs = crafts < actions,
+        };
+
+        if (delivered > 0L) outcome.Items[recipe.outputItemId] = delivered;
+
+        return outcome;
+    }
+
     // ── Storage ───────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -724,6 +870,21 @@ public sealed class SettlementService(Db db, ContentCache content)
                 """,
                 tx, characterId, slot, bag[slot].itemId, bag[slot].quantity);
         }
+    }
+
+    /// <summary>
+    /// Multiplication that saturates rather than wrapping.
+    ///
+    /// Its own copy rather than the rules' -- that one is private to Settlement, and
+    /// widening it to share four lines would export an implementation detail. The
+    /// property that matters is the same: experience that wrapped negative would be
+    /// a character losing levels as a reward.
+    /// </summary>
+    private static long MultiplyClamped(long count, long each)
+    {
+        if (count <= 0L || each <= 0L) return 0L;
+
+        return count > long.MaxValue / each ? long.MaxValue : count * each;
     }
 
     /// <summary>Thirty slots, matching InventoryManager.MaxSlots on the client.</summary>

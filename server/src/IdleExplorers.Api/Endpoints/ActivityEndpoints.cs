@@ -258,6 +258,70 @@ public static class ActivityEndpoints
             }, http.RequestAborted);
         });
 
+        // ── I played the minigame ─────────────────────────────────────────────
+        //
+        // The client reports GRADES and nothing else. Not a reward, not an action
+        // count, not a duration -- "I hit perfect eleven times" is the most it may
+        // say, and the server decides what that is worth against the actions its own
+        // clock produced.
+        group.MapPost("/{characterId:guid}/minigame", async (HttpContext http, Caller caller, Db db,
+                                                             IGameClock clock, SettlementService settlement,
+                                                             Guid characterId,
+                                                             [FromBody] MinigameReport report) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string[] reported = report?.Grades ?? [];
+
+            if (reported.Length > Minigame.MaxGradesPerReport)
+            {
+                return Results.Problem(
+                    title:      "too many grades",
+                    detail:     $"At most {Minigame.MaxGradesPerReport} per report.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            var grades = new MinigameGrade[reported.Length];
+
+            for (int i = 0; i < reported.Length; i++)
+                grades[i] = Minigame.Parse(reported[i]);
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync<IResult>(characterId, async (connection, tx) =>
+            {
+                // Settled FIRST, so the actions the grades are measured against are
+                // the ones this window actually produced. Grading before settling
+                // would let a client bank grades and spend them against a later,
+                // longer window.
+                var outcome = await settlement.SettleLockedAsync(connection, tx, characterId, now,
+                                                                 http.RequestAborted);
+
+                long bonus = Minigame.BonusActions(outcome.Actions, grades);
+
+                var awarded = bonus > 0L
+                    ? await settlement.GrantBonusAsync(connection, tx, characterId, bonus,
+                                                       http.RequestAborted)
+                    : SettlementService.Outcome.Nothing;
+
+                // One shape whether or not the minigame paid, so a client never has
+                // to branch on which answer it got.
+                return Results.Ok(new
+                {
+                    settled = Describe(outcome),
+                    bonus   = Describe(awarded),
+
+                    // Stated back, so a player can see the minigame paid and by how
+                    // much. A bonus nobody can see is a bonus nobody plays for.
+                    bonusActions = bonus,
+                });
+            }, http.RequestAborted);
+        });
+
         // ── Stop ──────────────────────────────────────────────────────────────
         group.MapDelete("/{characterId:guid}", async (HttpContext http, Caller caller, Db db,
                                                       IGameClock clock, SettlementService settlement,
@@ -447,4 +511,14 @@ public static class ActivityEndpoints
 
     public sealed record SetCraftRequest(string? RecipeId);
     public sealed record SetFightRequest(string? MonsterId);
+
+    /// <summary>
+    /// What the client is allowed to say about a minigame.
+    ///
+    /// An array of grade strings. Deliberately nothing else: no timestamps (the
+    /// server has a clock), no action count (the server has one), no reward (the
+    /// server decides). Every field a report could carry is a field a client could
+    /// lie in.
+    /// </summary>
+    public sealed record MinigameReport(string[]? Grades);
 }
