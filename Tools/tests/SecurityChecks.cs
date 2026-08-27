@@ -250,6 +250,32 @@ namespace IdleExplorersTests
             check(File.Exists(Path.Combine(root, ".dockerignore")),
                   "a .dockerignore sits at the root, so Library/ and obj/ stay out of the context");
 
+            // ══ TWO IGNORE FILES, TWO DIFFERENT STEPS ═════════════════════════
+            //
+            // .dockerignore governs what enters the IMAGE once the build starts.
+            // .railwayignore governs what gets UPLOADED to Railway at all. Having only
+            // the first means every deploy tars the whole working tree -- here about
+            // 1.2 GB of art, a Unity Library/ cache and the whole of .git, none of
+            // which the Dockerfile reads.
+            //
+            // They may legitimately diverge in one direction: the upload can exclude
+            // MORE than the build. A rule present only in .dockerignore is a file
+            // uploaded for nothing, which is the case worth catching.
+            string[] dockerRules  = Rules(Safely(Path.Combine(root, ".dockerignore")));
+            string[] railwayRules = Rules(Safely(Path.Combine(root, ".railwayignore")));
+
+            check(railwayRules.Length > 0, "a .railwayignore exists, so deploys do not upload the whole tree");
+
+            var uploaded = new List<string>();
+
+            foreach (string rule in dockerRules)
+                if (Array.IndexOf(railwayRules, rule) < 0) uploaded.Add(rule);
+
+            check(uploaded.Count == 0,
+                  uploaded.Count == 0
+                      ? "everything the build ignores is also left out of the upload"
+                      : $"these are excluded from the image but still uploaded: {string.Join(", ", uploaded)}");
+
             // ══ WHAT IT ASKS THE PLATFORM FOR ═════════════════════════════════
 
             var replicas = Regex.Match(json, @"""numReplicas""\s*:\s*(\d+)");
@@ -296,6 +322,21 @@ namespace IdleExplorersTests
 
             check(program.Contains("UseUrls") && program.Contains("\"PORT\""),
                   "the app binds to PORT when the host assigns one");
+        }
+
+        /// <summary>The meaningful lines of an ignore file: no comments, no blanks.</summary>
+        private static string[] Rules(string source)
+        {
+            var rules = new List<string>();
+
+            foreach (string line in source.Split('\n'))
+            {
+                string trimmed = line.Trim();
+
+                if (trimmed.Length > 0 && !trimmed.StartsWith("#")) rules.Add(trimmed);
+            }
+
+            return rules.ToArray();
         }
 
         /// <summary>Text with its # comments removed, so prose cannot answer for code.</summary>

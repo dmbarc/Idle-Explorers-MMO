@@ -74,6 +74,20 @@
       "Pinned here rather than left as a dashboard setting so it survives the service",
       "being recreated, and so the reason travels with the value."
     ],
-    "region": "us-east4-eqdc4a"
+    "region": "us-east4-eqdc4a",
+
+    "//ipv6EgressEnabled": [
+      "Supabase direct connections are IPv6-ONLY on projects created after early 2024.",
+      "db.<ref>.supabase.co has an AAAA record and no A record at all, so a container",
+      "without IPv6 egress fails instantly with network-unreachable -- which presents",
+      "as a health check failing in under two milliseconds, far too fast to look like",
+      "a network problem and easy to mistake for a crash.",
+      "",
+      "The fallback, if a platform cannot do IPv6, is Supabase's pooler in SESSION mode",
+      "at aws-0-<region>.pooler.supabase.com:5432 with the username postgres.<ref>.",
+      "Session mode, not transaction mode on 6543: settlement holds a transaction open",
+      "across several statements and takes row locks, which transaction pooling breaks."
+    ],
+    "ipv6EgressEnabled": true
   }
 }

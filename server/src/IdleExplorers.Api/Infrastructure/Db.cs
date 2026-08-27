@@ -56,7 +56,7 @@ public sealed class Db : IAsyncDisposable
 
     public Db(string connectionString)
     {
-        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        var builder = new NpgsqlConnectionStringBuilder(Normalise(connectionString));
 
         // Only set when the caller has not chosen: a deployment tuning its own pool
         // should not be silently overridden by a default.
@@ -64,6 +64,121 @@ public sealed class Db : IAsyncDisposable
         if (!builder.ContainsKey("Timeout"))           builder.Timeout     = PoolTimeoutSeconds;
 
         _source = new NpgsqlDataSourceBuilder(builder.ConnectionString).Build();
+    }
+
+    /// <summary>
+    /// Accepts a postgres:// URI as well as Npgsql's keyword form.
+    ///
+    /// ══ WHY THIS IS NOT A CONVENIENCE ═════════════════════════════════════════
+    ///
+    /// Npgsql only understands "Host=...;Port=...;Username=...". Every dashboard that
+    /// hands out a Postgres connection string -- Supabase, Neon, Render, Railway's own
+    /// Postgres -- hands out a URI. So the string an operator copies is the string
+    /// Npgsql refuses, and it refuses it with
+    ///
+    ///     Format of the initialization string does not conform to specification
+    ///     starting at index 0
+    ///
+    /// which says nothing about URIs, nothing about Postgres, and appears at STARTUP
+    /// rather than on a request. The first deploy of this server died exactly that
+    /// way. Accepting the format people actually have is worth more than being right
+    /// about the format Npgsql prefers.
+    ///
+    /// ══ WHY THE PASSWORD IS UNESCAPED ═════════════════════════════════════════
+    ///
+    /// A URI percent-encodes anything special, so a password containing @ or / or #
+    /// arrives as %40, %2F, %23. Passing that through verbatim authenticates with the
+    /// literal characters and fails with "password authentication failed" -- which
+    /// reads as a wrong password rather than as an encoding bug, and sends whoever is
+    /// debugging it to rotate a perfectly good credential.
+    ///
+    /// ══ AND WHY A URI IS STILL THE WORSE WAY TO CONFIGURE THIS ════════════════
+    ///
+    /// Unescaping cuts both ways. A password pasted RAW into a URI -- which is what
+    /// everybody does -- is not encoded, so any % in it is read as the start of an
+    /// escape: "ab%cd" decodes to "ab\xCD" and authentication fails. The parser cannot
+    /// tell an encoded password from a raw one, and guessing would be worse.
+    ///
+    /// So the URI form is supported because people have it, and the KEYWORD form is
+    /// what the documentation should tell them to use:
+    ///
+    ///     Host=...;Port=5432;Database=postgres;Username=postgres;Password=...;SSL Mode=Require
+    ///
+    /// Nothing in it needs escaping except a literal semicolon, which can be quoted.
+    /// </summary>
+    public static string Normalise(string connectionString)
+    {
+        string trimmed = (connectionString ?? "").Trim();
+
+        bool isUri = trimmed.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+                  || trimmed.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase);
+
+        if (!isUri) return trimmed;
+
+        Uri uri;
+
+        try
+        {
+            uri = new Uri(trimmed);
+        }
+        catch (UriFormatException e)
+        {
+            // ══ THE MESSAGE .NET GIVES IS ABOUT THE WRONG THING ═══════════════
+            //
+            // A slash, hash or question mark in the password ends the authority
+            // section, and what .NET reports is "Invalid port specified" -- so an
+            // operator with a / in their password is told to look at the port, at
+            // startup, on a container that then exits.
+            //
+            // Naming the real cause here is the difference between a five-minute fix
+            // and an afternoon. The password itself is never included, in this message
+            // or any other.
+            throw new ArgumentException(
+                "IDLE_EXPLORERS_DB looks like a postgres:// URI but could not be parsed. " +
+                "The usual cause is a password containing / # ? or @, which a URI reads " +
+                "as structure. Use the keyword form instead, which needs no escaping: " +
+                "Host=...;Port=5432;Database=postgres;Username=postgres;Password=...;SSL Mode=Require " +
+                $"({e.Message})", e);
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host     = uri.Host,
+            Port     = uri.Port > 0 ? uri.Port : 5432,
+
+            // A URI path is "/postgres"; the leading slash is not part of the name.
+            // Empty means the server's default, which for Postgres is the username.
+            Database = uri.AbsolutePath.TrimStart('/') is { Length: > 0 } name ? name : "postgres",
+        };
+
+        string[] credentials = uri.UserInfo.Split(':', 2);
+
+        if (credentials.Length > 0 && credentials[0].Length > 0)
+            builder.Username = Uri.UnescapeDataString(credentials[0]);
+
+        if (credentials.Length > 1)
+            builder.Password = Uri.UnescapeDataString(credentials[1]);
+
+        // Query parameters, so ?sslmode=require and friends survive rather than being
+        // silently dropped -- dropping sslmode against a host that demands TLS is a
+        // connection refused with no clue why.
+        foreach (string pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string[] parts = pair.Split('=', 2);
+            if (parts.Length != 2) continue;
+
+            string key = Uri.UnescapeDataString(parts[0]);
+
+            try   { builder[key] = Uri.UnescapeDataString(parts[1]); }
+            catch (ArgumentException)
+            {
+                // A parameter Npgsql does not recognise. Dropped rather than fatal:
+                // libpq accepts several that Npgsql does not, and refusing to start
+                // over an unknown query string would be worse than ignoring it.
+            }
+        }
+
+        return builder.ConnectionString;
     }
 
     public async Task<NpgsqlConnection> OpenAsync(CancellationToken cancellation = default) =>

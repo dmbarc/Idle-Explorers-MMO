@@ -177,6 +177,18 @@ public class Program
             }
             catch (Exception e)
             {
+                // ══ LOGGED AS WELL AS RETURNED ════════════════════════════════
+                //
+                // The body alone is not enough. A platform health check reads the
+                // status code and discards the body, then kills the container for
+                // being unhealthy -- so by the time anybody looks, the only copy of
+                // the reason has gone with it.
+                //
+                // That cost a deploy cycle: "network unreachable" from an IPv6-only
+                // database host was sitting in a response nobody could read, and from
+                // the outside it was indistinguishable from a crash.
+                app.Logger.LogError(e, "Readiness check failed");
+
                 return Results.Problem(
                     title:      "not ready",
                     detail:     e.Message,
