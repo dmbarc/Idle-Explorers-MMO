@@ -88,6 +88,27 @@ public static class GameEvents
     /// starts existing.
     /// </summary>
     public static Action<string, long>    OnKillCountChanged;
+
+    // ── Boss encounters ───────────────────────────────────────────────────────
+    //
+    // Separate from the ordinary monster events because a boss has a health bar at
+    // the top of the screen, phases with names, and a clock -- none of which a goblin
+    // has, and all of which the HUD needs told rather than polled for.
+
+    /// <summary>A boss fight began. (displayName, maxHealth)</summary>
+    public static Action<string, float>   OnBossEngaged;
+
+    /// <summary>Its health moved. (fraction 0-1)</summary>
+    public static Action<float>           OnBossHealthChanged;
+
+    /// <summary>It entered a new phase. (phaseName, healthFraction)</summary>
+    public static Action<string, float>   OnBossPhaseChanged;
+
+    /// <summary>It died. (monsterId)</summary>
+    public static Action<string>          OnBossDefeated;
+
+    /// <summary>The enrage timer ran out. The fight is lost.</summary>
+    public static Action                  OnBossEnraged;
     public static Action<double>          OnPlayerDamageTaken;
     public static Action<double, double>  OnPlayerHealthChanged;  // current, max
 
@@ -134,6 +155,12 @@ public static class GameEvents
         => OnToastRequested?.Invoke(message, tone);
 
     public static void FireMonsterKilled(string monsterId)           => OnMonsterKilled?.Invoke(monsterId);
+
+    public static void FireBossEngaged(string name, float maxHealth)  => OnBossEngaged?.Invoke(name, maxHealth);
+    public static void FireBossHealthChanged(float fraction)          => OnBossHealthChanged?.Invoke(fraction);
+    public static void FireBossPhaseChanged(string phase, float hp)   => OnBossPhaseChanged?.Invoke(phase, hp);
+    public static void FireBossDefeated(string monsterId)             => OnBossDefeated?.Invoke(monsterId);
+    public static void FireBossEnraged()                              => OnBossEnraged?.Invoke();
     public static void FireMapEntered(string mapId)                  => OnMapEntered?.Invoke(mapId);
     public static void FireMergeCompleted(string from, string to)    => OnMergeCompleted?.Invoke(from, to);
 
@@ -190,6 +217,11 @@ public static class GameEvents
 
         OnMonsterKilled          = null;
         OnKillCountChanged       = null;
+        OnBossEngaged            = null;
+        OnBossHealthChanged      = null;
+        OnBossPhaseChanged       = null;
+        OnBossDefeated           = null;
+        OnBossEnraged            = null;
         OnPlayerDamageTaken      = null;
         OnPlayerHealthChanged    = null;
         OnPlayerResourcesChanged = null;

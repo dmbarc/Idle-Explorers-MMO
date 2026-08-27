@@ -17,11 +17,35 @@ using System.Text.RegularExpressions;
 /// </summary>
 internal static class MapChecks
 {
-    /// <summary>Recipe file, the map id in zone_data.json, and the human name.</summary>
-    private static readonly (string File, string MapId, string Name)[] Maps =
+    /// <summary>
+    /// Recipe file, the map id in zone_data.json, the human name, and what kind it is.
+    ///
+    /// ══ WHY THE KIND MATTERS ══════════════════════════════════════════════════
+    ///
+    /// Two of these checks are about a map being a good place to GATHER: at least
+    /// three monster camps, and a Nodes table with things in it. An arena has neither
+    /// by design -- one boss, nothing to mine -- and the first run of the throne
+    /// failed both.
+    ///
+    /// The tempting fix is to soften the checks for everyone. That would remove the
+    /// only thing standing between a future gathering map and shipping with no
+    /// monsters in it. Naming the kind keeps both maps held to the standard that
+    /// applies to them.
+    /// </summary>
+    private enum MapKind
     {
-        ("GoblinCampSetup.cs", "goblin_camp",   "Goblin Camp"),
-        ("HollowMapSetup.cs",  "fading_hollow", "Hollow of the Fading Light"),
+        /// <summary>Somewhere to gather and farm. Needs nodes and camps.</summary>
+        Wilderness,
+
+        /// <summary>One boss, nothing to mine, nothing to farm.</summary>
+        Arena,
+    }
+
+    private static readonly (string File, string MapId, string Name, MapKind Kind)[] Maps =
+    {
+        ("GoblinCampSetup.cs",   "goblin_camp",   "Goblin Camp",                 MapKind.Wilderness),
+        ("HollowMapSetup.cs",    "fading_hollow", "Hollow of the Fading Light",  MapKind.Wilderness),
+        ("GoblinThroneSetup.cs", "goblin_throne", "The Goblin Throne",           MapKind.Arena),
     };
 
     private const float TileSize = 4f;
@@ -40,8 +64,8 @@ internal static class MapChecks
             string source = File.ReadAllText(path);
 
             var rows = ReadLayout(source);
-            Layout(check, map.Name, rows);
-            NodeIds(check, repoRoot, map.MapId, map.Name, source, rows);
+            Layout(check, map.Name, rows, map.Kind);
+            NodeIds(check, repoRoot, map.MapId, map.Name, source, rows, map.Kind);
         }
     }
 
@@ -62,7 +86,8 @@ internal static class MapChecks
         return rows;
     }
 
-    private static void Layout(Action<bool, string> check, string name, List<string> rows)
+    private static void Layout(Action<bool, string> check, string name, List<string> rows,
+                               MapKind kind)
     {
         check(rows.Count > 0, $"{name}: the Layout array is where the check expects it");
         if (rows.Count == 0) return;
@@ -126,7 +151,17 @@ internal static class MapChecks
                 if (walkable < 5) campsBoxedIn++;
             }
 
-        check(camps >= 3, $"{name}: at least three monster camps (found {camps})");
+        if (kind == MapKind.Wilderness)
+        {
+            check(camps >= 3, $"{name}: at least three monster camps (found {camps})");
+        }
+        else
+        {
+            // An arena holds exactly one thing, placed by hand. A wandering camp in it
+            // would spawn goblins into a boss fight nobody asked to be interrupted.
+            check(camps == 0, $"{name}: an arena has no monster camps (found {camps})");
+        }
+
         check(campsBoxedIn == 0,
               $"{name}: every camp has room around it ({campsBoxedIn} boxed in)");
 
@@ -154,13 +189,25 @@ internal static class MapChecks
     /// outlives the node.
     /// </summary>
     private static void NodeIds(Action<bool, string> check, string repoRoot, string mapId,
-                                string name, string source, List<string> rows)
+                                string name, string source, List<string> rows, MapKind kind)
     {
         // ['1'] = new("tin_rock_1", "Tin Rock", Nature + "rock_largeC.fbx", 0.85f),
         var placed = new Dictionary<char, string>();
         foreach (Match m in Regex.Matches(source,
                      @"\['(.)'\]\s*=\s*new\(\s*""([^""]+)""\s*,"))
             placed[m.Groups[1].Value[0]] = m.Groups[2].Value;
+
+        if (kind == MapKind.Arena)
+        {
+            // Nothing to gather, on purpose -- a mining rock in a boss room invites a
+            // player to stand still during a fight and then resent dying.
+            check(placed.Count == 0, $"{name}: an arena places no skill nodes (found {placed.Count})");
+
+            // Still flooded, because the boss and the spawn have the same failure as
+            // anything else on a grid.
+            Reachability(check, name, rows, placed);
+            return;
+        }
 
         check(placed.Count > 0, $"{name}: the Nodes table is where the check expects it");
         if (placed.Count == 0) return;
@@ -257,6 +304,12 @@ internal static class MapChecks
                 // is gated rather than unreachable and go and grind a thousand kills.
                 if (cell == 'X')
                     check(reached[r, c], $"{name}: the boss portal at column {c}, row {r} " +
+                                         "can be walked to from the spawn");
+
+                // The King himself. An arena whose boss is inside the wall is an
+                // arena the player walks into, looks around, and leaves.
+                if (cell == 'K')
+                    check(reached[r, c], $"{name}: the boss at column {c}, row {r} " +
                                          "can be walked to from the spawn");
             }
     }
