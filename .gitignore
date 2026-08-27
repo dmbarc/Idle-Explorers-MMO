@@ -127,3 +127,6 @@ InitTestScene*.unity*
 !/server/**/*.csproj
 !/server/**/*.sln
 !/server/**/*.slnx
+
+# WebGL and standalone build output. An artefact, not source.
+Build/
