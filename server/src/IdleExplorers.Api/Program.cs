@@ -67,6 +67,22 @@ public class Program
             ?? Environment.GetEnvironmentVariable("IDLE_EXPLORERS_DB")
             ?? "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres";
 
+        // ══ FIELDS, NOT JUST PROPERTIES ═══════════════════════════════════════
+        //
+        // System.Text.Json serialises properties and ignores FIELDS unless told
+        // otherwise. Every type in the shared rules tree is made of fields, because
+        // JsonUtility on the client reads nothing else -- so without this, any shared
+        // type returned from an endpoint arrives as `{}`.
+        //
+        // Not a theoretical risk: the boss timeline shipped as an array of empty
+        // objects, which is a boss that attacks with no telegraph. And it does not
+        // throw, on either side. The client would simply draw nothing.
+        //
+        // Set once, globally, rather than per endpoint. A serialiser option that has
+        // to be remembered is one that gets forgotten on the endpoint nobody tests.
+        builder.Services.ConfigureHttpJsonOptions(options =>
+            options.SerializerOptions.IncludeFields = true);
+
         builder.Services.AddSingleton(new Db(connectionString));
         builder.Services.AddScoped<IGameClock, DatabaseClock>();
         builder.Services.AddSingleton<ContentCache>();
@@ -99,6 +115,7 @@ public class Program
         CharacterEndpoints.Map(app);
         ActivityEndpoints.Map(app);
         BossEndpoints.Map(app);
+        EncounterEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
         TelemetryEndpoints.Map(app);
 

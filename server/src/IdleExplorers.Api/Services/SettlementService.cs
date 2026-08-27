@@ -601,6 +601,77 @@ public sealed class SettlementService(Db db, ContentCache content)
         return string.IsNullOrEmpty(itemId) ? null : content.Catalogue.GetItem(itemId);
     }
 
+    // ── What the boss fight borrows ───────────────────────────────────────────
+
+    /// <summary>
+    /// The combat snapshot, frozen.
+    ///
+    /// ══ WHY THE BOSS ASKS THE SETTLEMENT SERVICE ══════════════════════════════
+    ///
+    /// So that a character's boss DPS is, by construction, the same number as their
+    /// farming DPS. Two code paths answering "how hard does this character hit" is
+    /// exactly the drift the shared rules assembly was built to prevent -- and here it
+    /// would be worse than a wrong number on screen, because the boss enrage timer is
+    /// a DPS check and the farm rate is a DPS integral. Gear that helped one and not
+    /// the other would be a balance problem nobody could see the cause of.
+    ///
+    /// Read inside the caller's transaction, under the caller's character lock, so
+    /// what is frozen is what was worn at that instant and not a moment either side.
+    /// </summary>
+    public async Task<FrozenCombat> FreezeCombatAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                      Guid characterId, CancellationToken cancellation)
+    {
+        StatBlock stats    = await ResolveStatsAsync(connection, tx, characterId, cancellation);
+        ItemData? mainHand = await EquippedItemAsync(connection, tx, characterId, "mainhand", cancellation);
+
+        double dps = StatAssembly.DamagePerSecond(stats, mainHand);
+
+        float attackSeconds = WeaponProfile.AttackSeconds(mainHand, stats.EffectiveAttackSpeed);
+
+        return new FrozenCombat(dps, attackSeconds);
+    }
+
+    /// <summary>What a character hits for, at one instant, for the length of one fight.</summary>
+    public readonly record struct FrozenCombat(double Dps, double AttackSeconds);
+
+    /// <summary>
+    /// Moves earned loot into the bag and the wallet.
+    ///
+    /// Public because claiming boss loot is the same operation as receiving gathered
+    /// loot, and a second implementation would be a second place to forget the bag cap.
+    /// Returns what would not fit, so the caller can leave it pending rather than
+    /// destroying it.
+    /// </summary>
+    public async Task<long> GrantItemAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                           Guid accountId, Guid characterId,
+                                           string itemId, long quantity, string reason,
+                                           CancellationToken cancellation)
+    {
+        if (quantity <= 0L) return 0L;
+
+        if (Currency.IsCurrency(itemId))
+        {
+            string wallet = Currency.WalletFor(itemId)!;
+
+            await CreditWalletAsync(connection, tx, accountId, characterId,
+                                    wallet, quantity, reason, cancellation);
+
+            return quantity;
+        }
+
+        List<InventoryEntry> bag = await ReadInventoryAsync(connection, tx, characterId, cancellation);
+
+        long fitted = SlotContainer.AddUpTo(bag, itemId, quantity);
+
+        if (fitted > 0L)
+        {
+            await WriteInventoryAsync(connection, tx, characterId, bag, cancellation);
+            await WriteItemLedgerAsync(connection, tx, accountId, characterId, itemId, fitted, reason, cancellation);
+        }
+
+        return fitted;
+    }
+
     // ── Bonus actions ─────────────────────────────────────────────────────────
 
     /// <summary>
