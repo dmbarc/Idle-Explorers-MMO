@@ -86,6 +86,9 @@ public class Program
         builder.Services.AddSingleton(new Db(connectionString));
         builder.Services.AddScoped<IGameClock, DatabaseClock>();
         builder.Services.AddSingleton<ContentCache>();
+        // A SINGLETON, so the ten-second cache is process-wide. Scoped would mean one
+        // query per request, which is the load the cache exists to avoid.
+        builder.Services.AddSingleton<FeatureFlags>();
         builder.Services.AddScoped<Caller>();
         builder.Services.AddScoped<SettlementService>();
 

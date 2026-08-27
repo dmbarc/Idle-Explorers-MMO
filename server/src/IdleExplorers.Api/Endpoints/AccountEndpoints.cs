@@ -18,7 +18,8 @@ public static class AccountEndpoints
         //
         // The first call any client makes. Everything it needs to render a character
         // select screen, and nothing it needs to be believed about.
-        group.MapGet("/", async (HttpContext http, Caller caller, Db db, ContentCache content) =>
+        group.MapGet("/", async (HttpContext http, Caller caller, Db db, ContentCache content,
+                                 FeatureFlags flags) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
@@ -101,6 +102,19 @@ public static class AccountEndpoints
                 // draw tooltips and sweep cooldowns without a round trip. This is how
                 // it learns that copy is stale.
                 contentVersion = content.Version,
+
+                // ══ WHAT IS SWITCHED ON ═══════════════════════════════════════
+                //
+                // An array of pairs, for the same JsonUtility reason as the wallets.
+                //
+                // This copy is COURTESY, not enforcement: it lets the client hide a
+                // disabled feature rather than showing it broken. Every flag with an
+                // effect is checked again in the handler that would do the thing, so a
+                // client ignoring this gets a refusal rather than a reward.
+                flags = (await flags.AllAsync(http.RequestAborted))
+                    .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => new { flag = pair.Key, enabled = pair.Value })
+                    .ToArray(),
             });
         });
 

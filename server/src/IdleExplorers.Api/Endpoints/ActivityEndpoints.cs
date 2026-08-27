@@ -264,13 +264,25 @@ public static class ActivityEndpoints
         // count, not a duration -- "I hit perfect eleven times" is the most it may
         // say, and the server decides what that is worth against the actions its own
         // clock produced.
-        group.MapPost("/{characterId:guid}/minigame", async (HttpContext http, Caller caller, Db db,
+        group.MapPost("/{characterId:guid}/minigame", async Task<IResult> (HttpContext http, Caller caller, Db db,
                                                              IGameClock clock, SettlementService settlement,
+                                                             FeatureFlags flags,
                                                              Guid characterId,
                                                              [FromBody] MinigameReport report) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
+
+            // The most likely thing to need switching off in front of the first five
+            // players: a minigame that pays wrong is a live economy bug, and this
+            // turns it off in the time it takes to run one UPDATE.
+            if (!await flags.IsEnabledAsync(FeatureFlags.Minigames, http.RequestAborted))
+            {
+                return Results.Problem(
+                    title:      "temporarily unavailable",
+                    detail:     "Minigames are switched off at the moment. Try again shortly.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
 
             if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
                 return NotYours();

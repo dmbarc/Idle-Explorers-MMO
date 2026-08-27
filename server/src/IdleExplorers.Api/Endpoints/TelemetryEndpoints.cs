@@ -71,10 +71,19 @@ public static class TelemetryEndpoints
         var group = app.MapGroup("/telemetry").RequireAuthorization();
 
         group.MapPost("/", async (HttpContext http, Caller caller, Db db, IGameClock clock,
+                                  FeatureFlags flags,
                                   [FromBody] TelemetryBatch batch) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
+
+            // A valve on the client firehose, and the one flag whose OFF state is a
+            // success rather than a refusal: telemetry is not something a player asked
+            // for, so a client must not see an error or start retrying because the
+            // operator turned the stream down. The server keeps emitting its own
+            // events either way -- those are the ones the funnel is made of.
+            if (!await flags.IsEnabledAsync(FeatureFlags.TelemetryIngest, http.RequestAborted))
+                return Results.Ok(new { accepted = 0, rejected = 0 });
 
             var events = batch?.Events ?? [];
 

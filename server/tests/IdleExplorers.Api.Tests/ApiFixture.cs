@@ -75,6 +75,19 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     /// </summary>
     public FixedClock Clock { get; private set; }
 
+    /// <summary>
+    /// The running server's own flag cache.
+    ///
+    /// Reached through the host rather than constructed, because the point of a flag
+    /// test is that the SERVER changed its mind -- a second instance would agree with
+    /// the table and prove nothing about the instance handling requests.
+    ///
+    /// Tests call Forget() after writing a row so they do not wait out the cache. The
+    /// duration itself is a production decision, and a test that needed it shortened
+    /// would be measuring the wrong thing.
+    /// </summary>
+    public FeatureFlags Flags => Services.GetRequiredService<FeatureFlags>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>

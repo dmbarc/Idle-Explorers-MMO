@@ -57,12 +57,18 @@ public static class EncounterEndpoints
         // ── Engage ────────────────────────────────────────────────────────────
         group.MapPost("/{characterId:guid}", async Task<IResult> (HttpContext http, Caller caller, Db db,
                                                     IGameClock clock, ContentCache content,
-                                                    SettlementService settlement,
+                                                    SettlementService settlement, FeatureFlags flags,
                                                     Guid characterId,
                                                     [FromBody] EngageRequest? request) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
+
+            // Checked before anything else touches the database, and checked HERE
+            // rather than trusting the copy handed to the client at login. The client
+            // copy hides the portal; this is what stops the fight.
+            if (!await flags.IsEnabledAsync(FeatureFlags.GoblinKing, http.RequestAborted))
+                return SwitchedOff("The Goblin King");
 
             if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
                 return NotYours();
@@ -693,6 +699,19 @@ public static class EncounterEndpoints
 
         return sum < a ? long.MaxValue : sum;   // saturate rather than wrap
     }
+
+    /// <summary>
+    /// A feature that is deliberately off.
+    ///
+    /// 503 rather than 403, because "not right now" is the truth: nothing is wrong
+    /// with this player or this request, and a client that treats it as permanent
+    /// would need a restart to notice the flag coming back.
+    /// </summary>
+    private static IResult SwitchedOff(string what) =>
+        Results.Problem(
+            title:      "temporarily unavailable",
+            detail:     $"{what} is switched off at the moment. Try again shortly.",
+            statusCode: StatusCodes.Status503ServiceUnavailable);
 
     private static IResult NoFight() =>
         Results.Problem(
