@@ -325,11 +325,10 @@ public static class MonsterPrefabSetup
         controller.agent = target.GetComponent<NavMeshAgent>();
         controller.anim  = target.GetComponentInChildren<Animator>();
 
-        // The health bar and drop prefab are asset/child references that survive the
-        // copy, but the health UI belongs to the old rig's hierarchy.
-        controller.healthUI     = null;
-        controller.healthNumber = null;
-        controller.healthSlider = null;
+        // The health bar used to be three serialised references into the donor rig,
+        // nulled here because following them dressed the wrong prefab — which is why
+        // every monster this builder produced had no health bar at all. It attaches
+        // itself at runtime now, so there is nothing left to null.
 
         if (controller.anim == null)
             Debug.LogWarning($"[MonsterSetup] No Animator on '{target.name}' — it will not animate.");

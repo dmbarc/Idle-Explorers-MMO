@@ -25,8 +25,17 @@ public class MonsterController : MonoBehaviour
 
     public GameObject dropPrefab;
 
-    public GameObject healthUI;
-    private float hideUITimer = 0f;
+    /// <summary>
+    /// The floating bar above this monster.
+    ///
+    /// Replaces three serialised fields — healthUI, healthNumber and healthSlider —
+    /// that MonsterPrefabSetup deliberately NULLS on every monster it builds, because
+    /// they point into the donor rig. That is why the goblin and the bramblekin, the
+    /// only two monsters in the two playable maps, had no health bar at all: the
+    /// wiring is removed on purpose and nothing put it back. This one attaches itself.
+    /// </summary>
+    private WorldStatusBar _healthBar;
+
     private const float UI_SHOW_TIME = 3f;
 
     private MonsterSpawner spawner;
@@ -37,8 +46,6 @@ public class MonsterController : MonoBehaviour
     private Vector3 wanderPoint;
     private float wanderTimer = 0f;
 
-    public TMP_Text healthNumber;
-    public RectTransform healthSlider;
 
     void Start()
     {
@@ -51,8 +58,6 @@ public class MonsterController : MonoBehaviour
         // which the builder never rebuilds.
         _facing = SpriteFacing.Attach(gameObject);
 
-        if (healthUI != null && healthUI.GetComponentInParent<Billboard>(true) == null)
-            healthUI.AddComponent<Billboard>();
 
         GameObject playerObj = GameObject.Find("PlayerCharacter");
         if (playerObj != null)
@@ -70,25 +75,27 @@ public class MonsterController : MonoBehaviour
 
         PickNewWanderPoint();
 
-        if (healthUI != null) healthUI.SetActive(false);
+        // Above the head rather than a fixed offset: a bramblekin and a boss are not
+        // the same height, and a bar floating inside the taller one is worse than none.
+        float head = SpumRig.MeasureCharacterHeight(transform);
+        _healthBar = WorldStatusBar.Attach(gameObject,
+                                           heightAbove: (head > 0.1f ? head : 2f) + 0.35f,
+                                           fill: UIManager.Theme.hpFill);
+
+        if (_healthBar != null)
+        {
+            _healthBar.HideAfterSeconds = UI_SHOW_TIME;
+            _healthBar.SetVisible(false);
+        }
     }
 
     void Update()
     {
-        // Health UI — guarded, because monsters are now spawned from a Resources
-        // prefab that may not have these wired for every future monster type.
-        if (healthNumber != null)
-            healthNumber.text = NumberFormatter.Format((long)currentHealthPoints);
-        if (healthSlider != null && maxHealthPoints > 0)
-            healthSlider.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal,
-                (float)(currentHealthPoints / maxHealthPoints * 190));
-
-        if (healthUI != null && hideUITimer > 0f)
-        {
-            hideUITimer -= Time.deltaTime;
-            if (hideUITimer <= 0f)
-                healthUI.SetActive(false);
-        }
+        // The bar owns its own showing and hiding, including the delayed chip that
+        // makes a small hit visible. All this has to do is tell it the number.
+        if (_healthBar != null)
+            _healthBar.Set(currentHealthPoints, maxHealthPoints,
+                           NumberFormatter.Format((long)currentHealthPoints));
 
         if (alive)
         {
@@ -222,7 +229,7 @@ public class MonsterController : MonoBehaviour
             regenTimer = 0f;
 
             if (spawner != null) spawner.MonsterDied();
-            if (healthUI != null) healthUI.SetActive(true);
+            if (_healthBar != null) _healthBar.SetVisible(true);
 
             // The corpse holds its final frame because SpumAnim.PlayDeath sets the
             // isDeath bool, which is the only condition on the transition out of the
@@ -245,14 +252,11 @@ public class MonsterController : MonoBehaviour
         currentHealthPoints = System.Math.Min(maxHealthPoints, currentHealthPoints + healthRegenAmount);
     }
 
-    private void ShowHealthUI()
-    {
-        if (healthUI != null)
-        {
-            healthUI.SetActive(true);
-            hideUITimer = UI_SHOW_TIME;
-        }
-    }
+    /// <summary>
+    /// Reveals the bar. Set drives the rest, including hiding it again once the
+    /// monster has been back at full health for a while.
+    /// </summary>
+    private void ShowHealthUI() => _healthBar?.SetVisible(true);
 
     public bool IsAlive() => alive;
 

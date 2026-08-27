@@ -29,8 +29,41 @@ public class SkillNodeController : MonoBehaviour
     private float          _actionTimer;
     private bool           _isGathering;
 
+    private WorldStatusBar _progressBar;
+
     public SkillNodeEntry Entry => _entry;
     public bool IsGathering => _isGathering;
+
+    /// <summary>
+    /// Seconds one action takes here, right now — after talents, class affinity and
+    /// the node's own rate.
+    ///
+    /// Public because the progress bar and the HUD both want it, and because the
+    /// figure was previously locked inside TickGather where nothing could see how
+    /// long anything was going to take. Recomputed rather than cached: a talent point
+    /// spent mid-session changes it, and a bar that kept filling at the old rate
+    /// would be lying about the very thing the talent was bought for.
+    /// </summary>
+    public float SecondsPerAction
+    {
+        get
+        {
+            if (_entry == null) return Mathf.Max(0.01f, baseSecondsPerAction);
+
+            float perAction = _recipe != null
+                ? _recipe.SecondsPerCraft(GameManager.Skills?.GetSkillLevel(_recipe.skillId) ?? 1)
+                : baseSecondsPerAction;
+
+            string workedSkill = _recipe != null ? _recipe.skillId : _entry.skillId;
+            perAction = ActivityManager.AdjustedSeconds(perAction, crafting: _recipe != null, workedSkill);
+
+            return Mathf.Max(0.01f, perAction / Mathf.Max(0.01f, _entry.activeRateMulti));
+        }
+    }
+
+    /// <summary>How far through the current action, 0-1. Zero when nobody is working.</summary>
+    public float Progress01 =>
+        _isGathering ? Mathf.Clamp01(_actionTimer / SecondsPerAction) : 0f;
 
     /// <summary>
     /// True for an interactive station (bank, campfire, forge) rather than a plain
@@ -244,6 +277,10 @@ public class SkillNodeController : MonoBehaviour
         _isGathering = false;
         _actionTimer = 0f;
         _recipe      = null;
+
+        // The bar describes an activity, so it goes when the activity does. Hidden
+        // rather than destroyed: the player will very likely be back in a second.
+        _progressBar?.SetVisible(false);
     }
 
     /// <summary>Opens whatever UI this station fronts.</summary>
@@ -264,21 +301,66 @@ public class SkillNodeController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Draws how far through the current action this node is.
+    ///
+    /// An idle game spends most of its time waiting for a timer nobody can see. A
+    /// three-second rock with no bar is indistinguishable from a broken one for the
+    /// first three seconds, every time, and the player learns to distrust it.
+    ///
+    /// AutoHide is off: this describes an activity rather than reporting damage, so
+    /// it should stay up for as long as the activity does. StopGathering hides it.
+    /// </summary>
+    private void ShowProgress()
+    {
+        if (_progressBar == null)
+        {
+            _progressBar = WorldStatusBar.Attach(gameObject, NodeBarHeight, UIManager.Theme.xpFill);
+            if (_progressBar == null) return;
+
+            _progressBar.AutoHide = false;
+        }
+
+        _progressBar.SetVisible(true);
+        _progressBar.SetFraction(Progress01, ProgressLabel());
+    }
+
+    /// <summary>
+    /// What the bar says above itself: the thing being produced, and how often.
+    ///
+    /// The rate is the half that matters. A player choosing between two rocks is
+    /// choosing between two rates, and until now the only way to compare them was to
+    /// stand at each one and count.
+    /// </summary>
+    private string ProgressLabel()
+    {
+        string produced = _recipe != null
+            ? GameManager.Content?.GetItem(_recipe.outputItemId)?.DisplayName ?? _recipe.DisplayName
+            : GameManager.Content?.GetItem(_entry.targetItemId)?.DisplayName ?? _entry.targetItemId;
+
+        float perHour = 3600f / Mathf.Max(0.01f, SecondsPerAction);
+
+        return $"{produced}  ·  {perHour:0}/h";
+    }
+
+    /// <summary>
+    /// Above a node rather than above a character, so it is a fixed height: rocks,
+    /// trees and anvils are all authored around the same size and none of them has a
+    /// SPUM rig to measure.
+    /// </summary>
+    private const float NodeBarHeight = 2.1f;
+
     /// <summary>Called each frame by PlayerController while it is parked at this node.</summary>
     public void TickGather(float deltaTime)
     {
         if (!_isGathering || _entry == null) return;
 
-        float perAction = _recipe != null
-            ? _recipe.SecondsPerCraft(GameManager.Skills?.GetSkillLevel(_recipe.skillId) ?? 1)
-            : baseSecondsPerAction;
+        ShowProgress();
 
-        // Speed talents are applied through the same helper offline accrual uses, so
-        // a talent cannot make active play faster than the AFK figure it advertises.
-        string workedSkill = _recipe != null ? _recipe.skillId : _entry.skillId;
-        perAction = ActivityManager.AdjustedSeconds(perAction, crafting: _recipe != null, workedSkill);
-
-        float secondsPerAction = perAction / Mathf.Max(0.01f, _entry.activeRateMulti);
+        // One definition, shared with the progress bar. Speed talents are applied
+        // through the same helper offline accrual uses, so a talent cannot make
+        // active play faster than the AFK figure it advertises.
+        float secondsPerAction = SecondsPerAction;
         _actionTimer += deltaTime;
 
         // Bounded, because the loop count is (deltaTime / secondsPerAction) and both
