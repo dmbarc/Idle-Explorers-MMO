@@ -132,6 +132,32 @@ public sealed class SettlementService(Db db, ContentCache content)
             _                   => Outcome.Nothing,
         };
 
+        // ══ TELEMETRY THE CLIENT COULD NOT HONESTLY SEND ══════════════════════
+        //
+        // The server decided this payout, so the server is the only party that can
+        // report it truthfully. A client-reported "I earned 4,000 xp" would be a
+        // claim about a reward, which is the whole thing this architecture removed --
+        // and a funnel built on claims measures how players' clients behave rather
+        // than how players do.
+        //
+        // Only settlements that produced something. An idle character closing its
+        // window every few seconds would otherwise be most of the table.
+        if (outcome.Actions > 0L)
+        {
+            await connection.ExecuteAsync(
+                """
+                insert into telemetry_event (account_id, character_id, event, payload, occurred_at)
+                values ($1, $2, 'settled', $3::jsonb, $4);
+                """,
+                tx, row.AccountId, characterId,
+                $"{{\"kind\":\"{activity.Kind.ToString().ToLowerInvariant()}\"," +
+                $"\"actions\":{outcome.Actions}," +
+                $"\"supervised\":{outcome.SupervisedActions}," +
+                $"\"xp\":{outcome.XpGained}," +
+                $"\"elapsed\":{(long)elapsed}}}",
+                now);
+        }
+
         // The clock moves whether or not anything was earned. An idle character still
         // closes its window, or the next settlement re-examines the same span forever.
         await connection.ExecuteAsync(

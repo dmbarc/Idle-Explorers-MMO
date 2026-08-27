@@ -444,8 +444,15 @@ namespace IdleExplorers.Rules
             return false;
         }
 
-        /// <summary>Mirrors EquipmentSlots.All. Asserted equal by the standalone suite.</summary>
-        internal static readonly string[] KnownSlotIds =
+        /// <summary>
+        /// Mirrors EquipmentSlots.All. Asserted equal by the standalone suite.
+        ///
+        /// Public rather than internal: the equipment endpoints resolve a slot family
+        /// from it, and they live in another assembly. That is the right home for the
+        /// list anyway -- it is the shared contract about what slots exist, and the
+        /// server needs it as much as the catalogue does.
+        /// </summary>
+        public static readonly string[] KnownSlotIds =
         {
             "helmet", "cape", "chest", "shirt", "shoulders", "legs", "boots", "bracers",
             "gloves", "tabard", "aura",

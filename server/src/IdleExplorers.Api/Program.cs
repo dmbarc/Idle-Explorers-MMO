@@ -63,6 +63,8 @@ public class Program
         CharacterEndpoints.Map(app);
         ActivityEndpoints.Map(app);
         BossEndpoints.Map(app);
+        EquipmentEndpoints.Map(app);
+        TelemetryEndpoints.Map(app);
 
         return app;
     }
