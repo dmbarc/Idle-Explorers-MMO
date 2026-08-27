@@ -57,6 +57,7 @@ public class Program
         AccountEndpoints.Map(app);
         CharacterEndpoints.Map(app);
         ActivityEndpoints.Map(app);
+        BossEndpoints.Map(app);
 
         return app;
     }

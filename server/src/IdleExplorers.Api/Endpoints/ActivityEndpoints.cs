@@ -192,6 +192,71 @@ public static class ActivityEndpoints
             }, http.RequestAborted);
         });
 
+        // ── Start fighting ────────────────────────────────────────────────────
+        group.MapPost("/{characterId:guid}/fight", async (HttpContext http, Caller caller, Db db,
+                                                          ContentCache content, IGameClock clock,
+                                                          SettlementService settlement,
+                                                          Guid characterId,
+                                                          [FromBody] SetFightRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            MonsterData? monster = content.Catalogue.GetMonster(request.MonsterId);
+
+            if (monster is null)
+            {
+                return Results.Problem(
+                    title:      "unknown monster",
+                    detail:     $"There is no monster '{request.MonsterId}'.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync(characterId, async (connection, tx) =>
+            {
+                await settlement.SettleLockedAsync(connection, tx, characterId, now, http.RequestAborted);
+
+                // seconds_per_action is written but IGNORED for combat: the interval
+                // is derived per settlement from live damage against the monster's
+                // health, because gear changes between windows and a stored figure
+                // would keep paying the old one. The column has a positive-value
+                // constraint, so it gets a placeholder rather than a zero.
+                await connection.ExecuteAsync(
+                    """
+                    update activity
+                       set kind               = 'combat',
+                           skill_id           = 'combat',
+                           monster_id         = $2,
+                           node_id            = '',
+                           target_item_id     = '',
+                           recipe_id          = '',
+                           seconds_per_action = 1,
+                           active_rate_multi  = 1,
+                           afk_rate_multi     = $3,
+                           xp_per_action      = 0,
+                           special_chance     = 0,
+                           progress           = 0,
+                           started_at         = $4,
+                           last_settled_at    = $4
+                     where character_id = $1;
+                    """,
+                    tx, characterId, monster.id, CombatAfkRate, now);
+
+                return Results.Ok(new
+                {
+                    characterId,
+                    kind      = "combat",
+                    monsterId = monster.id,
+                    startedAt = now,
+                });
+            }, http.RequestAborted);
+        });
+
         // ── Stop ──────────────────────────────────────────────────────────────
         group.MapDelete("/{characterId:guid}", async (HttpContext http, Caller caller, Db db,
                                                       IGameClock clock, SettlementService settlement,
@@ -330,5 +395,16 @@ public static class ActivityEndpoints
     private const float StationAfkRate = 0.5f;
 
     public sealed record SetActivityRequest(string? NodeId);
+    /// <summary>
+    /// How well a character fights unattended.
+    ///
+    /// The same 0.6 a gathering node uses. Combat away from the keyboard is not
+    /// meaningfully different from mining away from it -- both are the character
+    /// doing the thing without anybody watching -- and giving them different figures
+    /// would be a balance lever nobody asked for.
+    /// </summary>
+    private const float CombatAfkRate = 0.6f;
+
     public sealed record SetCraftRequest(string? RecipeId);
+    public sealed record SetFightRequest(string? MonsterId);
 }

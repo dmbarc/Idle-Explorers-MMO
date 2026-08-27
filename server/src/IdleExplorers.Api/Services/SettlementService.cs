@@ -69,6 +69,9 @@ public sealed class SettlementService(Db db, ContentCache content)
         public Dictionary<string, long> Items    { get; init; } = new();
         public Dictionary<string, long> Currency { get; init; } = new();
 
+        /// <summary>Combat only. Same number as Actions, named for what it is.</summary>
+        public long Kills => Actions;
+
         public static readonly Outcome Nothing = new();
     }
 
@@ -125,6 +128,7 @@ public sealed class SettlementService(Db db, ContentCache content)
         {
             ActivityKind.Gather => await GatherAsync(connection, tx, characterId, row, window, cancellation),
             ActivityKind.Craft  => await CraftAsync(connection, tx, characterId, row, window, cancellation),
+            ActivityKind.Combat => await CombatAsync(connection, tx, characterId, row, window, cancellation),
             _                   => Outcome.Nothing,
         };
 
@@ -386,6 +390,188 @@ public sealed class SettlementService(Db db, ContentCache content)
         }
 
         return true;
+    }
+
+    // ── Combat ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Integrates a combat window: kills, loot, experience, and the boss gate.
+    ///
+    /// ══ NO SIMULATION, AND NO KILL REPORTS ════════════════════════════════════
+    ///
+    /// There is no per-monster fight here, and no "I killed a goblin" endpoint
+    /// anywhere -- that call would make the client the author of kills, which is the
+    /// whole thing being removed. Damage per second comes from a stat snapshot the
+    /// server assembles, time-to-kill follows from the monster's health, and kills
+    /// fall out of the same integral that pays a mining node.
+    ///
+    /// The client's spawner and monster controllers keep running as theatre. What is
+    /// on screen and what is in the database agree because both derive from the same
+    /// content, not because either reports to the other.
+    /// </summary>
+    private async Task<Outcome> CombatAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                            Guid characterId, Row row, SettlementWindow window,
+                                            CancellationToken cancellation)
+    {
+        ActivityState activity = row.Activity;
+
+        MonsterData? monster = content.Catalogue.GetMonster(activity.MonsterId);
+        if (monster is null) return Outcome.Nothing;
+
+        // The snapshot is taken HERE, from what is worn now -- not passed in, and
+        // never from the client. Swapping gear changes the next window, not this one.
+        StatBlock stats     = await ResolveStatsAsync(connection, tx, characterId, cancellation);
+        ItemData? mainHand  = await EquippedItemAsync(connection, tx, characterId, "mainhand", cancellation);
+        double    dps       = StatAssembly.DamagePerSecond(stats, mainHand);
+
+        List<InventoryEntry> bag = await ReadInventoryAsync(connection, tx, characterId, cancellation);
+        var room = new BagRoom(bag);
+
+        var rng = new CounterRandom(Seed(characterId, row.LastSettledAt));
+
+        SettlementResult result = Settlement.Combat(
+            activity, monster, window,
+            dps:                     dps,
+            travelAndRespawnSeconds: TravelAndRespawnSeconds,
+            diligence:               row.Diligence,
+            dropQuantityMultiplier:  1f,
+            room:                    room,
+            rng:                     rng);
+
+        row.PendingProgress = result.Progress;
+
+        if (result.Actions <= 0L) return Outcome.Nothing;
+
+        var outcome = new Outcome
+        {
+            Actions             = result.Actions,
+            SupervisedActions   = result.SupervisedActions,
+            XpGained            = result.XpGained,
+            StoppedForRoom      = result.StoppedForRoom,
+            LostToFullInventory = result.LostToFullInventory,
+        };
+
+        // ── Kills ─────────────────────────────────────────────────────────────
+        //
+        // Active and AFK land in one statement, from the same integral that paid the
+        // loot. A second code path counting kills is a second thing to get wrong, and
+        // the one an attacker would aim at -- the boss portal reads this column.
+        await connection.ExecuteAsync(
+            """
+            insert into kill_counter (character_id, monster_id, active_kills, afk_kills)
+            values ($1, $2, $3, $4)
+            on conflict (character_id, monster_id) do update
+               set active_kills = kill_counter.active_kills + excluded.active_kills,
+                   afk_kills    = kill_counter.afk_kills    + excluded.afk_kills;
+            """,
+            tx, characterId, monster.id,
+            result.SupervisedActions,
+            result.Actions - result.SupervisedActions);
+
+        // ── Loot ──────────────────────────────────────────────────────────────
+        foreach (LootStack stack in result.Loot)
+        {
+            if (stack.Quantity <= 0L) continue;
+
+            string? wallet = Currency.WalletFor(stack.ItemId);
+
+            if (wallet != null)
+            {
+                await CreditWalletAsync(connection, tx, row.AccountId, characterId,
+                                        wallet, stack.Quantity, "loot", cancellation);
+
+                outcome.Currency[wallet] = outcome.Currency.GetValueOrDefault(wallet) + stack.Quantity;
+                continue;
+            }
+
+            long stored = SlotContainer.AddUpTo(bag, stack.ItemId, stack.Quantity);
+            if (stored <= 0L) continue;
+
+            await WriteItemLedgerAsync(connection, tx, row.AccountId, characterId,
+                                       stack.ItemId, stored, "loot", cancellation);
+
+            outcome.Items[stack.ItemId] = outcome.Items.GetValueOrDefault(stack.ItemId) + stored;
+        }
+
+        if (outcome.Items.Count > 0)
+            await WriteInventoryAsync(connection, tx, characterId, bag, cancellation);
+
+        if (result.XpGained > 0L)
+            await GrantXpAsync(connection, tx, characterId, "combat", result.XpGained, cancellation);
+
+        return outcome;
+    }
+
+    /// <summary>
+    /// Walking to the next spawn and waiting for it.
+    ///
+    /// TODO(Phase 4): per-map, from content -- a dense camp and an empty hollow are
+    /// not the same walk. One number until there is a second map worth distinguishing.
+    /// </summary>
+    private const float TravelAndRespawnSeconds = 2.5f;
+
+    /// <summary>
+    /// Capacity, per item, answered from the bag being filled as it fills.
+    ///
+    /// A loot table is many items, so combat cannot be handed one number the way
+    /// gathering is -- and a bag full of coins must not stop the bones.
+    /// </summary>
+    private sealed class BagRoom(List<InventoryEntry> bag) : IItemRoom
+    {
+        public long RoomFor(string itemId) => SlotContainer.FreeCapacityFor(bag, itemId);
+    }
+
+    /// <summary>
+    /// The character's stats, assembled from base, classes and worn gear.
+    ///
+    /// TODO(Phase 1): armour set bonuses and talents. Both need state this does not
+    /// read yet, and both only ADD -- so a character is currently under-powered rather
+    /// than over-powered, which is the safe direction for a number that decides how
+    /// fast somebody farms.
+    /// </summary>
+    private async Task<StatBlock> ResolveStatsAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                    Guid characterId, CancellationToken cancellation)
+    {
+        var classes = new List<ClassData>();
+
+        string? classId = await connection.ScalarAsync<string>(
+            "select class_id from character where id = $1;", tx, characterId);
+
+        if (!string.IsNullOrEmpty(classId) && content.Catalogue.GetClass(classId) is { } resolved)
+            classes.Add(resolved);
+
+        var equipped = new List<ItemData>();
+
+        await using (var command = connection.Sql(
+            "select item_id, durability from equipment where character_id = $1;", tx, characterId))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation))
+            {
+                ItemData? item = content.Catalogue.GetItem(reader.GetString(0));
+                if (item is null) continue;
+
+                // A broken piece contributes nothing. Durability is the payoff for
+                // maintaining gear, and armour that works at zero makes it decorative.
+                if (item.HasDurability && reader.GetInt32(1) <= 0) continue;
+
+                equipped.Add(item);
+            }
+        }
+
+        return StatAssembly.Build(content.Catalogue.BaseStats, classes, equipped);
+    }
+
+    private async Task<ItemData?> EquippedItemAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                    Guid characterId, string slotId,
+                                                    CancellationToken cancellation)
+    {
+        string? itemId = await connection.ScalarAsync<string>(
+            "select item_id from equipment where character_id = $1 and slot_id = $2;",
+            tx, characterId, slotId);
+
+        return string.IsNullOrEmpty(itemId) ? null : content.Catalogue.GetItem(itemId);
     }
 
     // ── Storage ───────────────────────────────────────────────────────────────
