@@ -268,6 +268,35 @@ public static class IconLibrarySetup
     [System.Serializable] private class ItemFile  { public ItemStub[] items; }
     [System.Serializable] private class ItemStub  { public string id; public string iconAddress; }
 
+    /// <summary>
+    /// Whether this item has art waiting for it in the library.
+    ///
+    /// ══ WHY A METHOD AND NOT THE DICTIONARY ═══════════════════════════════════
+    ///
+    /// The authoring window needs one answer: will this item draw something. Exposing
+    /// ItemIconNames would hand it the mapping, and a caller holding a mapping ends up
+    /// reading a sprite name out of it, or worse writing one in -- and the invariant
+    /// this file enforces, that every id maps to a DISTINCT sprite, lives in the
+    /// rebuild rather than in the dictionary.
+    ///
+    /// A question, then, rather than the data behind it.
+    ///
+    /// ══ WHY IT CHECKS THE SPRITE AND NOT JUST THE KEY ═════════════════════════
+    ///
+    /// Because an entry naming a sprite that is not in the project is exactly as blank
+    /// in the inventory as no entry at all, and the rebuild already reports those as
+    /// missing. Answering "yes" for an id whose art was deleted would send an author
+    /// away satisfied with an item that draws a placeholder.
+    /// </summary>
+    internal static bool HasIconFor(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return false;
+
+        if (!ItemIconNames.TryGetValue(itemId, out string spriteName)) return false;
+
+        return FindSprite(spriteName) != null;
+    }
+
     private static int Populate(Dictionary<string, string> source, List<IconLibrary.Entry> target, string kind)
     {
         int found = 0;
