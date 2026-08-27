@@ -24,10 +24,31 @@ public interface IGameClock
     Task<DateTimeOffset> NowAsync(CancellationToken cancellation = default);
 }
 
-/// <summary>Postgres <c>now()</c>. The clock of record.</summary>
+/// <summary>
+/// Postgres <c>now()</c>. The clock of record.
+///
+/// ══ ONE INSTANT PER REQUEST ═══════════════════════════════════════════════════
+///
+/// Registered scoped and cached after the first read, which is both faster and more
+/// correct. Faster because reading it was a whole extra connection on a path that had
+/// six already — at three hundred concurrent players that mattered. More correct
+/// because a request that settles, then checks a gate, then settles again should be
+/// reasoning about ONE moment: two reads microseconds apart can straddle a boundary
+/// and make the same request disagree with itself about what time it is.
+/// </summary>
 public sealed class DatabaseClock(Db db) : IGameClock
 {
+    private DateTimeOffset? _now;
+
     public async Task<DateTimeOffset> NowAsync(CancellationToken cancellation = default)
+    {
+        if (_now is { } cached) return cached;
+
+        _now = await ReadAsync(cancellation);
+        return _now.Value;
+    }
+
+    private async Task<DateTimeOffset> ReadAsync(CancellationToken cancellation)
     {
         await using var connection = await db.OpenAsync(cancellation);
         await using var command    = connection.CreateCommand();

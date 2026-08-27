@@ -17,10 +17,53 @@ public sealed class Db : IAsyncDisposable
 {
     private readonly NpgsqlDataSource _source;
 
+    /// <summary>
+    /// Most connections one instance of this API will hold.
+    ///
+    /// ══ WHY IT IS THIS SMALL ══════════════════════════════════════════════════
+    ///
+    /// Measured, not guessed. At three hundred simulated players with the pool at 60,
+    /// Postgres started answering
+    ///
+    ///     53300: remaining connection slots are reserved for roles with the
+    ///            SUPERUSER attribute
+    ///
+    /// The local stack allows a hundred connections in total, and Supabase's own
+    /// services -- auth, storage, Studio, the pooler -- were already holding about
+    /// twenty-five. Sixty for the API on top of that is over the line, and the
+    /// failures arrived as 500s.
+    ///
+    /// The hosted free tier is tighter still: sixty DIRECT connections for everything,
+    /// shared across however many instances of this API run. Twenty-five leaves room
+    /// for a second instance, a migration, and somebody looking at Studio while the
+    /// game is up.
+    ///
+    /// A bigger pool does not make the API faster once the database is the bottleneck.
+    /// It only moves where the queue forms, from a place with a clear error to a place
+    /// without one.
+    /// </summary>
+    public const int MaxPoolSize = 25;
+
+    /// <summary>
+    /// How long a request waits for a connection before giving up.
+    ///
+    /// Short, and deliberately shorter than the client's own timeout. A request that
+    /// cannot get a connection within a few seconds is not going to produce a useful
+    /// answer, and failing fast keeps the queue from growing into the thing that
+    /// caused it.
+    /// </summary>
+    public const int PoolTimeoutSeconds = 10;
+
     public Db(string connectionString)
     {
-        var builder = new NpgsqlDataSourceBuilder(connectionString);
-        _source = builder.Build();
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+
+        // Only set when the caller has not chosen: a deployment tuning its own pool
+        // should not be silently overridden by a default.
+        if (!builder.ContainsKey("Maximum Pool Size")) builder.MaxPoolSize = MaxPoolSize;
+        if (!builder.ContainsKey("Timeout"))           builder.Timeout     = PoolTimeoutSeconds;
+
+        _source = new NpgsqlDataSourceBuilder(builder.ConnectionString).Build();
     }
 
     public async Task<NpgsqlConnection> OpenAsync(CancellationToken cancellation = default) =>
@@ -151,4 +194,66 @@ public static class DbCommands
 
         return (T)Convert.ChangeType(value, target);
     }
+}
+
+/// <summary>
+/// Turning "the database is momentarily out of room" into an answer a client can act on.
+///
+/// ══ WHY A 500 WAS THE WRONG ANSWER ════════════════════════════════════════════
+///
+/// Found by the load simulation. At three hundred players Postgres ran out of
+/// connection slots and every affected request became a 500 — and a 500 tells a
+/// client its request was broken. A well-behaved client stops retrying, which is
+/// exactly backwards: the request was fine, and retrying in a second is the correct
+/// thing to do.
+///
+/// 503 with a Retry-After says the true thing instead. Under a spike the server sheds
+/// load and the clients come back, rather than a hundred players seeing an error and
+/// a support ticket each.
+/// </summary>
+public sealed class TransientFaultMiddleware(RequestDelegate next,
+                                             ILogger<TransientFaultMiddleware> log)
+{
+    private const string Body =
+        "{\"title\":\"busy\",\"status\":503," +
+        "\"detail\":\"The server is at capacity. Retry shortly.\"}";
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        try
+        {
+            await next(context);
+        }
+        catch (Exception e) when (IsTransient(e))
+        {
+            // A warning, not an error: this is capacity rather than a defect, and
+            // burying genuine errors under a load spike is how a real one gets missed.
+            log.LogWarning("Shedding a request: {Reason}", e.Message);
+
+            // Too late to change the answer if the body has already started going out.
+            if (context.Response.HasStarted) throw;
+
+            context.Response.Clear();
+            context.Response.StatusCode  = StatusCodes.Status503ServiceUnavailable;
+            context.Response.ContentType = "application/problem+json";
+            context.Response.Headers.RetryAfter = "1";
+
+            await context.Response.WriteAsync(Body, context.RequestAborted);
+        }
+    }
+
+    /// <summary>
+    /// Whether this means "come back in a moment" rather than "your request was wrong".
+    /// </summary>
+    public static bool IsTransient(Exception e) => e switch
+    {
+        // 53300 too_many_connections · 53000 insufficient_resources · 57P03 cannot_connect_now
+        PostgresException { SqlState: "53300" or "53000" or "57P03" } => true,
+
+        // Npgsql's own wait for a pooled connection running out.
+        NpgsqlException { InnerException: TimeoutException } => true,
+        TimeoutException => true,
+
+        _ => false,
+    };
 }

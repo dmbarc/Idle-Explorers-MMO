@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    A headless crowd, driving the real API over real HTTP.
+
+    Not a benchmark of the arithmetic - the rules suite covers that in milliseconds.
+    This exists to find the things that only appear under contention: settlement lock
+    queues on the character row, connection pool exhaustion, and the background sweep
+    colliding with live traffic. All of them look like "the database is down" and none
+    of them show up with one player.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>IdleExplorers.LoadSim</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IdleExplorers.Api/IdleExplorers.Api.csproj" />
+  </ItemGroup>
+
+</Project>

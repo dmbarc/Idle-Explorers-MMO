@@ -32,7 +32,7 @@ public class Program
             ?? "Host=127.0.0.1;Port=54322;Database=postgres;Username=postgres;Password=postgres";
 
         builder.Services.AddSingleton(new Db(connectionString));
-        builder.Services.AddSingleton<IGameClock, DatabaseClock>();
+        builder.Services.AddScoped<IGameClock, DatabaseClock>();
         builder.Services.AddSingleton<ContentCache>();
         builder.Services.AddScoped<Caller>();
         builder.Services.AddScoped<SettlementService>();
@@ -45,6 +45,11 @@ public class Program
         // happily with unreadable content and then serves an empty catalogue is a
         // deploy that looks successful and is not.
         app.Services.GetRequiredService<ContentCache>().Load();
+
+        // First, so it wraps everything below -- including the idempotency
+        // middleware, which opens a connection of its own and can therefore be
+        // the thing that fails when the pool is empty.
+        app.UseMiddleware<TransientFaultMiddleware>();
 
         app.UseAuthentication();
         app.UseAuthorization();

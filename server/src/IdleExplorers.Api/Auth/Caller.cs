@@ -18,6 +18,29 @@ namespace IdleExplorers.Api.Auth;
 /// </summary>
 public sealed class Caller(Db db)
 {
+    // ══ WHY THIS CACHES ═══════════════════════════════════════════════════════
+    //
+    // Scoped, so one instance serves one request -- and one request asks these
+    // questions more than once. The idempotency middleware resolves the account to
+    // scope its key, then the endpoint resolves the same account again, then asks
+    // about ownership. Each of those was a separate connection.
+    //
+    // A settle opened SEVEN connections that way, six of them avoidable, and at three
+    // hundred concurrent players that starved the pool: Npgsql defaults to a hundred,
+    // requests queued behind each other waiting for one, and the failures arrived as
+    // 500s and a p99 of 2.3 seconds. The load simulation found it; nothing smaller
+    // would have.
+    //
+    // Caching per REQUEST rather than longer is the safe boundary: an account banned
+    // mid-request is still served for that request and refused on the next one, which
+    // is the same window any other approach would leave.
+
+    private Guid? _accountId;
+    private bool  _accountResolved;
+
+    private readonly HashSet<Guid> _owned = [];
+    private readonly HashSet<Guid> _notOwned = [];
+
     /// <summary>
     /// Finds the account for a validated token, creating one on first sight.
     ///
@@ -29,6 +52,8 @@ public sealed class Caller(Db db)
     public async Task<Guid?> AccountIdAsync(ClaimsPrincipal? principal,
                                             CancellationToken cancellation = default)
     {
+        if (_accountResolved) return _accountId;
+
         Guid? userId = principal.SupabaseUserId();
         if (userId is null) return null;
 
@@ -49,10 +74,13 @@ public sealed class Caller(Db db)
 
         // Read back rather than trusting the insert: the row may predate this request,
         // and a banned account must not be handed out just because it exists.
-        return await connection.ScalarAsync<Guid?>(
+        _accountId = await connection.ScalarAsync<Guid?>(
             "select id from account where id = $1 and banned_at is null;",
             null,
             userId.Value);
+
+        _accountResolved = true;
+        return _accountId;
     }
 
     /// <summary>
@@ -66,6 +94,9 @@ public sealed class Caller(Db db)
     public async Task<bool> OwnsCharacterAsync(Guid accountId, Guid characterId,
                                                CancellationToken cancellation = default)
     {
+        if (_owned.Contains(characterId))    return true;
+        if (_notOwned.Contains(characterId)) return false;
+
         await using var connection = await db.OpenAsync(cancellation);
 
         long found = await connection.ScalarAsync<long>(
@@ -76,6 +107,11 @@ public sealed class Caller(Db db)
             null,
             characterId,
             accountId);
+
+        // A character DELETED mid-request stays owned for the rest of it, which is
+        // correct: the delete and whatever else is in flight are both the owner's, and
+        // the next request sees the deletion.
+        (found == 1 ? _owned : _notOwned).Add(characterId);
 
         return found == 1;
     }
