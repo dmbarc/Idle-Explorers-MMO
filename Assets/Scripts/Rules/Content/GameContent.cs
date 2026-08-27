@@ -365,6 +365,26 @@ namespace IdleExplorers.Rules
                 }
             }
 
+            // ══ AN EFFECT NOBODY KNOWS HOW TO PRICE ═══════════════════════════
+            //
+            // The boss fight prices a reported ability through AbilityPricing, which
+            // returns zero for an effect it does not recognise -- the safe direction,
+            // since the other one mints damage.
+            //
+            // Zero alone is the wrong failure though: it makes a typo look like a
+            // balance problem, and nobody investigates a weak ability for six weeks.
+            // So an unknown effect stops the server from starting instead.
+            foreach (var pair in Abilities)
+            {
+                string effect = pair.Value?.effect ?? "";
+
+                if (!AbilityPricing.IsKnownEffect(effect))
+                {
+                    problems.Add($"ability '{pair.Key}' has effect '{effect}', which nothing " +
+                                 "knows how to price -- add it to AbilityPricing");
+                }
+            }
+
             foreach (var pair in ItemSets)
             {
                 var pieces = pair.Value?.itemIds;

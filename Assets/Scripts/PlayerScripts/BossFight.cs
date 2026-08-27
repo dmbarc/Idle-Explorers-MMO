@@ -369,28 +369,28 @@ public class BossFight : MonoBehaviour
     }
 
     /// <summary>
-    /// The damage multiplier for an ability, from the client's own content copy.
+    /// What the client thinks the ability is worth, for the prediction only.
     ///
-    /// Only ever used to PREDICT. If the client's content is stale its prediction is
-    /// wrong and the next report corrects it -- which is exactly the failure this
-    /// architecture is meant to have, rather than a wrong number being paid out.
+    /// ══ THE BUG THIS REPLACED ═════════════════════════════════════════════════
+    ///
+    /// The first version searched the BOSS's phase abilities for the player's ability
+    /// id -- the King's cleave and charge -- found nothing, and returned 1. So every
+    /// ability predicted as an ordinary swing while the server priced it properly, and
+    /// the health bar jumped on every report.
+    ///
+    /// The server had the identical mistake in the identical place, which is what
+    /// hid it: the two agreed, and both were wrong.
+    ///
+    /// Now both call AbilityPricing. A stale content copy still predicts wrong, and
+    /// the next report still corrects it -- which is the failure this architecture is
+    /// supposed to have.
     /// </summary>
-    private float AbilityMultiplier(string abilityId)
+    private double AbilityMultiplier(string abilityId)
     {
-        if (string.IsNullOrEmpty(abilityId)) return 1f;
+        if (string.IsNullOrEmpty(abilityId)) return 1d;
 
-        MonsterData boss = GameManager.Content?.GetMonster(Encounter?.monsterId);
+        AbilityData ability = GameManager.Content?.Catalogue?.GetAbility(abilityId);
 
-        if (boss?.phases == null) return 1f;
-
-        foreach (var phase in boss.phases)
-        {
-            if (phase?.abilities == null) continue;
-
-            foreach (var ability in phase.abilities)
-                if (ability != null && ability.id == abilityId) return ability.damageMultiplier;
-        }
-
-        return 1f;
+        return ability == null ? 1d : AbilityPricing.DamageMultiplier(ability);
     }
 }

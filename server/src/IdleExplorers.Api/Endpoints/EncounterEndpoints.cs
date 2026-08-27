@@ -226,9 +226,18 @@ public static class EncounterEndpoints
                     // comparison rather than a lookup of every request ever seen.
                     if (action.Sequence <= sequence) { rejected++; continue; }
 
-                    BossAbility? ability = AbilityFor(boss, action.AbilityId);
+                    AbilityData? ability = AbilityFor(content.Catalogue, action.AbilityId);
 
                     if (!string.IsNullOrEmpty(action.AbilityId) && ability is null)
+                    {
+                        rejected++;
+                        continue;
+                    }
+
+                    // A passive is not something you press. Reported as an action it is
+                    // either a client bug or somebody looking for a free swing with a
+                    // zero cooldown.
+                    if (ability is not null && !AbilityPricing.IsPressable(ability))
                     {
                         rejected++;
                         continue;
@@ -249,7 +258,8 @@ public static class EncounterEndpoints
 
                     double swing = BossEncounter.SwingDamage(
                         live.FrozenDps, live.FrozenAttackSeconds,
-                        ability?.damageMultiplier ?? 1f, boss.armor, rng);
+                        ability is null ? 1d : AbilityPricing.DamageMultiplier(ability),
+                        boss.armor, rng);
 
                     damage   = Add(damage, (long)Math.Round(swing));
                     sequence = action.Sequence;
@@ -578,20 +588,25 @@ public static class EncounterEndpoints
             tx, characterId, now);
     }
 
-    private static BossAbility? AbilityFor(MonsterData boss, string? abilityId)
-    {
-        if (string.IsNullOrEmpty(abilityId) || boss.phases == null) return null;
-
-        foreach (var phase in boss.phases)
-        {
-            if (phase?.abilities == null) continue;
-
-            foreach (var ability in phase.abilities)
-                if (ability != null && ability.id == abilityId) return ability;
-        }
-
-        return null;
-    }
+    /// <summary>
+    /// The PLAYER's ability, from the ability catalogue.
+    ///
+    /// ══ THE BUG THIS SHAPE FIXES ══════════════════════════════════════════════
+    ///
+    /// The first version looked the id up in the BOSS's phase abilities -- cleave_arc,
+    /// king_charge, throne_quake. Those are what the King does to the player. An
+    /// action report carries what the PLAYER did, so every real ability came back null
+    /// and was rejected as unknown, and the only thing that worked was an ordinary
+    /// swing.
+    ///
+    /// It passed its test, because the test used a made-up id and got the refusal it
+    /// asked for. A refusal for the wrong reason is the hardest kind of green.
+    ///
+    /// Null means "no such ability", which is still a refusal -- a client naming an
+    /// ability that does not exist is either stale or probing.
+    /// </summary>
+    private static AbilityData? AbilityFor(GameContent catalogue, string? abilityId) =>
+        string.IsNullOrEmpty(abilityId) ? null : catalogue.GetAbility(abilityId);
 
     private static Dictionary<string, double> Cooldowns(string json)
     {

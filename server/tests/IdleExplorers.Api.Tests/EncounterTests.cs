@@ -260,6 +260,58 @@ public class EncounterTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
     }
 
+    /// <summary>
+    /// A REAL ability, which is the case the first version of this file never tested.
+    ///
+    /// ══ WHY THAT MATTERED ═════════════════════════════════════════════════════
+    ///
+    /// The endpoint looked the player's ability up in the BOSS's phase abilities --
+    /// cleave, charge, quake -- so every genuine ability came back null and was
+    /// rejected as unknown. The only thing that worked was an ordinary swing.
+    ///
+    /// The suite was green, because the only ability test used a made-up id and got
+    /// the refusal it asked for. A refusal for the wrong reason is the hardest kind of
+    /// green, and this is the assertion that distinguishes them.
+    /// </summary>
+    [SkippableFact]
+    public async Task ARealAbilityIsAcceptedAndIsWorthMoreThanASwing()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await Ready(player, "Whirler");
+
+        JsonElement fight = await EngageOk(player, character);
+        long maxHp = fight.GetProperty("bossMaxHp").GetInt64();
+
+        // Time first, so the ceiling is not what is being measured.
+        api.Clock.Advance(TimeSpan.FromSeconds(120));
+
+        JsonElement said = await PostActions(player, character, new
+        {
+            actions = new[] { new { sequence = 1, abilityId = "whirling_throw" } },
+        });
+
+        Assert.Equal(1, said.GetProperty("accepted").GetInt32());
+        Assert.Equal(0, said.GetProperty("rejected").GetInt32());
+
+        long withAbility = maxHp - said.GetProperty("bossHp").GetInt64();
+
+        Assert.True(withAbility > 0L, "a real ability lands");
+
+        // And it is worth more than a bare swing, which is the whole reason to press
+        // it. Under the old lookup both were exactly one swing.
+        JsonElement plain = await PostActions(player, character, new
+        {
+            actions = new[] { new { sequence = 2, abilityId = "" } },
+        });
+
+        long swing = (maxHp - plain.GetProperty("bossHp").GetInt64()) - withAbility;
+
+        Assert.True(withAbility > swing,
+                    $"the ability was worth {withAbility} and a swing {swing}");
+    }
+
     [SkippableFact]
     public async Task AnUnknownAbilityIsRejectedRatherThanTreatedAsAnAttack()
     {
