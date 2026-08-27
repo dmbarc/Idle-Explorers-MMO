@@ -59,7 +59,7 @@ public class JourneyTests(ApiFixture api)
 
         using (var settled = await PostJson(player, $"/activity/{character}/settle"))
         {
-            oreMined = settled.RootElement.GetProperty("items").GetProperty("tin_ore").GetInt64();
+            oreMined = OwnershipTests.StackQuantity(settled.RootElement, "items", "tin_ore");
 
             // 3 seconds an action at 0.6 offline: 720 an hour, 5,760 in eight.
             Assert.Equal(5_760L, oreMined);

@@ -207,12 +207,10 @@ public class BossGateTests(ApiFixture api)
         Assert.True(kills > 0, "two hours of goblins produced no kills");
 
         // Bones drop every time, so they are the deterministic half of the table.
-        Assert.True(body.RootElement.GetProperty("items").TryGetProperty("bones", out var bones));
-        Assert.True(bones.GetInt64() > 0);
+        Assert.True(OwnershipTests.StackQuantity(body.RootElement, "items", "bones") > 0);
 
         // Coins go to the wallet, never to a bag slot.
-        Assert.True(body.RootElement.GetProperty("currency").TryGetProperty("coins", out var coins));
-        Assert.True(coins.GetInt64() > 0);
+        Assert.True(OwnershipTests.StackQuantity(body.RootElement, "currency", "coins") > 0);
 
         Assert.True(body.RootElement.GetProperty("xpGained").GetInt64() > 0);
 

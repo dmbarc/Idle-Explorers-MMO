@@ -112,7 +112,7 @@ public class SettlementTests(ApiFixture api)
         long expected = (long)(3600d / (seconds / (active * afk)));
 
         Assert.Equal(expected, outcome.GetProperty("actions").GetInt64());
-        Assert.Equal(expected, outcome.GetProperty("items").GetProperty("tin_ore").GetInt64());
+        Assert.Equal(expected, OwnershipTests.StackQuantity(outcome, "items", "tin_ore"));
 
         // Nobody was watching, so nothing counts toward the boss gate.
         Assert.Equal(0L, outcome.GetProperty("supervisedActions").GetInt64());
@@ -277,8 +277,8 @@ public class SettlementTests(ApiFixture api)
         await StartMining(player, character);
         Advance(TimeSpan.FromHours(2));
 
-        long granted = (await Settle(player, character))
-            .GetProperty("items").GetProperty("tin_ore").GetInt64();
+        long granted = OwnershipTests.StackQuantity(
+            await Settle(player, character), "items", "tin_ore");
 
         await using var db = await api.OpenDatabaseAsync();
 

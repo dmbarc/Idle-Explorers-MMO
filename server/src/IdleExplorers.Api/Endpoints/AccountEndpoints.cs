@@ -1,3 +1,4 @@
+using System.Linq;
 using IdleExplorers.Api.Auth;
 using IdleExplorers.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
@@ -87,7 +88,14 @@ public static class AccountEndpoints
                 displayName,
                 accountXp,
                 characters,
-                wallets,
+
+                // An array, not an object keyed by currency: JsonUtility cannot
+                // deserialise a Dictionary and produces an empty one without saying so.
+                // See ActivityEndpoints.Stacks for the whole argument.
+                wallets = wallets
+                    .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                    .Select(pair => new { currency = pair.Key, balance = pair.Value })
+                    .ToArray(),
 
                 // The client ships its own copy of the twelve content files so it can
                 // draw tooltips and sweep cooldowns without a round trip. This is how

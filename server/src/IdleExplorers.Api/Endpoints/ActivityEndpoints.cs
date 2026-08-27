@@ -1,3 +1,4 @@
+using System.Linq;
 using IdleExplorers.Api.Auth;
 using IdleExplorers.Api.Infrastructure;
 using IdleExplorers.Api.Services;
@@ -334,6 +335,21 @@ public static class ActivityEndpoints
         });
     }
 
+    /// <summary>
+    /// The settlement result, in a shape Unity can actually read.
+    ///
+    /// ══ WHY ARRAYS AND NOT AN OBJECT KEYED BY ITEM ID ═════════════════════════
+    ///
+    /// { "tin_ore": 40 } is the obvious JSON and the client cannot parse it.
+    /// JsonUtility -- Unity's own, and the only serialiser in the build -- cannot
+    /// deserialise a Dictionary at all. It does not fail: it produces an EMPTY one,
+    /// silently, which would show up as a player being told they earned nothing.
+    ///
+    /// The alternative was adding Newtonsoft to the Unity project. An array of
+    /// { itemId, quantity } avoids the dependency entirely, and a dependency avoided
+    /// in a WebGL build is download size, IL2CPP stripping risk and a link.xml nobody
+    /// has to maintain. The telemetry format made the same choice for the same reason.
+    /// </summary>
     private static object Describe(SettlementService.Outcome outcome) => new
     {
         actions             = outcome.Actions,
@@ -341,12 +357,36 @@ public static class ActivityEndpoints
         xpGained            = outcome.XpGained,
         elapsedSeconds      = outcome.ElapsedSeconds,
         supervisedSeconds   = outcome.SupervisedSeconds,
-        items               = outcome.Items,
-        currency            = outcome.Currency,
+        items               = Stacks(outcome.Items),
+        currency            = Credits(outcome.Currency),
         stoppedForRoom      = outcome.StoppedForRoom,
         lostToFullInventory = outcome.LostToFullInventory,
         ranOutOfInputs      = outcome.RanOutOfInputs,
     };
+
+    /// <summary>
+    /// Sorted, so a response is byte-identical for identical content.
+    ///
+    /// Which matters more than it looks: the idempotency middleware replays a stored
+    /// response verbatim, and a shadow-mode client compares the server's answer to its
+    /// own prediction. Both are easier to trust when ordering is not a variable.
+    /// </summary>
+    private static object[] Stacks(Dictionary<string, long> from) =>
+        from.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => (object)new { itemId = pair.Key, quantity = pair.Value })
+            .ToArray();
+
+    /// <summary>
+    /// Money earned, named as money rather than as items.
+    ///
+    /// `amount` and not `balance`: this is what the window PAID, not what the wallet
+    /// holds. A client that mistook one for the other would show a player their whole
+    /// fortune as the reward for four hours of mining.
+    /// </summary>
+    private static object[] Credits(Dictionary<string, long> from) =>
+        from.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => (object)new { currency = pair.Key, amount = pair.Value })
+            .ToArray();
 
     /// <summary>
     /// Finds a node by id across every zone.

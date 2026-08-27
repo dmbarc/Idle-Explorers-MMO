@@ -81,9 +81,8 @@ public class OwnershipTests(ApiFixture api)
 
         // Both wallets present at zero, so a client never has to distinguish "no row"
         // from "no money".
-        var wallets = body.RootElement.GetProperty("wallets");
-        Assert.Equal(0L, wallets.GetProperty("coins").GetInt64());
-        Assert.Equal(0L, wallets.GetProperty("relic_coins").GetInt64());
+        Assert.Equal(0L, StackQuantity(body.RootElement, "wallets", "coins"));
+        Assert.Equal(0L, StackQuantity(body.RootElement, "wallets", "relic_coins"));
     }
 
     /// <summary>
@@ -224,6 +223,39 @@ public class OwnershipTests(ApiFixture api)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Reads a quantity out of the array-of-stacks shape the server returns.
+    ///
+    /// Arrays rather than an object keyed by item id, because JsonUtility on the
+    /// client cannot deserialise a Dictionary -- see ActivityEndpoints.Stacks.
+    /// </summary>
+    internal static long StackQuantity(JsonElement response, string field, string id)
+    {
+        if (!response.TryGetProperty(field, out var stacks)) return 0L;
+
+        // Read the shape rather than guess from the field name. Three arrays exist
+        // and they are named for what they hold -- items are {itemId, quantity},
+        // earnings are {currency, amount}, wallets are {currency, balance} -- and a
+        // helper that inferred that from the property name got it backwards once
+        // already.
+        foreach (var stack in stacks.EnumerateArray())
+        {
+            if (Text(stack, "itemId") != id && Text(stack, "currency") != id) continue;
+
+            if (stack.TryGetProperty("quantity", out var quantity)) return quantity.GetInt64();
+            if (stack.TryGetProperty("amount",   out var amount))   return amount.GetInt64();
+            if (stack.TryGetProperty("balance",  out var balance))  return balance.GetInt64();
+        }
+
+        return 0L;
+    }
+
+    private static string Text(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) ? value.GetString() : null;
+
+    internal static bool HasStack(JsonElement response, string field, string id) =>
+        StackQuantity(response, field, id) > 0L;
+
 
     internal static async Task<HttpResponseMessage> Post(Player player, string path, object body,
                                                          string key = null)

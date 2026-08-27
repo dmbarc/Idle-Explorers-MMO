@@ -1,0 +1,298 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using UnityEngine;
+
+namespace IdleExplorers.Backend
+{
+    /// <summary>
+    /// Runs both backends and reports where they disagree.
+    ///
+    /// ══ WHY THIS EXISTS ═══════════════════════════════════════════════════════════
+    ///
+    /// A migration from client-authoritative to server-authoritative has exactly one
+    /// hard question: does the server compute the same numbers the game has always
+    /// computed? Answering it by reading two implementations is how people miss an
+    /// off-by-one in an XP curve for six months.
+    ///
+    /// So: the local backend answers, the game plays normally, and every call is sent
+    /// to the server in parallel. Divergences are logged. Playing for a week turns the
+    /// whole game into a fuzzer, and it costs one extra request per call.
+    ///
+    /// ══ WHICH ANSWER WINS ═════════════════════════════════════════════════════════
+    ///
+    /// The LOCAL one, always, for as long as shadow mode is on. That is what makes it
+    /// safe to leave running: a server bug cannot break anyone's session, because
+    /// nothing the server says is used. The moment its answers are trusted is the
+    /// moment shadow mode ends and ApiBackend is wired up directly.
+    ///
+    /// ══ WHY THE SERVER CALL CANNOT THROW ══════════════════════════════════════════
+    ///
+    /// Every server failure is swallowed and counted. The whole point is to observe a
+    /// server that is expected to be wrong; letting its exceptions reach the game
+    /// would make shadow mode less stable than not running it, and nobody would.
+    /// </summary>
+    public class ShadowBackend : IGameBackend
+    {
+        private readonly IGameBackend _local;
+        private readonly IGameBackend _remote;
+        private readonly Divergences  _log;
+
+        public bool IsAvailable => _local.IsAvailable;
+
+        /// <summary>Everything seen so far. Read it from a debug panel or a test.</summary>
+        public Divergences Log => _log;
+
+        public ShadowBackend(IGameBackend local, IGameBackend remote, Divergences log = null)
+        {
+            _local  = local  ?? throw new ArgumentNullException(nameof(local));
+            _remote = remote ?? throw new ArgumentNullException(nameof(remote));
+            _log    = log    ?? new Divergences();
+        }
+
+        // ── Reads ─────────────────────────────────────────────────────────────
+
+        public async Awaitable<AccountSnapshot> GetAccountAsync()
+        {
+            var local = await _local.GetAccountAsync();
+
+            await CompareAsync("GetAccount", local,
+                               () => _remote.GetAccountAsync(),
+                               (a, b) => Compare.Accounts(a, b));
+
+            return local;
+        }
+
+        public async Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
+        {
+            var local = await _local.GetCharacterAsync(characterId);
+
+            await CompareAsync("GetCharacter", local,
+                               () => _remote.GetCharacterAsync(characterId),
+                               (a, b) => Compare.Characters(a, b));
+
+            return local;
+        }
+
+        public async Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId)
+        {
+            var local = await _local.GetBossGateAsync(characterId);
+
+            await CompareAsync("GetBossGate", local,
+                               () => _remote.GetBossGateAsync(characterId),
+                               (a, b) => Compare.Gates(a, b));
+
+            return local;
+        }
+
+        // ── Writes ────────────────────────────────────────────────────────────
+        //
+        // Sent to BOTH. The server needs the same history the client has, or its
+        // answers diverge for reasons that have nothing to do with its arithmetic --
+        // a server that was never told the character started mining will correctly
+        // report zero ore, and that is not the bug anyone is looking for.
+
+        public async Awaitable<SettlementSnapshot> SettleAsync(string characterId)
+        {
+            var local = await _local.SettleAsync(characterId);
+
+            await CompareAsync("Settle", local,
+                               () => _remote.SettleAsync(characterId),
+                               (a, b) => Compare.Settlements(a, b));
+
+            return local;
+        }
+
+        public async Awaitable<SettlementSnapshot> StopActivityAsync(string characterId)
+        {
+            var local = await _local.StopActivityAsync(characterId);
+
+            await CompareAsync("StopActivity", local,
+                               () => _remote.StopActivityAsync(characterId),
+                               (a, b) => Compare.Settlements(a, b));
+
+            return local;
+        }
+
+        public async Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId)
+        {
+            var local = await _local.CreateCharacterAsync(name, classId);
+
+            // Not compared: the two will assign different ids, and that is correct
+            // rather than a divergence. Mirrored so the server has the character.
+            await MirrorAsync("CreateCharacter", () => _remote.CreateCharacterAsync(name, classId));
+
+            return local;
+        }
+
+        public async Awaitable<ActivitySnapshot> SetGatheringAsync(string characterId, string nodeId)
+        {
+            var local = await _local.SetGatheringAsync(characterId, nodeId);
+            await MirrorAsync("SetGathering", () => _remote.SetGatheringAsync(characterId, nodeId));
+
+            return local;
+        }
+
+        public async Awaitable<ActivitySnapshot> SetCraftingAsync(string characterId, string recipeId)
+        {
+            var local = await _local.SetCraftingAsync(characterId, recipeId);
+            await MirrorAsync("SetCrafting", () => _remote.SetCraftingAsync(characterId, recipeId));
+
+            return local;
+        }
+
+        public async Awaitable<ActivitySnapshot> SetFightingAsync(string characterId, string monsterId)
+        {
+            var local = await _local.SetFightingAsync(characterId, monsterId);
+            await MirrorAsync("SetFighting", () => _remote.SetFightingAsync(characterId, monsterId));
+
+            return local;
+        }
+
+        public async Awaitable HeartbeatAsync(string characterId)
+        {
+            await _local.HeartbeatAsync(characterId);
+            await MirrorAsync("Heartbeat", async () => { await _remote.HeartbeatAsync(characterId); return true; });
+        }
+
+        public async Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId)
+        {
+            var local = await _local.UnlockBossAsync(characterId);
+
+            await CompareAsync("UnlockBoss", local,
+                               () => _remote.UnlockBossAsync(characterId),
+                               (a, b) => Compare.Gates(a, b));
+
+            return local;
+        }
+
+        // ── Machinery ─────────────────────────────────────────────────────────
+
+        private async Awaitable CompareAsync<T>(string call, T local,
+                                                Func<Awaitable<T>> remote,
+                                                Func<T, T, List<string>> compare) where T : class
+        {
+            try
+            {
+                T answer = await remote();
+
+                if (answer == null)
+                {
+                    _log.RecordFailure(call, "the server returned nothing");
+                    return;
+                }
+
+                List<string> differences = compare(local, answer);
+
+                if (differences.Count == 0) { _log.RecordAgreement(call); return; }
+
+                _log.RecordDivergence(call, differences);
+            }
+            catch (Exception e)
+            {
+                // Counted, never rethrown. Shadow mode must not be able to break a
+                // session, or it gets switched off and stops finding anything.
+                _log.RecordFailure(call, e.Message);
+            }
+        }
+
+        private async Awaitable MirrorAsync<T>(string call, Func<Awaitable<T>> remote)
+        {
+            try
+            {
+                await remote();
+                _log.RecordAgreement(call);
+            }
+            catch (Exception e)
+            {
+                _log.RecordFailure(call, e.Message);
+            }
+        }
+    }
+
+    /// <summary>
+    /// What the two backends disagreed about.
+    ///
+    /// Counted as well as logged, because the useful question after a week of playing
+    /// is "how often" rather than "did it ever" -- a divergence on one call in ten
+    /// thousand is a rounding boundary, and one on every call is a formula.
+    /// </summary>
+    public class Divergences
+    {
+        private readonly Dictionary<string, int> _agreements = new();
+        private readonly Dictionary<string, int> _divergences = new();
+        private readonly Dictionary<string, int> _failures    = new();
+        private readonly List<string>            _examples    = new();
+
+        /// <summary>Most examples kept. Beyond this the counts tell the story.</summary>
+        public const int MaxExamples = 50;
+
+        public int TotalAgreements  => Sum(_agreements);
+        public int TotalDivergences => Sum(_divergences);
+        public int TotalFailures    => Sum(_failures);
+
+        public IReadOnlyList<string> Examples => _examples;
+
+        public void RecordAgreement(string call) => Bump(_agreements, call);
+
+        public void RecordDivergence(string call, List<string> differences)
+        {
+            Bump(_divergences, call);
+
+            string detail = $"{call}: {string.Join("; ", differences)}";
+
+            if (_examples.Count < MaxExamples) _examples.Add(detail);
+
+            // A warning rather than an error: during shadow mode a divergence is the
+            // expected finding, and turning the console red for the thing being
+            // looked for trains people to ignore it.
+            Debug.LogWarning($"[Shadow] {detail}");
+        }
+
+        public void RecordFailure(string call, string reason)
+        {
+            Bump(_failures, call);
+
+            if (_examples.Count < MaxExamples) _examples.Add($"{call} failed: {reason}");
+        }
+
+        /// <summary>A report worth pasting into a bug.</summary>
+        public string Summary()
+        {
+            var report = new StringBuilder();
+
+            report.AppendLine($"Shadow mode: {TotalAgreements} agreed, " +
+                              $"{TotalDivergences} diverged, {TotalFailures} failed.");
+
+            foreach (var call in _divergences)
+                report.AppendLine($"  diverged  {call.Key}: {call.Value}");
+
+            foreach (var call in _failures)
+                report.AppendLine($"  failed    {call.Key}: {call.Value}");
+
+            foreach (string example in _examples)
+                report.AppendLine($"    {example}");
+
+            return report.ToString();
+        }
+
+        public void Clear()
+        {
+            _agreements.Clear();
+            _divergences.Clear();
+            _failures.Clear();
+            _examples.Clear();
+        }
+
+        private static void Bump(Dictionary<string, int> into, string key) =>
+            into[key] = into.TryGetValue(key, out int n) ? n + 1 : 1;
+
+        private static int Sum(Dictionary<string, int> counts)
+        {
+            int total = 0;
+            foreach (var entry in counts) total += entry.Value;
+
+            return total;
+        }
+    }
+}
