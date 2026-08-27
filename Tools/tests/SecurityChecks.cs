@@ -50,6 +50,12 @@ namespace IdleExplorersTests
         /// </summary>
         private static readonly string[] ServiceRoleMarkers =
         {
+            // The CURRENT format. Listed first because new Supabase projects are issued
+            // this one, and the sweep originally knew only the legacy shape below --
+            // which meant it would have passed an sb_secret_ key shipped in an asset.
+            "sb_secret_",
+
+            // The legacy JWT: unencoded, then at each of the three base64 alignments.
             "service_role", "c2VydmljZV9yb2xl", "NlcnZpY2Vfcm9sZ", "zZXJ2aWNlX3JvbG",
         };
 

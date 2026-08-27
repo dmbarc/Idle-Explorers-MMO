@@ -105,6 +105,12 @@ namespace IdleExplorers.Backend
                        "Rotate it in the Supabase dashboard and use the anon key instead.";
             }
 
+            if (!string.IsNullOrWhiteSpace(supabaseAnonKey) && !LooksPublishable(supabaseAnonKey))
+            {
+                return "supabaseAnonKey is not a key shape I recognise. It should start " +
+                       "sb_publishable_ (current) or be an anon JWT starting ey (legacy).";
+            }
+
             if (HasServer && !HasAuth)
                 return "An API is configured but Supabase is not, so nobody can sign in.";
 
@@ -124,13 +130,58 @@ namespace IdleExplorers.Backend
         {
             if (string.IsNullOrWhiteSpace(key)) return false;
 
-            if (key.Contains("service_role")) return true;
+            string trimmed = key.Trim();
 
-            // "service_role" encoded at each of the three byte alignments.
-            foreach (string marker in new[] { "c2VydmljZV9yb2xl", "NlcnZpY2Vfcm9sZ", "zZXJ2aWNlX3JvbG" })
-                if (key.Contains(marker)) return true;
+            // ══ TWO KEY FORMATS, AND ONLY ONE WAS KNOWN ═══════════════════════
+            //
+            // Supabase has two generations of API key and a project is issued one or
+            // the other:
+            //
+            //   legacy    a JWT whose payload holds the service_role claim
+            //   current   a plain string beginning sb_secret_
+            //
+            // This knew only the legacy shape, which was the wrong half to know --
+            // NEW projects get the current format, so an sb_secret_ key would have
+            // sailed through into a WebGL build. Found when a real project turned out
+            // to issue sb_publishable_ rather than an anon JWT.
+            if (trimmed.StartsWith("sb_secret_", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            // The legacy JWT: the claim is inside a base64url payload, and base64 only
+            // self-aligns on three-byte boundaries, so "service_role" encodes to one of
+            // three strings depending on where it starts. Matching all three beats
+            // decoding the token, which would mean parsing arbitrary input to answer a
+            // question about our own configuration.
+            foreach (string marker in new[]
+                     { "service_role", "c2VydmljZV9yb2xl", "NlcnZpY2Vfcm9sZ", "zZXJ2aWNlX3JvbG" })
+            {
+                if (trimmed.Contains(marker)) return true;
+            }
 
             return false;
+        }
+
+        /// <summary>
+        /// Whether a key is one that is SAFE to ship.
+        ///
+        /// Deliberately NOT the negation of LooksLikeServiceRole. A typo, an empty
+        /// string, a database password and half a copy-paste are all "not a
+        /// service-role key", and none of them is a publishable key. So this
+        /// recognises the two shapes that are actually right rather than assuming
+        /// anything which is not obviously wrong will do.
+        /// </summary>
+        public static bool LooksPublishable(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key)) return false;
+
+            string trimmed = key.Trim();
+
+            if (LooksLikeServiceRole(trimmed)) return false;
+
+            // Current format, or a legacy anon JWT -- three dot-separated segments
+            // starting with the base64 of {"alg":...
+            return trimmed.StartsWith("sb_publishable_", System.StringComparison.OrdinalIgnoreCase)
+                || (trimmed.StartsWith("ey") && trimmed.Split('.').Length == 3);
         }
     }
 }
