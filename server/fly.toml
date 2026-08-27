@@ -5,14 +5,26 @@ app = "idle-explorers-api"
 # serves three hundred players of an idle game comfortably (measured — 763 requests a
 # second with a settle p99 of 61ms), and multi-region invites replication questions
 # nobody here needs answering yet.
-primary_region = "lhr"
+primary_region = "iad"
 
+# ══ EVERY PATH HERE IS RELATIVE TO THE REPOSITORY ROOT ═══════════════════════
+#
+# NOT to this file. That is unusual and it is forced: the Dockerfile copies
+# Assets/Scripts/Rules and Assets/StreamingAssets, which live OUTSIDE server/ -- so the
+# build context has to be the repo root, and flyctl takes the context from the
+# directory you run it in.
+#
+# So deploys happen from the root:
+#
+#     fly deploy --config server/fly.toml
+#
+# An earlier version of this file said dockerfile = "Dockerfile" and
+# ignorefile = "../.dockerignore", which reads as "deploy from server/" -- and deploying
+# from server/ cannot work, because half the source is not in the context. It would
+# have failed on the first deploy with a COPY error naming a path that plainly exists.
 [build]
-  dockerfile = "Dockerfile"
-
-  # The shared rules tree lives outside server/, so the build context has to be the
-  # repository root. Without this the container cannot see half its own source.
-  ignorefile = "../.dockerignore"
+  dockerfile = "server/Dockerfile"
+  ignorefile = ".dockerignore"
 
 [env]
   ASPNETCORE_ENVIRONMENT = "Production"
