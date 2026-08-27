@@ -115,6 +115,9 @@ public class Program
 
         builder.Services.AddSupabaseAuth(builder.Configuration);
 
+        builder.Services.AddGameCors(builder.Configuration,
+                                     builder.Environment.IsProduction());
+
         var app = builder.Build();
 
         // Fail at startup rather than on the first request. A container that boots
@@ -126,6 +129,25 @@ public class Program
         // middleware, which opens a connection of its own and can therefore be
         // the thing that fails when the pool is empty.
         app.UseMiddleware<TransientFaultMiddleware>();
+
+        // ══ CORS, EARLY ═══════════════════════════════════════════════════════
+        //
+        // A preflight is an unauthenticated OPTIONS request by design: the browser
+        // sends it BEFORE it will attach any header the page asked for, Authorization
+        // included. So it has to be answered without a token.
+        //
+        // This sits before authentication as the conventional placement. An earlier
+        // version of this comment claimed that putting it after would break the
+        // preflight -- that was a guess, and moving it proved it wrong: in minimal
+        // APIs UseAuthorization rejects nothing on its own, since the requirement
+        // lives on the endpoint and is enforced later. Both orders work.
+        //
+        // What genuinely breaks is CORS being absent, which is what the tests catch.
+        // Before it existed the API answered a preflight with 405, and that would
+        // have presented as a web build failing every single call while the editor
+        // worked perfectly -- UnityWebRequest outside WebGL is not a browser and
+        // ignores all of this.
+        app.UseCors(BrowserOrigins.Policy);
 
         app.UseAuthentication();
         app.UseAuthorization();

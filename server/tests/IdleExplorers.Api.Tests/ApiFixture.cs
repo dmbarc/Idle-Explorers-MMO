@@ -99,6 +99,11 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // An origin the CORS tests can rely on. Configured here rather than hard-coded
+        // in the policy so the tests exercise the real parsing path -- a policy that
+        // only ever sees a literal is a policy whose configuration is untested.
+        builder.UseSetting(BrowserOrigins.Setting, "https://play.idle-explorers.test");
+
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IGameClock>();
