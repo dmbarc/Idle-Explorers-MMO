@@ -1,0 +1,48 @@
+<!--
+  Types IL2CPP must not strip.
+
+  == WHY THIS FILE EXISTS ======================================================
+
+  A WebGL build runs IL2CPP with managed stripping on. The stripper keeps what it can
+  see referenced and discards the rest, and it is right almost always -- the exception
+  is a type whose only use is through reflection.
+
+  JsonUtility is reflection. It walks the FIELDS of a type at runtime, and a field the
+  stripper removed is a field JsonUtility cannot find. It does not throw when that
+  happens: it leaves the field at its default. So a stripped wire type deserialises as
+  an object full of zeros, and the game reports that the player earned nothing.
+
+  That failure appears only in a release WebGL build. It is invisible in the editor,
+  invisible in a development build, and invisible in every test -- which makes it
+  exactly the kind of thing worth writing down rather than discovering during a
+  playtest.
+
+  == WHY THE WHOLE ASSEMBLY AND NOT A LIST OF TYPES ============================
+
+  Because a list is a thing somebody has to remember to add to, and the cost of being
+  wrong is silent. Assembly-CSharp is the game's own code -- a few hundred kilobytes of
+  IL against a build measured in megabytes of engine and art -- so preserving it whole
+  costs approximately nothing and removes the failure mode entirely.
+
+  The engine and package assemblies are NOT preserved here, and those are where
+  stripping actually pays.
+-->
+<linker>
+
+  <!--
+    The game's runtime code, including every [Serializable] wire type in
+    IdleExplorers.Backend and the whole shared IdleExplorers.Rules tree, which Unity
+    compiles into this same assembly.
+  -->
+  <assembly fullname="Assembly-CSharp" preserve="all" />
+
+  <!--
+    TextMeshPro reads settings and font assets by reflection through its own
+    ScriptableObject loading. Preserving the settings type specifically, rather than
+    the package, because the rest of it is genuinely worth stripping.
+  -->
+  <assembly fullname="Unity.TextMeshPro">
+    <type fullname="TMPro.TMP_Settings" preserve="all" />
+  </assembly>
+
+</linker>
