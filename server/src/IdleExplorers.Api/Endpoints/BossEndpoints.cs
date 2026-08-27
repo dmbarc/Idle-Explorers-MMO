@@ -121,13 +121,27 @@ public static class BossEndpoints
                 // Persisted, because the portal must still be open after a disconnect.
                 // An unlock that lives in a session is an unlock a player loses by
                 // closing a laptop.
-                await connection.ExecuteAsync(
+                int inserted = await connection.ExecuteAsync(
                     """
                     insert into unlock (character_id, unlock_id)
                     values ($1, $2)
                     on conflict (character_id, unlock_id) do nothing;
                     """,
                     tx, characterId, GateUnlock);
+
+                bool firstTime = inserted > 0;
+
+                // Only on the transition, not on every re-unlock: the insert above is
+                // idempotent, so a client calling it twice would otherwise put the same
+                // character through the funnel stage twice and inflate it.
+                if (firstTime)
+                {
+                    await TelemetryEndpoints.RecordAsync(
+                        connection, tx, accountId.Value, characterId,
+                        TelemetryEvents.BossUnlocked, now,
+                        ("monster",     GateMonster),
+                        ("activeKills", active.ToString()));
+                }
 
                 return Results.Ok(new { unlockId = GateUnlock, activeKills = active, open = true });
             }, http.RequestAborted);

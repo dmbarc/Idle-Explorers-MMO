@@ -27,4 +27,10 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The export is SQL against a real database, so its tests live with the other
+         SQL. Rules comes along transitively: the export writes the shared record. -->
+    <ProjectReference Include="../../src/IdleExplorers.Tools/IdleExplorers.Tools.csproj" />
+  </ItemGroup>
+
 </Project>

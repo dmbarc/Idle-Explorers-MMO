@@ -164,6 +164,39 @@ public static class TelemetryEndpoints
     }
 
     /// <summary>
+    /// Records something the SERVER decided.
+    ///
+    /// Separate from the ingest endpoint above, and deliberately not reachable from it.
+    /// A client may report that it opened a screen; only this may report that a
+    /// character was created, a portal opened or a boss died -- because those are
+    /// rewards and state, and a funnel built on a client's claims about state measures
+    /// how clients behave rather than how players do.
+    ///
+    /// Takes the transaction, so the event lands or rolls back with the thing it
+    /// describes. A "boss cleared" row surviving a rolled-back kill would be a lie the
+    /// database itself told.
+    /// </summary>
+    public static async Task RecordAsync(Npgsql.NpgsqlConnection connection,
+                                         Npgsql.NpgsqlTransaction? tx,
+                                         Guid accountId, Guid? characterId,
+                                         string eventName, DateTimeOffset now,
+                                         params (string Key, string Value)[] fields)
+    {
+        var payload = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var (key, value) in fields)
+            if (!string.IsNullOrEmpty(key)) payload[key] = value ?? "";
+
+        await connection.ExecuteAsync(
+            """
+            insert into telemetry_event (account_id, character_id, event, payload, occurred_at)
+            values ($1, $2, $3, $4::jsonb, $5);
+            """,
+            tx, accountId, characterId, eventName,
+            JsonSerializer.Serialize(payload), now);
+    }
+
+    /// <summary>
     /// Records something suspicious.
     ///
     /// Public, because the interesting security events are raised by the endpoints

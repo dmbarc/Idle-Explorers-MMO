@@ -27,9 +27,18 @@ dotnet run --project "$HERE/tests" -v q --nologo || fail=1
 echo ""
 echo "── Game server ──────────────────────────────────────────────────"
 server_log="$(mktemp)"
-if ! dotnet test "$ROOT/server/IdleExplorers.slnx" -v q --nologo 2>&1 | tee "$server_log"; then
-    fail=1
-fi
+
+# == WHY PIPESTATUS AND NOT `if ! dotnet test | tee` ==============================
+#
+# A bash pipeline exits with the status of its LAST command, and that is tee, which
+# succeeds whenever it can write to a file. So the obvious spelling above reports
+# success for every failing test run -- this script printed "ALL CHECKS PASSED" over
+# four red API tests until the count was read by eye.
+#
+# Exactly the failure mode verify.sh was rewritten for: a check that cannot fail is
+# worse than no check, because it is believed.
+dotnet test "$ROOT/server/IdleExplorers.slnx" -v q --nologo 2>&1 | tee "$server_log"
+[ "${PIPESTATUS[0]}" -eq 0 ] || fail=1
 
 # grep -c counts lines, and a skipped run prints "Skipped:  N" per assembly.
 skipped="$(grep -oE 'Skipped: *[0-9]+' "$server_log" | grep -oE '[0-9]+' | awk '{ s += $1 } END { print s+0 }')"

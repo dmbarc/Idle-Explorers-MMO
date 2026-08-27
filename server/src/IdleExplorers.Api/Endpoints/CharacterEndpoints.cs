@@ -31,6 +31,7 @@ public static class CharacterEndpoints
 
         // ── Create ────────────────────────────────────────────────────────────
         group.MapPost("/", async (HttpContext http, Caller caller, Db db, ContentCache content,
+                                 IGameClock clock,
                                   [FromBody] CreateRequest request) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
@@ -100,6 +101,14 @@ public static class CharacterEndpoints
                 await connection.ExecuteAsync(
                     "insert into activity (character_id) values ($1);",
                     tx, characterId);
+
+                // The funnel starts here, and only the server can say it started. In
+                // the same transaction as the insert, so a rolled-back creation cannot
+                // leave a character in the funnel that no table has ever heard of.
+                await TelemetryEndpoints.RecordAsync(
+                    connection, tx, accountId.Value, characterId,
+                    TelemetryEvents.CharacterCreated, await clock.NowAsync(http.RequestAborted),
+                    ("classId", classId));
 
                 return Results.Ok(new
                 {

@@ -308,6 +308,26 @@ public static class ActivityEndpoints
                                                        http.RequestAborted)
                     : SettlementService.Outcome.Nothing;
 
+                // ══ WHAT THE MINIGAME IS ACTUALLY WORTH ═══════════════════════
+                //
+                // Recorded even when the bonus is zero, because a minigame that pays
+                // nothing is the finding. The interesting ratio is graded-to-actions:
+                // a client reporting sixty grades against four actions is either a
+                // player at a very slow node or a script banking presses, and the two
+                // are only distinguishable in aggregate.
+                //
+                // Bucketed rather than per-grade. Sixty rows per minute per player is
+                // a stream nobody can afford to keep, and the question was never which
+                // individual swing was perfect.
+                await TelemetryEndpoints.RecordAsync(
+                    connection, tx, accountId.Value, characterId,
+                    TelemetryEvents.MinigameGraded, now,
+                    ("graded",       grades.Length.ToString()),
+                    ("actions",      outcome.Actions.ToString()),
+                    ("perfect",      Count(grades, MinigameGrade.Perfect).ToString()),
+                    ("good",         Count(grades, MinigameGrade.Good).ToString()),
+                    ("bonusActions", bonus.ToString()));
+
                 // One shape whether or not the minigame paid, so a client never has
                 // to branch on which answer it got.
                 return Results.Ok(new
@@ -478,6 +498,16 @@ public static class ActivityEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>How many of a grade. Small enough that a loop beats a dictionary.</summary>
+    private static int Count(MinigameGrade[] grades, MinigameGrade of)
+    {
+        int found = 0;
+
+        foreach (var grade in grades) if (grade == of) found++;
+
+        return found;
     }
 
     private static IResult NotYours() =>

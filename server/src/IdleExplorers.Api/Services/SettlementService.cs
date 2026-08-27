@@ -151,6 +151,7 @@ public sealed class SettlementService(Db db, ContentCache content)
                 """,
                 tx, row.AccountId, characterId,
                 $"{{\"kind\":\"{activity.Kind.ToString().ToLowerInvariant()}\"," +
+                $"\"skill\":{System.Text.Json.JsonSerializer.Serialize(activity.SkillId ?? "")}," +
                 $"\"actions\":{outcome.Actions}," +
                 $"\"supervised\":{outcome.SupervisedActions}," +
                 $"\"xp\":{outcome.XpGained}," +
@@ -895,7 +896,7 @@ public sealed class SettlementService(Db db, ContentCache content)
     private sealed class Row
     {
         public Guid            AccountId;
-        public ActivityState   Activity;
+        public ActivityState   Activity = new();
         public DateTimeOffset  LastSettledAt;
         public DateTimeOffset? LastHeartbeatAt;
         public long            CreditedSeconds;
