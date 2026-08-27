@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Owns the currently active character's runtime state.
@@ -249,29 +250,22 @@ public class CharacterManager : MonoBehaviour
         }
     }
 
+    // The curve moved to the shared rules tree, because the server decides levels
+    // and a second copy of a progression formula is the drift that tree exists to
+    // prevent.
+    //
+    // Moving it also fixed a real bug. It was computed in float, and a float carries
+    // about 16 million integers exactly while this curve reaches ~82 million — so
+    // from level 451 upward the rounding granted the level ONE XP EARLY, at 429 of
+    // the remaining boundaries. The skill curve was worse: level 258 up, 695
+    // boundaries. Levelling uses double, and LevellingTests pins the exact cases.
+
     /// <summary>Convert total XP to character level (1–999).</summary>
-    public static int XPToLevel(long totalXP)
-    {
-        // Using OSRS formula extended to 999: sum of floor((L + 300 * 2^(L/7)) / 4) for L=1 to target-1
-        // For performance, use a precomputed approximation:
-        // Level ≈ floor(1 + (totalXP / 83)^0.5), clamped to 1-999
-        int level = Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Sqrt(totalXP / 83f)), 1, 999);
-        return level;
-    }
+    public static int XPToLevel(long totalXP) => Levelling.CharacterLevel(totalXP);
 
     /// <summary>XP required to reach a given level.</summary>
-    public static long LevelToXP(int level)
-    {
-        level = Mathf.Clamp(level, 1, 999);
-        long xp = (long)((level - 1) * (level - 1)) * 83;
-        return xp;
-    }
+    public static long LevelToXP(int level) => Levelling.CharacterXpFor(level);
 
     /// <summary>XP needed to reach the next level from current XP.</summary>
-    public static long XPToNextLevel(long currentXP)
-    {
-        int currentLevel = XPToLevel(currentXP);
-        if (currentLevel >= 999) return 0;
-        return LevelToXP(currentLevel + 1) - currentXP;
-    }
+    public static long XPToNextLevel(long currentXP) => Levelling.CharacterXpToNext(currentXP);
 }

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Tests the SCHEMA, against a real Postgres.
+
+    Not against SQLite or an in-memory fake, because the things worth asserting here
+    are the things only a real database does: row locks, triggers, deferred
+    constraints, and RLS. A fake would pass all of them and prove nothing.
+
+    Every test skips itself, loudly, when no database is reachable - so the rest of
+    the suite still runs for someone who has not started the local stack.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>IdleExplorers.Database.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+    <!-- Native skip support arrived in xunit v3; the rest of the suite is on v2. -->
+    <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+</Project>

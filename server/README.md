@@ -27,7 +27,8 @@ verification, and the Play Games token exchange. The rules live in C#.
 | `src/IdleExplorers.Content/` | Reads the twelve StreamingAssets files into the shared catalogue. |
 | `tests/IdleExplorers.Rules.Tests/` | xUnit over the shared rules. |
 | `tests/IdleExplorers.Content.Tests/` | Imports the real shipping content and validates it. |
-| `supabase/` | Local stack config and, later, SQL migrations. |
+| `tests/IdleExplorers.Database.Tests/` | Schema invariants and the RLS boundary, against a real Postgres. |
+| `supabase/` | Local stack config and SQL migrations. |
 
 ### Why content loading is NOT shared
 
@@ -77,7 +78,10 @@ Just the server:
 dotnet test server/IdleExplorers.slnx
 ```
 
-Neither needs Docker, a database, or Unity to be open.
+Neither needs Unity to be open. The schema tests need the local stack, and **skip
+themselves** when it is not running rather than failing — so the rest stays runnable
+without Docker. `check.sh` prints a loud reminder when anything skipped, because a check
+that quietly stops existing is worse than one that was never written.
 
 ## Prerequisites
 
@@ -85,17 +89,15 @@ Neither needs Docker, a database, or Unity to be open.
 |---|---|---|
 | .NET SDK 10 | everything here | installed |
 | Supabase CLI | migrations, local stack, deploys | installed at `~/.supabase/bin`, on PATH |
-| **Docker Desktop** | `supabase start` — the local Postgres and Auth containers | **not installed** |
+| Docker Desktop | `supabase start` — the local Postgres and Auth containers | installed and running |
 | Fly CLI | deploying the API | not installed, not needed yet |
 
-Docker is the only outstanding one, and it is deliberately not installed automatically: it
-needs elevation, enables Windows features, and has a licence to accept. Install it with
+Docker needs WSL, which needs the `VirtualMachinePlatform` Windows feature and a reboot:
+`wsl --install` from an elevated prompt. Worth recording because "virtualisation support
+not detected" is what Docker Desktop reports for a *missing WSL*, which sends you to the
+BIOS for no reason.
 
-```bash
-winget install --id Docker.DockerDesktop --source winget
-```
-
-Until then the rules layer is fully testable — it is pure C# and touches no database.
+Everything except `tests/IdleExplorers.Database.Tests` runs without it.
 
 ## Local stack (once Docker exists)
 
@@ -108,6 +110,24 @@ on `54324`. Realtime and vector storage are switched off in `config.toml`: this 
 game, settlement-on-read plus a heartbeat is enough, and Unity WebGL excludes
 `System.Net.WebSockets` outright — a client that tried to use Realtime would hang rather
 than fail cleanly.
+
+Apply migrations from scratch:
+
+```bash
+supabase db reset
+```
+
+### Row level security
+
+Every game table has RLS **enabled and forced**, with **no policies at all**. That denies
+`anon` and `authenticated` outright; `service_role` has `BYPASSRLS` and is the only role
+the API uses.
+
+This is defence in depth rather than the real boundary — the client has no Supabase
+credentials whatsoever. But "the client cannot reach the database" is an assertion about
+deployment, and deployments change. `RowLevelSecurityTests` asserts it somewhere a config
+change cannot quietly undo, including the `FORCE`: without it the table owner is exempt,
+and a migration running as the owner leaves a hole nobody sees.
 
 ## Rules that are not negotiable
 

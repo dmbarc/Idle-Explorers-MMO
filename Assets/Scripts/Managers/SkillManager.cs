@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Manages all 13 skill levels and XP for the active character.
@@ -44,7 +45,7 @@ public class SkillManager : MonoBehaviour
         // stayed at level 1 for as long as they played — which, now that talent points
         // come from character level, would have meant an entire playstyle never
         // earning a single talent point. One rule, applied wherever skill XP lands.
-        GameManager.Character?.AddXP(amount / 4);
+        GameManager.Character?.AddXP(Levelling.CharacterXpFromSkillXp(amount));
 
         int newLevel = XPToSkillLevel(progress.xp);
         if (newLevel > progress.level)
@@ -77,19 +78,15 @@ public class SkillManager : MonoBehaviour
         return SkillLevelToXP(current + 1) - GetSkillXP(skillId);
     }
 
-    // ── XP Table (skill-specific, 1–999) ─────────────────────────────────────
-    // Same formula as CharacterManager but for skill levels:
-    // XP for level L ≈ L^2 * 100 (roughly OSRS-like but for 999 cap)
-    public static int XPToSkillLevel(long totalXP)
-    {
-        return Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Sqrt(totalXP / 100f)), 1, 999);
-    }
+    // ── XP table ──────────────────────────────────────────────────────────────
+    //
+    // Same shape as the character curve with a different divisor, and both now live
+    // in the shared rules tree. They were two copies in two files, which is how the
+    // divisors came to differ by accident before the difference was deliberate.
 
-    public static long SkillLevelToXP(int level)
-    {
-        level = Mathf.Clamp(level, 1, 999);
-        return (long)(level - 1) * (level - 1) * 100;
-    }
+    public static int XPToSkillLevel(long totalXP) => Levelling.SkillLevel(totalXP);
+
+    public static long SkillLevelToXP(int level) => Levelling.SkillXpFor(level);
 
     // ── Milestones ────────────────────────────────────────────────────────────
     private void CheckMilestones(string skillId, int oldLevel, int newLevel)
