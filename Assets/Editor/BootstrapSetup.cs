@@ -97,31 +97,34 @@ public static class BootstrapSetup
         // Default texture cannot be assigned to Image.sprite and is not returned by a
         // t:Sprite search — so every step after this would find nothing and quietly
         // fall back to placeholders.
-        Debug.Log("[Setup] 1/13 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
-        Debug.Log("[Setup] 2/13 UITheme asset");         CreateUIThemeAsset();
-        Debug.Log("[Setup] 3/13 Icon library");          IconLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 4/13 Audio library");         AudioSetup.Rebuild(showDialog: false);
-        Debug.Log("[Setup] 5/13 VFX library");           VFXLibrarySetup.Rebuild();
-        Debug.Log("[Setup] 6/13 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
-        Debug.Log("[Setup] 7/13 Item drop prefab");      ItemDropSetup.Rebuild(showDialog: false);
+        // FIRST, because it is the only step whose absence is completely silent: with
+        // no config asset the game plays offline and looks perfectly healthy doing it.
+        Debug.Log("[Setup] 1/14 Server config");         ServerConfigSetup.Ensure(announce: true);
+        Debug.Log("[Setup] 2/14 Import art as sprites"); SpriteImportSetup.Run(showDialog: false);
+        Debug.Log("[Setup] 3/14 UITheme asset");         CreateUIThemeAsset();
+        Debug.Log("[Setup] 4/14 Icon library");          IconLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 5/14 Audio library");         AudioSetup.Rebuild(showDialog: false);
+        Debug.Log("[Setup] 6/14 VFX library");           VFXLibrarySetup.Rebuild();
+        Debug.Log("[Setup] 7/14 UI sprite theme");       UIThemeSetup.Apply(showDialog: false);
+        Debug.Log("[Setup] 8/14 Item drop prefab");      ItemDropSetup.Rebuild(showDialog: false);
 
         // The character prefabs, BEFORE the maps — the map builders instantiate the
         // player prefab, and MonsterSpawner resolves monsters from Resources/Monsters
         // at runtime. MonsterPrefabSetup was a menu item only and was never called
         // from here, so Resources/Monsters held nothing but the stand-in: every
         // goblin in the game has been rendering as the fallback skeleton.
-        Debug.Log("[Setup] 8/13 Player prefab");         PlayerPrefabSetup.Build(showDialog: false);
-        Debug.Log("[Setup] 9/13 Monster prefabs");       MonsterPrefabSetup.BuildAll(showDialog: false);
+        Debug.Log("[Setup] 9/14 Player prefab");         PlayerPrefabSetup.Build(showDialog: false);
+        Debug.Log("[Setup] 10/14 Monster prefabs");       MonsterPrefabSetup.BuildAll(showDialog: false);
 
-        Debug.Log("[Setup] 10/13 Bootstrap scene");      CreateBootstrapScene(showDialog: false);
+        Debug.Log("[Setup] 11/14 Bootstrap scene");      CreateBootstrapScene(showDialog: false);
         // Last, and these rebake their own NavMesh — each map has to be final first.
-        Debug.Log("[Setup] 11/13 Goblin Camp + NavMesh");  GoblinCampSetup.Execute(showDialog: false);
-        Debug.Log("[Setup] 12/13 Fading Hollow + NavMesh"); HollowMapSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 12/14 Goblin Camp + NavMesh");  GoblinCampSetup.Execute(showDialog: false);
+        Debug.Log("[Setup] 13/14 Fading Hollow + NavMesh"); HollowMapSetup.Execute(showDialog: false);
 
         // Reports rather than builds: it reads item_data.json and the SPUM rig and
         // says which pieces of equipment would draw nothing. Cheap, and it turns the
         // class of bug that hid the tin helmet into a console line.
-        Debug.Log("[Setup] 13/13 Equipment art check");   EquipmentArtValidator.Validate();
+        Debug.Log("[Setup] 14/14 Equipment art check");   EquipmentArtValidator.Validate();
 
         // Bootstrap must be index 0 — it is the scene that owns the Managers object
         // and every other scene loads additively on top of it.
