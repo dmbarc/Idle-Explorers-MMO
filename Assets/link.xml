@@ -4,7 +4,7 @@
   == WHY THIS FILE EXISTS ======================================================
 
   A WebGL build runs IL2CPP with managed stripping on. The stripper keeps what it can
-  see referenced and discards the rest, and it is right almost always -- the exception
+  see referenced and discards the rest, and it is right almost always – the exception
   is a type whose only use is through reflection.
 
   JsonUtility is reflection. It walks the FIELDS of a type at runtime, and a field the
@@ -13,15 +13,15 @@
   an object full of zeros, and the game reports that the player earned nothing.
 
   That failure appears only in a release WebGL build. It is invisible in the editor,
-  invisible in a development build, and invisible in every test -- which makes it
+  invisible in a development build, and invisible in every test – which makes it
   exactly the kind of thing worth writing down rather than discovering during a
   playtest.
 
   == WHY THE WHOLE ASSEMBLY AND NOT A LIST OF TYPES ============================
 
   Because a list is a thing somebody has to remember to add to, and the cost of being
-  wrong is silent. Assembly-CSharp is the game's own code -- a few hundred kilobytes of
-  IL against a build measured in megabytes of engine and art -- so preserving it whole
+  wrong is silent. Assembly-CSharp is the game's own code – a few hundred kilobytes of
+  IL against a build measured in megabytes of engine and art – so preserving it whole
   costs approximately nothing and removes the failure mode entirely.
 
   The engine and package assemblies are NOT preserved here, and those are where

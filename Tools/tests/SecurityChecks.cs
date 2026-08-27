@@ -324,6 +324,33 @@ namespace IdleExplorersTests
             check(multi.Success && region.Success && multi.Groups[1].Value == region.Groups[1].Value,
                   "region and multiRegionConfig name the SAME place, so neither can silently win");
 
+            // ══ link.xml MUST PARSE ═══════════════════════════════════════════
+            //
+            // It is XML, and XML forbids "--" inside a comment. This project's comment
+            // style uses -- as a dash everywhere, so writing link.xml in house style
+            // produces a file Unity cannot read.
+            //
+            // The cost of getting it wrong is disproportionate: the WebGL build runs
+            // for twenty minutes, compiles everything, and THEN fails on an XmlException
+            // naming a line number in a file nobody was thinking about. Checking it here
+            // turns that into a second.
+            string linkXml = Safely(Path.Combine(root, "Assets", "link.xml"));
+
+            check(linkXml.Length > 0, "Assets/link.xml exists, so IL2CPP keeps the wire types");
+
+            if (linkXml.Length > 0)
+            {
+                bool parses = true;
+
+                try   { System.Xml.Linq.XDocument.Parse(linkXml); }
+                catch (System.Xml.XmlException) { parses = false; }
+
+                check(parses, "link.xml is valid XML -- remember that a comment cannot contain --");
+
+                check(linkXml.Contains("Assembly-CSharp"),
+                      "link.xml preserves the game assembly, whose fields JsonUtility reads by reflection");
+            }
+
             // ══ THE PORT ══════════════════════════════════════════════════════
             //
             // Railway, Render and Cloud Run all assign a port through PORT. ASP.NET
