@@ -1,6 +1,22 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
 
+  "//deprecation": [
+    "Railway calls this Config as Code and says it is deprecated in favour of",
+    "Infrastructure as Code (.railway/railway.ts), with these files working until",
+    "2026-12-01.",
+    "",
+    "NOT MIGRATED, deliberately. The TypeScript format has no documented field for a",
+    "Dockerfile path -- its `build` option is a build COMMAND -- and `railway config",
+    "migrate` confirms it: the generated file comments dockerfilePath and builder out",
+    "rather than translating them. Migrating today would silently lose the one setting",
+    "this project cannot do without, because the build context has to be the repo root.",
+    "",
+    "TODO(before 2026-12-01): migrate once the IaC reference documents a Dockerfile",
+    "path, or move the whole build to a prebuilt image pushed to a registry, which the",
+    "IaC format does support through `source`."
+  ],
+
   "build": {
     "builder": "DOCKERFILE",
 
