@@ -60,6 +60,20 @@
       "compute forever while never becoming healthy, and compute is billed."
     ],
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    "restartPolicyMaxRetries": 10,
+
+    "//region": [
+      "US East (Virginia), because Supabase is in AWS us-east-2 (Ohio).",
+      "",
+      "The service defaulted to EU West, which puts the Atlantic between the API and",
+      "its database: roughly 85ms per query instead of 10-15. Settlement issues several",
+      "queries per request, so that is the difference between a snappy API and a",
+      "sluggish one on every single call -- and it would have looked like slow code",
+      "rather than a misplaced container.",
+      "",
+      "Pinned here rather than left as a dashboard setting so it survives the service",
+      "being recreated, and so the reason travels with the value."
+    ],
+    "region": "us-east4-eqdc4a"
   }
 }

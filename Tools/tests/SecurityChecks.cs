@@ -265,6 +265,21 @@ namespace IdleExplorersTests
             check(Regex.IsMatch(json, @"""restartPolicyMaxRetries""\s*:\s*\d+"),
                   "restarts are bounded, so a misconfiguration cannot bill indefinitely");
 
+            // ══ WHERE IT RUNS ═════════════════════════════════════════════════
+            //
+            // The API and its database have to be on the same continent. The service
+            // defaulted to EU West with Supabase in Ohio, which is the Atlantic on
+            // every query -- roughly 85ms instead of 10-15, several times per request.
+            //
+            // That presents as slow code rather than as a misplaced container, which
+            // is why it is worth a check rather than a memory.
+            var region = Regex.Match(json, @"""region""\s*:\s*""([^""]+)""");
+
+            check(region.Success, "railway.json pins a region rather than taking the default");
+
+            check(region.Success && region.Groups[1].Value.StartsWith("us-east"),
+                  "the service runs in US East, alongside the Supabase project in us-east-2");
+
             // ══ THE PORT ══════════════════════════════════════════════════════
             //
             // Railway, Render and Cloud Run all assign a port through PORT. ASP.NET
