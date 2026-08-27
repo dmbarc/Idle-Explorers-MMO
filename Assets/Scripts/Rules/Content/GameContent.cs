@@ -244,6 +244,88 @@ namespace IdleExplorers.Rules
                 }
             }
 
+            foreach (var pair in Monsters)
+            {
+                var monster = pair.Value;
+                if (monster is not { isBoss: true }) continue;
+
+                if (monster.enrageSeconds <= 0f)
+                {
+                    // Without one the fight has no fail condition at all: the server
+                    // cannot verify a dodge, so the clock IS the difficulty.
+                    problems.Add($"boss '{pair.Key}' has no enrage timer");
+                }
+
+                if (monster.phases == null || monster.phases.Length == 0)
+                {
+                    problems.Add($"boss '{pair.Key}' has no phases");
+                    continue;
+                }
+
+                foreach (var phase in monster.phases)
+                {
+                    if (phase == null) continue;
+
+                    if (phase.fromHealthFraction is <= 0f or > 1f)
+                        problems.Add($"boss '{pair.Key}' phase '{phase.name}' begins at {phase.fromHealthFraction}");
+
+                    if (phase.abilities == null || phase.abilities.Length == 0)
+                    {
+                        problems.Add($"boss '{pair.Key}' phase '{phase.name}' has no abilities");
+                        continue;
+                    }
+
+                    foreach (var ability in phase.abilities)
+                    {
+                        if (ability == null) continue;
+
+                        if (!IsKnownShape(ability.shape))
+                            problems.Add($"boss '{pair.Key}' ability '{ability.id}' has shape '{ability.shape}'");
+
+                        // A telegraph of zero is unavoidable damage wearing a
+                        // mechanic's clothes -- the wind-up is the whole thing the
+                        // player is beating.
+                        if (ability.telegraphSeconds <= 0f)
+                            problems.Add($"boss '{pair.Key}' ability '{ability.id}' has no telegraph");
+
+                        if (ability.range <= 0f)
+                            problems.Add($"boss '{pair.Key}' ability '{ability.id}' has no range");
+
+                        if (ability.shape == "ring" && ability.innerRadius >= ability.range)
+                            problems.Add($"boss '{pair.Key}' ring '{ability.id}' is inside out");
+
+                        if (ability.pulses < 1)
+                            problems.Add($"boss '{pair.Key}' ability '{ability.id}' fires {ability.pulses} times");
+                    }
+                }
+            }
+
+            // Effects that name something else in the catalogue. Every one of these
+            // fails SILENTLY in game -- a fuse whose result does not exist consumes
+            // both halves and produces nothing, which is the worst outcome available.
+            foreach (var pair in Items)
+            {
+                var effects = pair.Value?.effects;
+                if (effects == null) continue;
+
+                foreach (var effect in effects)
+                {
+                    if (effect == null) continue;
+
+                    if (effect.action == "fuseInto")
+                    {
+                        if (!Items.ContainsKey(effect.param ?? ""))
+                            problems.Add($"item '{pair.Key}' fuses into unknown item '{effect.param}'");
+
+                        if (!string.IsNullOrEmpty(effect.requires) && !Items.ContainsKey(effect.requires))
+                            problems.Add($"item '{pair.Key}' fuse requires unknown item '{effect.requires}'");
+                    }
+
+                    if (effect.action == "summonAlly" && !Monsters.ContainsKey(effect.param ?? ""))
+                        problems.Add($"item '{pair.Key}' summons unknown monster '{effect.param}'");
+                }
+            }
+
             foreach (var pair in ItemSets)
             {
                 var pieces = pair.Value?.itemIds;
@@ -294,6 +376,16 @@ namespace IdleExplorers.Rules
             problems.AddRange(_duplicates);
             return problems;
         }
+
+        /// <summary>
+        /// Whether an ability's shape is one the hit test can resolve.
+        ///
+        /// Listed rather than parsed against the enum, because the enum lives beside
+        /// this and a typo in content should be caught HERE with the id that has it,
+        /// not thrown at runtime in the middle of a boss fight.
+        /// </summary>
+        private static bool IsKnownShape(string shape) =>
+            shape is "single" or "circle" or "ring" or "line" or "cone";
 
         /// <summary>
         /// Whether a declared slot names anything real, exactly or as a family.

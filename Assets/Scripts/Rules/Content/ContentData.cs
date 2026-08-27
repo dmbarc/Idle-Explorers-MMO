@@ -50,6 +50,17 @@ public class ItemEffect
     public float  magnitude = 1f;
     public string param;            // action-specific: skillId, stat id, vfx id
 
+    /// <summary>
+    /// A second item this effect consumes, for actions that need two.
+    ///
+    /// fuseInto is the reason: the Goblin Slasher and Smasher each carry a Use that
+    /// eats the other and produces the Destroyer. Expressing that as a param alone
+    /// would mean the effect could not say what it takes AND what it makes.
+    ///
+    /// Empty for every other action, which is all of them so far.
+    /// </summary>
+    public string requires;
+
     /// <summary>Shown verbatim in the tooltip, e.g. "Equip: has a chance to ...".</summary>
     public string equipText;
 
@@ -184,7 +195,135 @@ public class MonsterData
     public long         xpReward;
     public string       spriteAddress;
     public LootEntry[]  lootTable;
+
+    // ── Bosses ────────────────────────────────────────────────────────────────
+    //
+    // Additive, so no save migration and no change to the seven monsters that came
+    // before. A monster that says nothing about any of this is an ordinary monster,
+    // which is what every existing entry is.
+
+    /// <summary>True for a scripted encounter with phases and a health bar of its own.</summary>
+    public bool isBoss;
+
+    /// <summary>
+    /// Flat damage reduction. Zero means "scale it from level", which is what every
+    /// ordinary monster does -- see MonsterController.Armor. A boss states it, because
+    /// a boss is not balanced by its level.
+    /// </summary>
+    public float armor;
+
+    /// <summary>How far it notices you. Zero falls back to the spawner default.</summary>
+    public float aggroRange;
+
+    /// <summary>How far its ordinary attack reaches. Zero falls back to melee.</summary>
+    public float attackRange;
+
+    /// <summary>
+    /// Seconds before it gives up and wipes the arena.
+    ///
+    /// The fail condition is a CLOCK, not player death. The server cannot verify that
+    /// anybody dodged anything -- it does not know where they were standing, and
+    /// pretending otherwise by trusting a claimed position would be theatre. A DPS
+    /// check against a server clock cannot be faked: damage comes from a frozen stat
+    /// snapshot and the clock is the database's.
+    /// </summary>
+    public float enrageSeconds;
+
+    /// <summary>Health thresholds where behaviour changes, highest first.</summary>
+    public BossPhase[] phases;
+
     public string DisplayName => name;
+
+    /// <summary>The phase this monster is in at a given fraction of health.</summary>
+    public BossPhase PhaseAt(double healthFraction)
+    {
+        if (phases == null || phases.Length == 0) return null;
+
+        BossPhase current = phases[0];
+
+        foreach (var phase in phases)
+            if (phase != null && healthFraction <= phase.fromHealthFraction) current = phase;
+
+        return current;
+    }
+}
+
+/// <summary>
+/// One stage of a boss fight.
+///
+/// Phases are declared by the health they BEGIN at, descending, so adding a stage in
+/// the middle is one entry rather than a renumbering. The alternative -- an index and
+/// a threshold -- lets the two disagree, and then a boss skips a phase.
+/// </summary>
+[Serializable]
+public class BossPhase
+{
+    public string name;
+
+    /// <summary>Health fraction at or below which this phase applies. 1.0 is the first.</summary>
+    public float fromHealthFraction = 1f;
+
+    /// <summary>Ability ids this phase may use, from the monster's own list.</summary>
+    public BossAbility[] abilities;
+
+    /// <summary>Multiplier on attack speed. Above 1 is faster.</summary>
+    public float hasteMultiplier = 1f;
+
+    /// <summary>Adds spawned every interval. Zero for none.</summary>
+    public int addsPerWave;
+
+    public float secondsBetweenWaves;
+}
+
+/// <summary>
+/// One telegraphed attack a boss can make.
+///
+/// ══ WHY THE TELEGRAPH IS CONTENT AND NOT CODE ═════════════════════════════════
+///
+/// The wind-up is the mechanic. A cleave with no telegraph is unavoidable damage; the
+/// same cleave with 1.2 seconds of a red arc on the ground is a thing the player
+/// beat. Authoring it beside the damage means the two are tuned together, and it
+/// means the server can generate the whole attack timeline up front from a seed --
+/// which is what lets the client draw every telegraph at exactly the right moment
+/// with no network involved.
+/// </summary>
+[Serializable]
+public class BossAbility
+{
+    public string id;
+    public string name;
+
+    /// <summary>"single", "circle", "ring", "line" or "cone". Matches AreaKind.</summary>
+    public string shape;
+
+    /// <summary>Seconds of wind-up. The whole point -- see the class comment.</summary>
+    public float telegraphSeconds = 1f;
+
+    /// <summary>Seconds before it may be used again.</summary>
+    public float cooldownSeconds = 6f;
+
+    /// <summary>Multiplier on the boss's base damage.</summary>
+    public float damageMultiplier = 1f;
+
+    /// <summary>Reach for a line or cone, radius for a circle or ring.</summary>
+    public float range = 5f;
+
+    /// <summary>Half-width of a line.</summary>
+    public float halfWidth = 1.5f;
+
+    /// <summary>Total arc of a cone, in degrees.</summary>
+    public float arcDegrees = 90f;
+
+    /// <summary>Inner radius of a ring.</summary>
+    public float innerRadius;
+
+    /// <summary>How many times it fires. A three-pulse quake is one ability.</summary>
+    public int pulses = 1;
+
+    public float secondsBetweenPulses = 0.5f;
+
+    /// <summary>World units of knockback. Zero for none.</summary>
+    public float knockback;
 }
 
 [Serializable]
