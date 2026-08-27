@@ -58,6 +58,7 @@ public class PlayerController : MonoBehaviour
     public float MaxStamina     => maxStamina;
 
     private MonsterController currentTarget;
+    private SpriteFacing      _facing;
     private DropPickup currentItemTarget;
     private SkillNodeController currentNodeTarget;
 
@@ -68,6 +69,10 @@ public class PlayerController : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         agent.stoppingDistance = 0.1f;
+
+        // The mirror lives on the art subtree, not here — see SpriteFacing. Attach is
+        // idempotent, so a prefab the builder already covered pays nothing.
+        _facing = SpriteFacing.Attach(gameObject);
 
         // Speed is not set here. ApplyClassStats below assigns it from the stat block,
         // and doing it twice would mean the Inspector value briefly won.
@@ -213,6 +218,10 @@ public class PlayerController : MonoBehaviour
 
         HandleAbilityKeys();
         if (autoAttack) AutoCastAbilities();
+
+        // Standing still mid-fight should not mean facing wherever the last step
+        // happened to leave us. Movement still wins when there is any.
+        if (_facing != null) _facing.LookTarget = currentTarget != null ? currentTarget.transform : null;
 
         if (currentTarget != null) AttackLogic();
         else if (currentItemTarget != null) PickupLogic();

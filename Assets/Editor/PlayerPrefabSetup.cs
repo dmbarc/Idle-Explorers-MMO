@@ -173,6 +173,13 @@ public static class PlayerPrefabSetup
             problems.Add($"{unbillboarded} sprite(s) that no Billboard turns — they will go " +
                          "edge-on whenever the character walks across the camera");
 
+        // The failure mode of the mirror, asserted in the same shape: text under a
+        // SpriteFacing renders backwards the first time the character turns left.
+        int mirrored = SpriteFacing.CountMirroredText(root);
+        if (mirrored > 0)
+            problems.Add($"{mirrored} text object(s) under the mirrored art — they will " +
+                         "read backwards whenever the character faces left");
+
         if (problems.Count == 0) return true;
 
         Debug.LogError($"[PlayerPrefab] NOT saving {PREFAB_PATH} — the player would be broken:\n  • " +
@@ -217,7 +224,11 @@ public static class PlayerPrefabSetup
         // A flat sprite standing in a 3D world turns edge-on the moment the agent
         // rotates the character to face travel. This is what stops that; the root
         // keeps rotating, only the artwork is held toward the camera.
-        Billboard.CoverArt(art);
+        //
+        // Attach adds the mirror as well, which is the other half of the same
+        // problem: art held toward the camera cannot express direction by rotating,
+        // so it expresses it by flipping.
+        SpriteFacing.Attach(art);
 
         // The rig is authored at 32 pixels to the unit and comes out well under a
         // metre; the world around it was built for the two-unit person the agent

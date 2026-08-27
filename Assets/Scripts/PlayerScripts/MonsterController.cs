@@ -4,7 +4,8 @@ using UnityEngine.AI;
 
 public class MonsterController : MonoBehaviour
 {
-    private Transform player;
+    private Transform    player;
+    private SpriteFacing _facing;
     private PlayerController playerController;  // cached — avoids GetComponent every frame
     public NavMeshAgent agent;
     public Animator anim;
@@ -44,10 +45,11 @@ public class MonsterController : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
 
         // Flat artwork turns edge-on the moment the agent rotates to face travel, and
-        // the health bar is a WORLD-SPACE canvas with the same problem. CoverArt is
-        // idempotent, so a prefab the builder already billboarded pays nothing here —
-        // this is the net for _default and skeleton, which the builder never rebuilds.
-        Billboard.CoverArt(gameObject);
+        // the health bar is a WORLD-SPACE canvas with the same problem. Attach also
+        // billboards, and both halves are idempotent, so a prefab the builder already
+        // covered pays nothing here — this is the net for _default and skeleton,
+        // which the builder never rebuilds.
+        _facing = SpriteFacing.Attach(gameObject);
 
         if (healthUI != null && healthUI.GetComponentInParent<Billboard>(true) == null)
             healthUI.AddComponent<Billboard>();
@@ -106,6 +108,8 @@ public class MonsterController : MonoBehaviour
                     // Only re-path when the player has actually moved. SetDestination
                     // recalculates the whole path, and calling it every frame for every
                     // monster in aggro range was most of the cost of a busy camp.
+                    if (_facing != null) _facing.LookTarget = player;
+
                     if ((player.position - _lastChaseDestination).sqrMagnitude > 1f)
                     {
                         _lastChaseDestination = player.position;

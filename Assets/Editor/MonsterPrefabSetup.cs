@@ -149,7 +149,8 @@ public static class MonsterPrefabSetup
 
             // Monsters are the same flat artwork the player is, and turned edge-on for
             // the same reason: the agent rotates them to face where they are walking.
-            Billboard.CoverArt(instance);
+            // Attach billboards AND mirrors, so a goblin walking left looks left.
+            SpriteFacing.Attach(instance);
 
             // Same reason the player is scaled: the sprite is authored at 32 pixels to
             // the unit, and the world was built for a two-unit person.
@@ -163,6 +164,15 @@ public static class MonsterPrefabSetup
             if (unbillboarded > 0)
                 Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + unbillboarded +
                                  " sprite(s) no Billboard turns — they will go edge-on as it walks.");
+
+            // The failure mode of the mirror: text under a SpriteFacing renders
+            // backwards the first time the character turns around. Obvious to a
+            // player, invisible to a compiler.
+            int mirrored = SpriteFacing.CountMirroredText(instance);
+            if (mirrored > 0)
+                Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + mirrored +
+                                 " text object(s) under the mirrored art — they will read " +
+                                 "backwards whenever it faces left.");
 
             if (!string.IsNullOrEmpty(recipe.SkinTint))
             {
