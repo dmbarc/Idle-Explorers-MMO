@@ -74,12 +74,13 @@ public class ContentManager : MonoBehaviour
     [Serializable] private class CraftList   { public CraftRecipe[]          recipes;  }
     [Serializable] private class SetList     { public ItemSetData[]          sets;     }
     [Serializable] private class SpecList    { public SpecCombo[]            specs;    }
+    [Serializable] private class AbilityList { public AbilityData[]          abilities; }
 
     // ── Public API ────────────────────────────────────────────────────────────
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 12;
+        _pendingLoads = 13;
 
         // Parsing is ours; indexing belongs to the shared catalogue. The server calls
         // the same Ingest methods with the same arrays, having read the same files a
@@ -95,6 +96,10 @@ public class ContentManager : MonoBehaviour
         LoadJson<CraftList>  ("recipe_data",   "recipes",  j => Catalogue.IngestCraftRecipes(j.recipes));
         LoadJson<SetList>    ("set_data",      "sets",     j => Catalogue.IngestItemSets(j.sets));
         LoadJson<SpecList>   ("spec_data",     "specs",    j => Catalogue.IngestSpecCombos(j.specs));
+
+        // Abilities that belong to no class -- the ones items grant. The
+        // thirteenth file, and _pendingLoads above counts it.
+        LoadJson<AbilityList>("ability_data",  "abilities", j => Catalogue.IngestAbilities(j.abilities));
 
         // The two root OBJECTS. They are not lists, so the array wrapper in
         // LoadJsonRoutine is bypassed and their wrapField goes unused.

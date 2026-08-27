@@ -1243,7 +1243,48 @@ public class PlayerController : MonoBehaviour
 
         // Resolved against every specced class, so a Paladin's bar can hold Cleave and
         // Fireball at the same time.
-        return TalentManager.FindAbilityFor(character, abilityId);
+        AbilityData fromTalents = TalentManager.FindAbilityFor(character, abilityId);
+        if (fromTalents != null) return fromTalents;
+
+        // Then whatever is WORN. The Goblin Destroyer grants Whirling Throw, and that
+        // ability belongs to the weapon rather than to a spec -- putting it in a class
+        // tree would let anyone with that class use it without ever finding the sword.
+        return GrantedByEquipment(abilityId);
+    }
+
+    /// <summary>
+    /// An ability an equipped item grants, or null.
+    ///
+    /// Checked on every read rather than cached on equip, because the answer changes
+    /// the instant the weapon comes off -- and a cached one would leave a button on
+    /// the bar that fires an ability the character no longer has any claim to.
+    ///
+    /// A broken piece grants nothing, matching every other passive: durability is the
+    /// payoff for maintaining gear, and an ability that survived at zero would make
+    /// the best item in the game the one you never have to repair.
+    /// </summary>
+    private AbilityData GrantedByEquipment(string abilityId)
+    {
+        var equipment = GameManager.Equipment;
+        var content   = GameManager.Content;
+
+        if (equipment == null || content == null) return null;
+
+        foreach (var item in equipment.EquippedItems())
+        {
+            if (item?.effects == null) continue;
+
+            foreach (var effect in item.effects)
+            {
+                if (effect == null) continue;
+                if (effect.action != "grantAbility") continue;
+                if (effect.param != abilityId) continue;
+
+                return content.Catalogue.GetAbility(abilityId);
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -1553,6 +1594,23 @@ public class PlayerController : MonoBehaviour
             {
                 TurretController.Deploy(transform.position, AttackDamage * power,
                                          ability.aoeRadius, ability.durationSeconds);
+                return true;
+            }
+
+            case "bladestorm":
+            {
+                // Thrown at the current target, or at the character's feet with
+                // nothing selected -- a whirlwind that refuses to fire because
+                // nothing is targeted is a whirlwind nobody uses defensively.
+                Vector3 at = currentTarget != null
+                    ? currentTarget.transform.position
+                    : transform.position;
+
+                // Damage per PULSE, so the ability's power reads as "per tick" rather
+                // than as a total that has to be divided by a duration nobody sees.
+                Bladestorm.Throw(transform, at, AttackDamage * power,
+                                 ability.aoeRadius, ability.durationSeconds);
+
                 return true;
             }
 

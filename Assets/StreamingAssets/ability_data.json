@@ -1,0 +1,15 @@
+[
+  {
+    "id": "whirling_throw",
+    "name": "Whirling Throw",
+    "description": "The Destroyer leaves your hands, plants itself in the ground, and spins. You are advised to stand back, though it has never asked.",
+    "isPassive": false,
+    "effect": "bladestorm",
+    "power": 0.8,
+    "cooldownSeconds": 24.0,
+    "aoeRadius": 5.0,
+    "durationSeconds": 4.0,
+    "iconAddress": "",
+    "vfxAddress": "aura_runic"
+  }
+]

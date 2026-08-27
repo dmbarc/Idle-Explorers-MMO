@@ -63,10 +63,92 @@ public static class ItemEffectResolver
             case "damageEquipment":
                 return ApplyDamageEquipment(effect);
 
+            case "fuseInto":
+                return ApplyFuse(effect, item);
+
             default:
                 Debug.LogWarning($"[ItemEffect] '{item.id}' has unhandled action '{effect.action}'.");
                 return false;
         }
+    }
+
+    /// <summary>
+    /// Consumes a second item to make a third.
+    ///
+    /// ══ WHY BOTH HALVES CARRY THE SAME EFFECT ═════════════════════════════════
+    ///
+    /// The Slasher and the Smasher each have a Use that eats the other. Either can be
+    /// the one clicked, and the result is the same weapon -- which is what a player
+    /// expects, and what saves them having to work out which half is the "real" one.
+    ///
+    /// ══ WHY IT REFUSES RATHER THAN PARTIALLY SUCCEEDS ═════════════════════════
+    ///
+    /// Everything is checked before anything is spent. A fuse that consumed the
+    /// partner and then found no room for the result would destroy two of the rarest
+    /// items in the game and hand back nothing, and there would be no way to tell
+    /// afterwards whether it had ever worked.
+    ///
+    /// TODO(Phase 4): the server owns this once crafting moves. The check-then-spend
+    /// shape here is deliberately the shape that transaction will take.
+    /// </summary>
+    private static bool ApplyFuse(ItemEffect effect, ItemData item)
+    {
+        var inventory = GameManager.Inventory;
+        var content   = GameManager.Content;
+
+        if (inventory == null || content == null) return false;
+
+        string resultId  = effect.param;
+        string partnerId = effect.requires;
+
+        var result = content.GetItem(resultId);
+
+        if (result == null)
+        {
+            // Caught by content validation long before this, but a null here would
+            // spend both halves for nothing -- so it is checked at the point of use
+            // as well as at import.
+            Debug.LogWarning($"[ItemEffect] '{item.id}' fuses into unknown item '{resultId}'.");
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(partnerId))
+        {
+            Debug.LogWarning($"[ItemEffect] '{item.id}' has a fuse with no partner declared.");
+            return false;
+        }
+
+        if (inventory.GetQuantity(partnerId) < 1)
+        {
+            string partnerName = content.GetItem(partnerId)?.DisplayName ?? partnerId;
+
+            GameEvents.FireToast($"You need a {partnerName} as well.", ChatTone.Warning);
+            return false;
+        }
+
+        // Room for the result BEFORE anything is spent. The item being used is still
+        // in the bag at this point and its slot is not free yet, so this is the
+        // strictly safe question.
+        if (!inventory.CanAddItem(resultId))
+        {
+            GameEvents.FireToast("No room to forge that.", ChatTone.Bad);
+            return false;
+        }
+
+        if (!inventory.RemoveItem(partnerId, 1))
+        {
+            // The stock check passed a moment ago, so this can only be a disagreement
+            // between the two -- grant nothing rather than guess.
+            Debug.LogWarning($"[ItemEffect] Could not consume '{partnerId}' despite having it.");
+            return false;
+        }
+
+        inventory.AddItem(resultId, 1);
+
+        GameManager.Audio?.Play(Sfx.SetProc);
+        GameEvents.FireToast($"✦ The halves fuse into {result.DisplayName}.", ChatTone.Good);
+
+        return true;
     }
 
     private static bool ApplyHeal(ItemEffect effect, ItemData item)
@@ -340,7 +422,37 @@ public static class ItemEffectResolver
                 // Handled at the point of production, not here — the craft loop asks
                 // AggregateMultiplier so the bonus lands on the actual output count.
                 break;
+
+            case "summonAlly":
+                SummonAlly(effect, item);
+                break;
         }
+    }
+
+    /// <summary>
+    /// Brings something in to fight for a while.
+    ///
+    /// The Goblin Spear's six percent. Its damage is a fraction of the SUMMONER's,
+    /// so the ally scales with the character rather than being a flat number that is
+    /// overwhelming at level one and irrelevant at forty.
+    ///
+    /// One at a time: the existing one is dismissed rather than stacked. A six
+    /// percent proc on a fast weapon would otherwise fill the arena, and a player
+    /// who could not see their own character would reasonably call that a bug.
+    /// </summary>
+    private static void SummonAlly(ItemEffect effect, ItemData item)
+    {
+        var player = Object.FindFirstObjectByType<PlayerController>();
+        if (player == null) return;
+
+        foreach (var existing in Object.FindObjectsByType<AllyController>(FindObjectsInactive.Exclude))
+            if (existing != null) Object.Destroy(existing.gameObject);
+
+        // Half the summoner's swing. Enough to notice, not enough to replace them.
+        double damage = player.AttackDamage * 0.5d;
+
+        AllyController.Summon(effect.param, player.transform, damage,
+                              Mathf.Max(1f, effect.magnitude));
     }
 
     /// <summary>

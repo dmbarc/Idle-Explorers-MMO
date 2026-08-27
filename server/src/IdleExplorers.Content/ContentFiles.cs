@@ -36,6 +36,7 @@ public static class ContentFiles
     /// </summary>
     public static readonly string[] FileNames =
     {
+        "ability_data.json",
         "base_stats.json",
         "class_data.json",
         "item_data.json",
@@ -177,6 +178,10 @@ public static class ContentFiles
 
             case "spec_data.json":
                 content.IngestSpecCombos(Read<SpecCombo[]>(bytes));
+                break;
+
+            case "ability_data.json":
+                content.IngestAbilities(Read<AbilityData[]>(bytes));
                 break;
 
             // The two root objects.

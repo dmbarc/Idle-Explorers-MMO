@@ -42,6 +42,16 @@ namespace IdleExplorers.Rules
         public Dictionary<string, ClassData>   Classes  { get; } = new Dictionary<string, ClassData>();
         public Dictionary<string, ItemSetData> ItemSets { get; } = new Dictionary<string, ItemSetData>();
 
+        /// <summary>
+        /// Abilities that belong to no class.
+        ///
+        /// Every ability used to come from a class's talent tree, which is fine until
+        /// an ITEM grants one -- the Goblin Destroyer's Whirling Throw belongs to a
+        /// weapon, not to a spec, and putting it in a class tree would mean anyone
+        /// with that class could use it without the weapon.
+        /// </summary>
+        public Dictionary<string, AbilityData> Abilities { get; } = new Dictionary<string, AbilityData>();
+
         public List<CraftRecipe>            CraftRecipes { get; } = new List<CraftRecipe>();
         public List<MergeRecipe>            MergeRecipes { get; } = new List<MergeRecipe>();
         public List<SlotUnlockRequirement>  SlotUnlocks  { get; } = new List<SlotUnlockRequirement>();
@@ -78,6 +88,9 @@ namespace IdleExplorers.Rules
 
         public void IngestItemSets(ItemSetData[] sets) =>
             Index(ItemSets, sets, x => x?.id, "item set");
+
+        public void IngestAbilities(AbilityData[] abilities) =>
+            Index(Abilities, abilities, x => x?.id, "ability");
 
         /// <summary>Zones carry their maps inline, so both indexes fill in one pass.</summary>
         public void IngestZones(ZoneData[] zones)
@@ -137,6 +150,29 @@ namespace IdleExplorers.Rules
         public ZoneData    GetZone(string id)    => Get(Zones, id);
         public ItemSetData GetItemSet(string id) => Get(ItemSets, id);
         public CraftRecipe GetRecipe(string id)  => Get(_recipesById, id);
+
+        /// <summary>
+        /// An ability by id: class trees first, then the standalone catalogue.
+        ///
+        /// That order because a class ability is the common case and a standalone one
+        /// is the exception -- and because if an id somehow existed in both, the class
+        /// version is the one a player already has on their bar.
+        /// </summary>
+        public AbilityData GetAbility(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+
+            foreach (var pair in Classes)
+            {
+                var abilities = pair.Value?.abilities;
+                if (abilities == null) continue;
+
+                foreach (var ability in abilities)
+                    if (ability != null && ability.id == id) return ability;
+            }
+
+            return Get(Abilities, id);
+        }
 
         /// <summary>Every recipe a given station offers, in file order.</summary>
         public List<CraftRecipe> GetRecipesForStation(string stationType)
@@ -323,6 +359,9 @@ namespace IdleExplorers.Rules
 
                     if (effect.action == "summonAlly" && !Monsters.ContainsKey(effect.param ?? ""))
                         problems.Add($"item '{pair.Key}' summons unknown monster '{effect.param}'");
+
+                    if (effect.action == "grantAbility" && GetAbility(effect.param) is null)
+                        problems.Add($"item '{pair.Key}' grants unknown ability '{effect.param}'");
                 }
             }
 
