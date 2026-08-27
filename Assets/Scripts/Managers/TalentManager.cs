@@ -82,7 +82,7 @@ public static class TalentManager
     /// so the first level-up is when the tree becomes interesting.
     /// </summary>
     public static int TotalPoints(CharacterData character) =>
-        character == null ? 0 : Mathf.Max(0, character.level - 1);
+        character == null ? 0 : IdleExplorers.Rules.Talents.TotalPoints(character.level);
 
     /// <summary>
     /// Points spent across EVERY tree the character has specced into.
@@ -96,11 +96,23 @@ public static class TalentManager
     {
         if (character?.talents == null) return 0;
 
-        int spent = 0;
-        foreach (var node in AllNodes(character))
-            spent += RankOf(character, node.id) * node.PointCost;
+        return IdleExplorers.Rules.Talents.SpentPoints(character.talents, NodesFor(character));
+    }
 
-        return spent;
+    /// <summary>
+    /// Every node the character can reach, as a list the shared rules can read.
+    ///
+    /// Materialised rather than passed as the existing lazy enumerable, because the
+    /// rules index into it repeatedly and re-walking three class trees per lookup is
+    /// the kind of thing that is invisible in the editor and measurable on a server.
+    /// </summary>
+    private static List<TalentNode> NodesFor(CharacterData character)
+    {
+        var nodes = new List<TalentNode>();
+
+        foreach (var node in AllNodes(character)) nodes.Add(node);
+
+        return nodes;
     }
 
     public static int AvailablePoints(CharacterData character) =>
@@ -182,56 +194,28 @@ public static class TalentManager
     /// Points that must already be in the tree before a tier opens. Three per tier,
     /// so the first row has to be worked through before the second is reachable.
     /// </summary>
-    public static int TierPointRequirement(int tier) => Mathf.Max(0, tier) * 3;
+    public static int TierPointRequirement(int tier) =>
+        IdleExplorers.Rules.Talents.TierRequirement(tier);
 
     // ── Spending ──────────────────────────────────────────────────────────────
 
-    /// <summary>Whether one more point can go into this node, and why not if it cannot.</summary>
+    /// <summary>
+    /// Whether one more point can go into this node, and why not if it cannot.
+    ///
+    /// Delegated to the shared rules, so the answer here is the answer the SERVER will
+    /// give. Two implementations would produce a button that looks available and fails
+    /// with no explanation -- the worst possible version of this feature.
+    /// </summary>
     public static bool CanSpend(CharacterData character, TalentNode node, out string reason)
     {
-        if (character == null || node == null)
+        if (character == null)
         {
             reason = "No character.";
             return false;
         }
 
-        if (RankOf(character, node.id) >= node.RankCap)
-        {
-            reason = "Already at maximum rank.";
-            return false;
-        }
-
-        if (AvailablePoints(character) < node.PointCost)
-        {
-            reason = node.PointCost > 1
-                ? $"Needs {node.PointCost} points."
-                : "No talent points to spend.";
-            return false;
-        }
-
-        int required = TierPointRequirement(node.tier);
-        int spent    = SpentPoints(character);
-        if (spent < required)
-        {
-            reason = $"Spend {required - spent} more point(s) first.";
-            return false;
-        }
-
-        if (node.requiresNodeIds != null)
-        {
-            foreach (var prerequisiteId in node.requiresNodeIds)
-            {
-                if (string.IsNullOrEmpty(prerequisiteId)) continue;
-                if (RankOf(character, prerequisiteId) > 0) continue;
-
-                string name = FindNode(character, prerequisiteId)?.name ?? prerequisiteId;
-                reason = $"Requires {name}.";
-                return false;
-            }
-        }
-
-        reason = null;
-        return true;
+        return IdleExplorers.Rules.Talents.CanSpend(
+            node, character.level, character.talents, NodesFor(character), out reason);
     }
 
     /// <summary>Puts one point into a node. Returns false with a reason, and changes nothing.</summary>

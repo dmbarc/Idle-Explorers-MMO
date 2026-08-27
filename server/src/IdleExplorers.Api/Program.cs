@@ -119,6 +119,8 @@ public class Program
         ActivityEndpoints.Map(app);
         BossEndpoints.Map(app);
         EncounterEndpoints.Map(app);
+        TalentEndpoints.Map(app);
+        BankEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
         TelemetryEndpoints.Map(app);
 

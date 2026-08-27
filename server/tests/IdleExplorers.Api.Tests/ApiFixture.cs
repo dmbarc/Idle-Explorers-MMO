@@ -88,6 +88,15 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     /// </summary>
     public FeatureFlags Flags => Services.GetRequiredService<FeatureFlags>();
 
+    /// <summary>
+    /// The catalogue the running server loaded.
+    ///
+    /// Reached through the host so a test asks the SAME content the endpoint will read.
+    /// Loading a second copy would let a test pass against content the server does not
+    /// have.
+    /// </summary>
+    public ContentCache Content => Services.GetRequiredService<ContentCache>();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureServices(services =>
