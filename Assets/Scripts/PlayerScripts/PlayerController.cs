@@ -1608,14 +1608,18 @@ public class PlayerController : MonoBehaviour
     {
         if (target == null) return 0d;
 
-        var profile = Stats.Resolve();
+        var mainHand = MainHand;
+        var profile  = Stats.Resolve();
 
         // The weapon widens the band rather than replacing it, so an unarmed
         // character is weak instead of harmless — and so a swing still crits at the
         // character's own rate rather than the weapon having to restate it.
-        var weapon = WeaponProfile.WeaponDamage(MainHand);
+        var weapon = WeaponProfile.WeaponDamage(mainHand);
         profile.Min += weapon.Min;
         profile.Max += weapon.Max;
+
+        int shots = WeaponProfile.ProjectilesPerShot(mainHand);
+        if (shots > 0) return FireVolley(target, profile, shots);
 
         double dealt = profile.Roll(UnityRandomSource.Instance, out bool wasCrit);
         dealt *= StatBlock.DamageThrough(target.Armor);
@@ -1623,6 +1627,46 @@ public class PlayerController : MonoBehaviour
 
         target.TakeDamage(dealt, wasCrit);
         return dealt;
+    }
+
+    /// <summary>
+    /// Fires a ranged shot, or several.
+    ///
+    /// ══ THE DAMAGE IS DECIDED HERE, NOT ON ARRIVAL ════════════════════════════
+    ///
+    /// Every arrow is rolled and reduced by armour before it leaves the bow, and the
+    /// projectile only carries the number to the target so it lands with the impact
+    /// rather than the twang. If arrival decided the hit, the client would be
+    /// deciding it too, by moving the arrow — which is the whole class of thing the
+    /// server-authoritative work exists to remove.
+    ///
+    /// Each arrow rolls SEPARATELY. Three arrows sharing one roll is one big arrow
+    /// drawn three times, and it would crit as one: the Trisong Bow is meant to feel
+    /// like a spread, which means each one can be the good one.
+    ///
+    /// The return value is what was fired, for the caller's lifesteal and logging.
+    /// Nothing has actually landed yet.
+    /// </summary>
+    private double FireVolley(MonsterController target, DamageProfile profile, int shots)
+    {
+        double armour = StatBlock.DamageThrough(target.Armor);
+        double total  = 0d;
+
+        // Centred: one arrow flies straight, three fan to -1, 0, +1.
+        float middle = (shots - 1) * 0.5f;
+
+        for (int i = 0; i < shots; i++)
+        {
+            double dealt = profile.Roll(UnityRandomSource.Instance, out bool wasCrit) * armour;
+            dealt = System.Math.Max(1d, dealt);
+
+            Projectile.Launch(transform.position + Vector3.up * 0.9f,
+                              target, dealt, wasCrit, spread: (i - middle) * 0.55f);
+
+            total += dealt;
+        }
+
+        return total;
     }
 
     /// <summary>
