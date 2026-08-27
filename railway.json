@@ -88,6 +88,25 @@
       "Session mode, not transaction mode on 6543: settlement holds a transaction open",
       "across several statements and takes row locks, which transaction pooling breaks."
     ],
-    "ipv6EgressEnabled": true
+    "ipv6EgressEnabled": true,
+
+    "//multiRegionConfig": [
+      "THIS is what actually places the service. `region` above does not.",
+      "",
+      "The service was created in EU West, which set multiRegionConfig to ams, and",
+      "that field takes precedence -- so `region: us-east4-eqdc4a` was accepted,",
+      "written into the manifest, and ignored on every deploy. The container kept",
+      "running in Amsterdam with the config insisting otherwise.",
+      "",
+      "Both are set, and to the same place, because a config that disagrees with",
+      "itself is how this went unnoticed in the first place.",
+      "",
+      "Verified by reading the DEPLOYED manifest, not by reading this file. A check",
+      "that the config says us-east is not a check that the container is in us-east,",
+      "which is precisely the mistake that let it sit in the wrong hemisphere."
+    ],
+    "multiRegionConfig": {
+      "us-east4-eqdc4a": { "numReplicas": 1 }
+    }
   }
 }

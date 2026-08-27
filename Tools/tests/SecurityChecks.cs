@@ -304,7 +304,25 @@ namespace IdleExplorersTests
             check(region.Success, "railway.json pins a region rather than taking the default");
 
             check(region.Success && region.Groups[1].Value.StartsWith("us-east"),
-                  "the service runs in US East, alongside the Supabase project in us-east-2");
+                  "railway.json asks for US East, alongside the Supabase project in us-east-2");
+
+            // ══ AND THE FIELD THAT ACTUALLY DECIDES ═══════════════════════════
+            //
+            // multiRegionConfig OVERRIDES region. The service was created in EU West,
+            // which set multiRegionConfig to ams, and every subsequent deploy accepted
+            // region: us-east4 into the manifest and ignored it. The container ran in
+            // Amsterdam for three deploys with the config insisting it was in Virginia.
+            //
+            // Checking `region` alone passed the whole time, which is why this second
+            // assertion exists: a config that disagrees with itself is how the first
+            // one went unnoticed.
+            var multi = Regex.Match(json, @"""multiRegionConfig""\s*:\s*\{\s*""([^""]+)""");
+
+            check(multi.Success,
+                  "railway.json pins multiRegionConfig, which is what actually places the service");
+
+            check(multi.Success && region.Success && multi.Groups[1].Value == region.Groups[1].Value,
+                  "region and multiRegionConfig name the SAME place, so neither can silently win");
 
             // ══ THE PORT ══════════════════════════════════════════════════════
             //

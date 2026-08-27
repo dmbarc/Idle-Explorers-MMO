@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 344273f8ee9142abbd0f4eff3a4722e1, type: 3}
   m_Name: ServerConfig
   m_EditorClassIdentifier: Assembly-CSharp:IdleExplorers.Backend:ServerConfig
-  apiBaseUrl: 
+  apiBaseUrl: https://api-production-c568.up.railway.app
   supabaseUrl: https://tmyjwxoadxtlxpdzyesk.supabase.co
   supabaseAnonKey: sb_publishable_mrA3cHdD0F0J3F7Dzeb88g_NcKqLm4E
   shadowMode: 1
