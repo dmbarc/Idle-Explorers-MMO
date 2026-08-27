@@ -296,8 +296,19 @@ create table idempotency_record (
     account_id  uuid        not null references account (id) on delete cascade,
     request_id  text        not null,
     endpoint    text        not null,
+
+    -- Zero means claimed but not yet answered. The claim is taken BEFORE the work
+    -- runs, using this table's primary key as the lock: two copies of one request
+    -- arriving together must not both execute, and a check-then-insert lets them.
     status_code int         not null,
-    response    jsonb       not null,
+
+    -- TEXT, not jsonb, and deliberately. The promise is that a retry gets back the
+    -- ORIGINAL answer -- and jsonb normalises whitespace, reorders keys and can
+    -- reformat numbers, so a round trip through it returns something equivalent
+    -- rather than something identical. Nothing queries inside this column; it is
+    -- replayed verbatim or it is nothing.
+    response    text        not null,
+
     created_at  timestamptz not null default now(),
     primary key (account_id, request_id)
 );

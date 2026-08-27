@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    The game server.
+
+    ══ WHY Npgsql AND NOT EF CORE ═════════════════════════════════════════════
+
+    The plan called for EF Core entities and EF migrations. Supabase owns the
+    migration story instead - `supabase db reset` applies the SQL in
+    supabase/migrations - so EF would be entities over a schema it does not
+    manage, which is the worst half of it.
+
+    What is left is change tracking, and this server does not want any. Ledger
+    rows are append-only, settlement writes are one explicit transaction with a
+    row lock, and every mutation here is spelled out because being able to read
+    exactly what hits the database is the whole point of an anti-cheat boundary.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>IdleExplorers.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="9.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IdleExplorers.Rules/IdleExplorers.Rules.csproj" />
+    <ProjectReference Include="../IdleExplorers.Content/IdleExplorers.Content.csproj" />
+  </ItemGroup>
+
+</Project>
