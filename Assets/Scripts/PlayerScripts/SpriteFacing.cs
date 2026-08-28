@@ -41,11 +41,14 @@ public class SpriteFacing : MonoBehaviour
     /// Which way the artwork faces when unflipped.
     ///
     /// SPUM rigs are authored facing one way, and which way decides the sign of every
-    /// flip below. If every character in the game turns out to walk backwards, this
-    /// is the single line to change — it is deliberately one constant rather than a
-    /// minus sign spread across the file.
+    /// flip below. It is deliberately one constant rather than a minus sign spread
+    /// across the file.
+    ///
+    /// It is -1 because the rigs face LEFT. With +1 every character in the game walked
+    /// backwards -- which is exactly the failure this constant exists to make a
+    /// one-line fix.
     /// </summary>
-    private const float DefaultFacing = 1f;
+    private const float DefaultFacing = -1f;
 
     /// <summary>
     /// Sideways speed below which the direction is not worth believing.

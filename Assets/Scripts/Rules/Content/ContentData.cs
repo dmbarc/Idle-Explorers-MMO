@@ -377,6 +377,20 @@ public class MapData
     public int              reqAnyCharLevel;
     public string           sceneAddress;
     public SkillNodeEntry[] skillNodes;
+
+    /// <summary>
+    /// True when this map is reached through something in the world, not the travel list.
+    ///
+    /// The Goblin Throne is the reason. It sat in travel like any other destination,
+    /// which made the King a place you walk to rather than a door you earn -- and,
+    /// because its scene is built separately, it showed players an authoring error
+    /// where a locked destination should have been.
+    ///
+    /// Additive and defaults false, so every existing map is unaffected and no save or
+    /// seed has to change.
+    /// </summary>
+    public bool             portalOnly;
+
     public string DisplayName => name;
 }
 

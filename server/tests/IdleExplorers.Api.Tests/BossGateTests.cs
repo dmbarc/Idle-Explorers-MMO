@@ -25,6 +25,18 @@ namespace IdleExplorers.Api.Tests;
 [Collection("api")]
 public class BossGateTests(ApiFixture api)
 {
+    /// <summary>
+    /// The gate, read rather than restated.
+    ///
+    /// These used to say 999 and 1000. When the gate moved to the shared rules tree
+    /// and changed, four tests failed -- correctly, but for the wrong reason: they
+    /// were asserting a NUMBER when the property under test is "one short is sealed
+    /// and exactly enough is open".
+    ///
+    /// Written against the constant, they now test the rule and survive a rebalance.
+    /// </summary>
+    private const long Gate = IdleExplorers.Rules.BossGate.RequiredActiveKills;
+
     private static void RequireDatabase() => Skip.IfNot(ApiFixture.DatabaseReachable, ApiFixture.SkipReason);
 
     [SkippableFact]
@@ -39,25 +51,25 @@ public class BossGateTests(ApiFixture api)
 
         Assert.False(gate.GetProperty("open").GetBoolean());
         Assert.Equal(0L,    gate.GetProperty("activeKills").GetInt64());
-        Assert.Equal(1000L, gate.GetProperty("remaining").GetInt64());
+        Assert.Equal(Gate, gate.GetProperty("remaining").GetInt64());
     }
 
     [SkippableFact]
-    public async Task TheGateIsSealedAt999AndOpenAt1000()
+    public async Task TheGateIsSealedOneShortAndOpenExactly()
     {
         RequireDatabase();
 
         await using var player = await api.NewPlayerAsync();
         Guid character = await OwnershipTests.CreateCharacter(player, "Grinder");
 
-        await SetActiveKills(character, 999);
+        await SetActiveKills(character, Gate - 1);
 
         Assert.False((await ReadGate(player, character)).GetProperty("open").GetBoolean());
 
         var refused = await OwnershipTests.Post(player, $"/boss/{character}/unlock", new { });
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
 
-        await SetActiveKills(character, 1000);
+        await SetActiveKills(character, Gate);
 
         Assert.True((await ReadGate(player, character)).GetProperty("open").GetBoolean());
 
@@ -78,7 +90,7 @@ public class BossGateTests(ApiFixture api)
         await using var player = await api.NewPlayerAsync();
         Guid character = await OwnershipTests.CreateCharacter(player, "Persistent");
 
-        await SetActiveKills(character, 1000);
+        await SetActiveKills(character, Gate);
         (await OwnershipTests.Post(player, $"/boss/{character}/unlock", new { })).EnsureSuccessStatusCode();
 
         // A completely new client with a completely new token: the same thing signing
@@ -115,7 +127,7 @@ public class BossGateTests(ApiFixture api)
         await using var player = await api.NewPlayerAsync();
         Guid character = await OwnershipTests.CreateCharacter(player, "Twice");
 
-        await SetActiveKills(character, 1000);
+        await SetActiveKills(character, Gate);
 
         var attempts = Enumerable.Range(0, 10)
             .Select(_ => OwnershipTests.Post(player, $"/boss/{character}/unlock", new { }))
@@ -146,13 +158,13 @@ public class BossGateTests(ApiFixture api)
         await using var player = await api.NewPlayerAsync();
         Guid character = await OwnershipTests.CreateCharacter(player, "Sleeper");
 
-        await SetKills(character, active: 0, afk: 9000);
+        await SetKills(character, active: 0, afk: Gate * 9);
 
         JsonElement gate = await ReadGate(player, character);
 
         Assert.False(gate.GetProperty("open").GetBoolean());
-        Assert.Equal(9000L, gate.GetProperty("afkKills").GetInt64());
-        Assert.Equal(1000L, gate.GetProperty("remaining").GetInt64());
+        Assert.Equal(Gate * 9, gate.GetProperty("afkKills").GetInt64());
+        Assert.Equal(Gate, gate.GetProperty("remaining").GetInt64());
 
         var refused = await OwnershipTests.Post(player, $"/boss/{character}/unlock", new { });
         Assert.Equal(HttpStatusCode.Conflict, refused.StatusCode);
@@ -170,7 +182,7 @@ public class BossGateTests(ApiFixture api)
         await using var thief = await api.NewPlayerAsync();
 
         Guid character = await OwnershipTests.CreateCharacter(owner, "Earner");
-        await SetActiveKills(character, 1000);
+        await SetActiveKills(character, Gate);
 
         Assert.Equal(HttpStatusCode.NotFound,
                      (await thief.Client.GetAsync($"/boss/{character}/gate")).StatusCode);

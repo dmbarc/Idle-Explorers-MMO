@@ -51,7 +51,25 @@ public class NamePlate : MonoBehaviour
     /// WorldStatusBar attaches at its own height and a name on the same line would
     /// overlap it the moment either one is wider than expected.
     /// </summary>
-    public const float DefaultHeight = 2.35f;
+    public const float DefaultHeight = 3.15f;
+
+    /// <summary>
+    /// How thick the black outline is, as a fraction of the glyph.
+    ///
+    /// A name is drawn over grass, stone, water and whatever colour a monster happens
+    /// to be, so no single text colour is readable everywhere. The outline is what
+    /// makes it legible against all of them, and it does more work than the fill
+    /// colour does.
+    /// </summary>
+    private const float OutlineWidth = 0.25f;
+
+    /// <summary>
+    /// A dark plate behind the glyphs, on top of the outline.
+    ///
+    /// Belt and braces, and cheap: it is text markup rather than a second renderer,
+    /// so it costs no draw call and cannot come apart from the label it belongs to.
+    /// </summary>
+    private const string Backing = "<mark=#00000099>";
 
     private TMP_Text _label;
 
@@ -83,7 +101,15 @@ public class NamePlate : MonoBehaviour
         label.fontSize  = FontSize;
         label.alignment = TextAlignmentOptions.Center;
         label.color     = ColorFor(role);
-        label.text      = text ?? "";
+        label.text      = Decorate(text);
+
+        // fontMaterial, not fontSharedMaterial: touching the shared one would outline
+        // every piece of text in the game that happens to use the same font asset.
+        Material material = label.fontMaterial;
+
+        material.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        material.SetFloat(ShaderUtilities.ID_OutlineWidth, OutlineWidth);
+        material.SetColor(ShaderUtilities.ID_OutlineColor, Color.black);
 
         // Wide enough for a 20-character name, which is the cap CharacterManager
         // enforces. Narrower and long names wrap onto a second line over the head.
@@ -106,8 +132,12 @@ public class NamePlate : MonoBehaviour
 
     public void SetText(string text)
     {
-        if (_label != null) _label.text = text ?? "";
+        if (_label != null) _label.text = Decorate(text);
     }
+
+    /// <summary>Wraps a name in its backing plate. Empty stays empty, so a blank draws nothing.</summary>
+    private static string Decorate(string text) =>
+        string.IsNullOrEmpty(text) ? "" : Backing + text + "</mark>";
 
     public void SetRole(Role role)
     {

@@ -29,7 +29,15 @@ public static class BossEndpoints
     /// but because a gate an unattended character walks through on its own is not a
     /// gate, and the thousandth goblin should be something the player did.
     /// </summary>
-    public const long GoblinKingGate = 1000L;
+    /// <summary>
+    /// How many active goblin kills open the portal.
+    ///
+    /// Reads the SHARED constant rather than restating it. This used to be its own
+    /// 1000L with a matching 1000L in the client -- two numbers with nothing holding
+    /// them together, whose disagreement shows up as a portal that says OPEN and an
+    /// engage that answers 403.
+    /// </summary>
+    public const long GoblinKingGate = IdleExplorers.Rules.BossGate.RequiredActiveKills;
 
     public const string GateMonster = "goblin";
     public const string GateUnlock  = "goblin_king_portal";

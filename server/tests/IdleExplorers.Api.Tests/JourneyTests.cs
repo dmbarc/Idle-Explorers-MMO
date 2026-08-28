@@ -29,6 +29,18 @@ namespace IdleExplorers.Api.Tests;
 [Collection("api")]
 public class JourneyTests(ApiFixture api)
 {
+    /// <summary>
+    /// The gate, read rather than restated.
+    ///
+    /// These used to say 999 and 1000. When the gate moved to the shared rules tree
+    /// and changed, four tests failed -- correctly, but for the wrong reason: they
+    /// were asserting a NUMBER when the property under test is "one short is sealed
+    /// and exactly enough is open".
+    ///
+    /// Written against the constant, they now test the rule and survive a rebalance.
+    /// </summary>
+    private const long Gate = IdleExplorers.Rules.BossGate.RequiredActiveKills;
+
     private static void RequireDatabase() => Skip.IfNot(ApiFixture.DatabaseReachable, ApiFixture.SkipReason);
 
     [SkippableFact]
@@ -107,7 +119,7 @@ public class JourneyTests(ApiFixture api)
         using (var gate = await GetJson(player, $"/boss/{character}/gate"))
         {
             Assert.False(gate.RootElement.GetProperty("open").GetBoolean());
-            Assert.Equal(1000L, gate.RootElement.GetProperty("remaining").GetInt64());
+            Assert.Equal(Gate, gate.RootElement.GetProperty("remaining").GetInt64());
         }
 
         // ── 8. Goblins, with somebody watching ────────────────────────────────
@@ -145,11 +157,11 @@ public class JourneyTests(ApiFixture api)
         //
         // Set directly. Settling a genuine thousand would mean forty minutes of
         // simulated combat per run, and what this step tests is the GATE.
-        await SetActiveKills(db, character, 999);
+        await SetActiveKills(db, character, Gate - 1);
 
         Assert.False((await ReadGate(player, character)).GetProperty("open").GetBoolean());
 
-        await SetActiveKills(db, character, 1000);
+        await SetActiveKills(db, character, Gate);
 
         using (var gate = await GetJson(player, $"/boss/{character}/gate"))
         {

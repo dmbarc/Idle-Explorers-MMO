@@ -229,7 +229,33 @@ public class ActivityManager : MonoBehaviour
             specialLabel:  "Drop chance",
             xpPerHour:     monster.xpReward * 60f  // rough estimate: 60 kills/hr at low level
         );
+
+        // ══ AND THE CHARACTER ACTUALLY SWINGS ═══════════════════════════════════
+        //
+        // Setting the activity told the SERVER to fight and told the HUD to say
+        // "Now: combat — Goblin". It never told the character. autoAttack defaults to
+        // false and only the HUD button had ever set it, so the server farmed goblins
+        // and paid the experience while the player stood next to one doing nothing.
+        //
+        // It looked like several different bugs at once: no damage numbers, no swing
+        // animation, and two sprites standing side by side -- because none of the
+        // combat code was running at all. The experience bar still climbed, which is
+        // what made it look like combat was working.
+        //
+        // The local fight is theatre for what the server is settling, so the theatre
+        // starts when the settlement does.
+        FindPlayer()?.SetAutoAttack(true);
     }
+
+    /// <summary>
+    /// The player, if one is in the scene.
+    ///
+    /// Looked up rather than cached: this manager outlives every map, and a reference
+    /// taken on the goblin camp is a destroyed object by the time somebody is fishing
+    /// somewhere else.
+    /// </summary>
+    private static PlayerController FindPlayer() =>
+        UnityEngine.Object.FindAnyObjectByType<PlayerController>();
 
     // ── AFK reward calculation (called on login) ──────────────────────────────
 

@@ -542,15 +542,19 @@ namespace IdleExplorers.Backend
     }
 
     /// <summary>
-    /// The portal's terms, in one place both backends read.
+    /// The portal's terms.
     ///
-    /// Duplicating "a thousand active goblin kills" into the client and the server is
-    /// how the two come to disagree about whether a portal is open -- and the player
-    /// sees a lit portal that refuses them.
+    /// MOVED to the shared rules tree as IdleExplorers.Rules.BossGate, because the
+    /// comment this replaces was right about the danger and wrong about the fix: a
+    /// constant "in one place both BACKENDS read" is still only the client. The server
+    /// had its own copy in BossEndpoints, and nothing connected them.
+    ///
+    /// This alias stays so the existing call sites keep reading, and so anybody who
+    /// comes looking here finds the reason rather than a deleted symbol.
     /// </summary>
     public static class BossGate
     {
-        public const string Monster = "goblin";
-        public const long   RequiredActiveKills = 1000L;
+        public const string Monster             = IdleExplorers.Rules.BossGate.Monster;
+        public const long   RequiredActiveKills = IdleExplorers.Rules.BossGate.RequiredActiveKills;
     }
 }

@@ -73,12 +73,38 @@ public class CharacterSelectScreen : UIScreen
         barFill.fillAmount = AccountManager.LevelProgress(account);
 
         // Logging out has to go through here so the account is written to disk
-        var logoutBtn = UIFactory.Button(header.transform, "LOG OUT", () =>
-        {
-            GameManager.Save?.SaveActiveState();
-            GameManager.Instance?.TransitionTo(GameManager.GameState.Login);
-        }, width: 0f);
+        var logoutBtn = UIFactory.Button(header.transform, "LOG OUT", () => _ = LogOutAsync(),
+                                          width: 0f);
         UIFactory.At(logoutBtn, 0.87f, 0.20f, 0.98f, 0.80f);
+    }
+
+    /// <summary>
+    /// Ends the session, then shows the login screen.
+    ///
+    /// ══ IT USED TO DO ONLY THE SECOND HALF ═══════════════════════════════════
+    ///
+    /// The button saved the account and changed screens. It never signed anybody out,
+    /// so the token, the refresh token and the whole session survived -- and "log out"
+    /// meant "look at the login form for a moment".
+    ///
+    /// That was invisible until the login screen started asking whether somebody was
+    /// already signed in, which it has to do so a returning Google redirect does not
+    /// strand a signed-in player on a form. Then the two met: log out, get sent to
+    /// login, get recognised as signed in, and get sent straight back. The new check
+    /// exposed the old bug rather than causing it -- but it is the reason the bug
+    /// stopped being harmless.
+    ///
+    /// Awaited before the transition, so the screen cannot appear while the token is
+    /// still valid and read it as a session worth resuming.
+    /// </summary>
+    private async Awaitable LogOutAsync()
+    {
+        GameManager.Save?.SaveActiveState();
+
+        if (IdleExplorers.Backend.Session.HasServer)
+            await IdleExplorers.Backend.Session.SignOutAsync();
+
+        GameManager.Instance?.TransitionTo(GameManager.GameState.Login);
     }
 
     // ── Grid ──────────────────────────────────────────────────────────────────

@@ -94,7 +94,20 @@ public class TravelPanel : UIScreen
             headingEl.minHeight = headingEl.preferredHeight = 34f;
 
             foreach (var map in zone.maps)
-                if (map != null) BuildMapRow(content, theme, map);
+            {
+                if (map == null) continue;
+
+                // ══ NOT EVERY MAP IS A DESTINATION ═══════════════════════════════════
+                //
+                // The Goblin Throne is reached through the portal in the goblin camp,
+                // after the kills that open it. Listing it here made the King somewhere
+                // you travel to rather than somewhere you earn -- and since its scene
+                // is built separately, what players actually saw was an authoring
+                // error where a locked door should have been.
+                if (map.portalOnly) continue;
+
+                BuildMapRow(content, theme, map);
+            }
         }
     }
 

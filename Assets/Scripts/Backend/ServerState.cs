@@ -98,6 +98,21 @@ namespace IdleExplorers.Backend
                 if (CharacterManager.Current != null)
                     CharacterManager.Current.coins = Account.BalanceOf(Rules.Currency.Coins);
 
+                // ══ AND THE PANELS ARE TOLD ══════════════════════════════════════════
+                //
+                // Writing the number is not showing it. ShopPanel and the HUD counter
+                // both redraw from OnRelicCoinsChanged, which only ShopManager.Changed
+                // had ever raised -- so a purchase granted on the SERVER updated the
+                // balance, toasted "+1300 relic coins", and left every display reading
+                // zero. The coins were really there; nothing asked the screen to look
+                // again.
+                //
+                // Raised here rather than at the grant, because this is the one place
+                // the balance actually changes -- login, settle and purchase all pass
+                // through it, and a hook at any of them would miss the other two.
+                GameEvents.OnRelicCoinsChanged?.Invoke(local.relicCoins);
+                GameEvents.OnCoinsChanged?.Invoke(CharacterManager.Current?.coins ?? 0L);
+
                 MergeCharacterList(local, Account.characters);
 
                 GameManager.Account?.LoadAccount(local);
