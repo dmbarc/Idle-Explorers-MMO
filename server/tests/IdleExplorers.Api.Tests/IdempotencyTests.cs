@@ -139,7 +139,7 @@ public class IdempotencyTests(ApiFixture api)
         foreach (var response in succeeded)
         {
             using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-            ids.Add(body.RootElement.GetProperty("id").GetGuid());
+            ids.Add(body.RootElement.GetProperty("characterId").GetGuid());
         }
 
         Assert.Single(ids);
@@ -273,7 +273,7 @@ public class IdempotencyTests(ApiFixture api)
 
         return body.RootElement.GetProperty("characters")
             .EnumerateArray()
-            .Select(c => c.GetProperty("id").GetGuid())
+            .Select(c => c.GetProperty("characterId").GetGuid())
             .ToList();
     }
 }

@@ -110,9 +110,15 @@ public static class CharacterEndpoints
                     TelemetryEvents.CharacterCreated, await clock.NowAsync(http.RequestAborted),
                     ("classId", classId));
 
+                // characterId, not id. The client deserialises this with JsonUtility,
+                // which matches on field NAME and has no way to be told otherwise --
+                // no attribute, no resolver. A mismatch is not an error there: the
+                // field is simply left at its default, so the caller receives a
+                // character whose id is the empty string and treats the creation as
+                // having failed. See the note on the roster in AccountEndpoints.
                 return Results.Ok(new
                 {
-                    id      = characterId,
+                    characterId,
                     name,
                     classId,
                     xp      = 0L,
@@ -225,7 +231,7 @@ public static class CharacterEndpoints
 
             return Results.Ok(new
             {
-                id    = characterId,
+                characterId,
                 xp,
                 level = Levelling.CharacterLevel(xp),
                 skills,
@@ -254,7 +260,7 @@ public static class CharacterEndpoints
                 "update character set deleted_at = now() where id = $1 and deleted_at is null;",
                 null, characterId);
 
-            return Results.Ok(new { id = characterId, deleted = true });
+            return Results.Ok(new { characterId, deleted = true });
         });
     }
 

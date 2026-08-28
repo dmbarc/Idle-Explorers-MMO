@@ -214,7 +214,7 @@ public sealed class SimulatedPlayer : IAsyncDisposable
         if (created is null) return;
 
         using var body = System.Text.Json.JsonDocument.Parse(created);
-        _characterId = body.RootElement.GetProperty("id").GetGuid();
+        _characterId = body.RootElement.GetProperty("characterId").GetGuid();
 
         await Post($"/activity/{_characterId}", new { nodeId = Nodes[_random.Next(Nodes.Length)] });
     }

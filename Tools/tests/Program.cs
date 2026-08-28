@@ -52,6 +52,8 @@ internal static class Program
 
         IdleExplorersTests.OAuthChecks.Run(Check, RepoRoot());
 
+        IdleExplorersTests.WireContractChecks.Run(Check, RepoRoot());
+
         IdleExplorersTests.SecurityChecks.Run(Check, RepoRoot());
 
         IdleExplorersTests.BossClientChecks.Run(Check, RepoRoot());

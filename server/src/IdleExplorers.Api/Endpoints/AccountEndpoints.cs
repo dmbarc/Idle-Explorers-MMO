@@ -51,9 +51,20 @@ public static class AccountEndpoints
                 {
                     long xp = reader.GetInt64(3);
 
+                    // ══ characterId, NOT id ═══════════════════════════════
+                    //
+                    // JsonUtility matches on field name and cannot be told to map one
+                    // to another -- there is no attribute for it and no resolver to
+                    // install. When the names differ it does not fail: it leaves the
+                    // field at its default and says nothing.
+                    //
+                    // So a roster sent as `id` arrives at a client expecting
+                    // `characterId` fully populated with names and levels and every
+                    // single id blank, which then matches nothing, loads nothing, and
+                    // looks like a server that lost the characters it just listed.
                     characters.Add(new
                     {
-                        id        = reader.GetGuid(0),
+                        characterId = reader.GetGuid(0),
                         name      = reader.GetString(1),
                         classId   = reader.GetString(2),
                         xp,

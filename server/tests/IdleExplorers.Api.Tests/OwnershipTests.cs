@@ -275,6 +275,6 @@ public class OwnershipTests(ApiFixture api)
         response.EnsureSuccessStatusCode();
 
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
-        return body.RootElement.GetProperty("id").GetGuid();
+        return body.RootElement.GetProperty("characterId").GetGuid();
     }
 }
