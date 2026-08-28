@@ -285,6 +285,12 @@ public class ZoneManager : MonoBehaviour
             if (op != null) yield return op;
         }
         _loadedSceneName = null;
+
+        // The shared population belonged to the map, and its objects went with the
+        // scene. Without this the sync still holds their ids, so the next map's first
+        // poll sees them as "still here", never spawns replacements, and the new map
+        // stands empty while the old one's ghosts are reported present.
+        MonsterSync.Clear();
     }
 
     /// <summary>True for any scene that is a loadable map, so Bootstrap is never unloaded.</summary>

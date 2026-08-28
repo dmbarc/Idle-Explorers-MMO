@@ -113,6 +113,11 @@ public class Program
         builder.Services.AddScoped<Caller>();
         builder.Services.AddScoped<SettlementService>();
 
+        // The shared monster population. Scoped rather than singleton because it takes
+        // a connection per call and holds nothing between them -- the map's state is in
+        // the table, which is the whole point of it being shared.
+        builder.Services.AddScoped<PopulationService>();
+
         builder.Services.AddSupabaseAuth(builder.Configuration);
 
         builder.Services.AddGameCors(builder.Configuration,
@@ -173,6 +178,7 @@ public class Program
         SessionEndpoints.Map(app);
         BankEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
+        WorldEndpoints.Map(app);
         TelemetryEndpoints.Map(app);
 
         return app;

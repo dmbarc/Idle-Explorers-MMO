@@ -149,6 +149,11 @@ namespace IdleExplorers.Backend
                 Reconcile(rig, seen.others);
                 Speak(rig, seen.chat);
 
+                // The world, from the same answer. MonsterSync draws it; this file
+                // stays the one place that talks to the presence endpoint, so a
+                // socket later replaces exactly one file.
+                MonsterSync.Adopt(seen.monsters);
+
                 // Only ONE queued line rides each report. Somebody who typed three
                 // in a row would otherwise wait six seconds for the last of them, so
                 // a backlog drains at network speed rather than on the clock.

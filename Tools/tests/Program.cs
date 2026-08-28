@@ -62,6 +62,8 @@ internal static class Program
 
         IdleExplorersTests.CosmeticChecks.Run(Check, RepoRoot());
 
+        IdleExplorersTests.SharedWorldChecks.Run(Check, RepoRoot());
+
         AssetChecks.RigMasking(Check, RepoRoot());
         AssetChecks.MapCameras(Check, RepoRoot());
 

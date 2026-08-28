@@ -79,6 +79,12 @@ namespace IdleExplorers.Backend
             PostAsync<PresenceSnapshot>($"/presence/{characterId}",
                                         new PresenceBody { mapId = mapId, x = x, z = z, say = say });
 
+        public Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
+                                                   double damage, double seconds) =>
+            PostAsync<StrikeResult>($"/world/{characterId}/strike",
+                                    new StrikeBody { monsterId = monsterId, damage = damage,
+                                                     seconds = seconds });
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             GetAsync<PartySnapshot>($"/party/{characterId}");
 
@@ -369,6 +375,8 @@ namespace IdleExplorers.Backend
         [Serializable] private class ClassBody           { public string classId; }
         [Serializable] private class ItemBody            { public string itemId; }
         [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; public string say; }
+
+        [Serializable] private class StrikeBody          { public string monsterId; public double damage; public double seconds; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

@@ -119,6 +119,13 @@ namespace IdleExplorers.Backend
                 chat   = System.Array.Empty<ChatLine>(),
             });
 
+        // Offline there is no shared population, so nothing was hit and the client's
+        // own monsters keep their own health -- which is exactly what happens when
+        // MonsterSync is not running.
+        public Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
+                                                   double damage, double seconds) =>
+            Completed(new StrikeResult { monsterId = monsterId, hit = false, alive = false });
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId)   => Completed(Alone());
         public Awaitable<PartySnapshot> FormPartyAsync(string characterId)  => Completed(Alone());
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) => Completed(Alone());

@@ -60,6 +60,17 @@ public class MonsterSpawner : MonoBehaviour
 
     void Update()
     {
+        // ══ THE SERVER OWNS THE POPULATION WHEN THERE IS ONE ══════════════════
+        //
+        // MonsterSync draws the map's shared monsters, and a local spawner running
+        // alongside it would put a second, private set of goblins in the same field —
+        // the exact thing the shared population exists to remove, except now there
+        // would be twice as many.
+        //
+        // Offline this is false and everything below runs unchanged, which is what
+        // keeps the editor playable with no network.
+        if (MonsterSync.ServerOwnsPopulation) return;
+
         ClampLimits();
 
         timer += Time.deltaTime;

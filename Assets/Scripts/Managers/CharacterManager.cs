@@ -46,6 +46,14 @@ public class CharacterManager : MonoBehaviour
         // Other people. Same host and the same reasoning: a component on a map object
         // would stop reporting the moment somebody travelled.
         IdleExplorers.Backend.PresenceSync.Attach(gameObject);
+
+        // And the map's monsters, which arrive in the same answer. Attached here
+        // rather than by the presence loop so the two are visibly siblings: one
+        // reports and reads, the other draws what was read.
+        //
+        // It must exist BEFORE the first poll returns, or the first population is
+        // adopted by nothing and the map stands empty until the second.
+        MonsterSync.Attach(gameObject);
     }
 
     /// <summary>

@@ -40,7 +40,7 @@ deployment message — it reports the preview alias, not whether production serv
 ### Test suites
 
 ```bash
-bash Tools/check.sh     # everything: 1290 standalone + 236 rules + 10 content + 84 db + 207 API
+bash Tools/check.sh     # everything: 1315 standalone + 236 rules + 10 content + 84 db + 215 API
 bash Tools/verify/verify.sh   # client compile only, ~40s — use this while iterating
 ```
 
@@ -205,23 +205,61 @@ at engage — that is what stops mid-fight gear swapping, and it cannot tell a p
 from a sword. Said in every description and once more in the shop header, because a
 player who discovers it at twenty percent health has been misled by the shop.
 
-### Phase B — shared world state (the big one) — NEXT
+### Phase B — shared world state — MONSTERS DONE, DROPS DEFERRED
 
-Monsters and drops are per-client today: every player spawns their own `MonsterSpawner`
-population as theatre over a server that only counts kills.
+**The population is the server's.** `map_monster` holds one set per map: id, position,
+health, alive. It is topped up and respawned lazily on the presence poll that was
+already happening, so a map nobody stands in costs nothing and there is no background
+job to run or watch. `MonsterSpawner` stands down whenever the server owns the
+population and is otherwise unchanged, which keeps the editor playable offline.
 
-Needed:
-- Server owns monster instances per map: id, position, health, alive.
-- Drops belong to the map, not the killer, and everyone sees them.
-- Damage tagging, so credit and loot go to whoever fought.
-- Client `MonsterSpawner` becomes a *renderer* of server state, the way
-  `RemotePlayerView` renders presence.
+Damage is **reported and capped**, never simulated: `Population.DamageCeiling` is the
+boss's own `dps × elapsed` with three seconds of slack. The cap is there to stop one
+client emptying everybody else's screen — griefing, not cheating — because a fast kill
+earns exactly what a slow one does. `MonsterController` predicts locally so the bar
+moves under the swing, and the server's number wins on the next poll.
 
-Reuse the presence design: one poll carries position and reads the world. The seam is
-already there — `PresenceSync` is the file a socket would later replace.
+Only **our own** kills drop loot and move the kill count. A shared monster can fall
+because somebody else landed the last blow, and dropping for that would put items on
+the ground this player never earned.
 
-**This is comparable in size to the whole multiplayer piece.** Do not start it in the
-same sitting as anything else.
+`PopulationTests` is new (eight), and `SharedWorldChecks` guards the four wires that
+compile perfectly whether or not anybody strung them. All proven by breakage.
+
+#### The fork still open: DROPS
+
+The user asked for drops to be per-map rather than per-player. That is **not** done,
+and it is a decision rather than an oversight.
+
+Combat loot is granted by **settlement**, which integrates each player's own time
+against server-owned rates. Client-side drops are pure theatre the next pull
+overwrites — `InventoryManager.AddUpTo` writes only to the local mirror. So a drop
+that everybody can see and anybody can collect needs loot moved OUT of settlement and
+ONTO pickup, and that changes what active play is: you would have to walk over your
+loot to have it, where today it arrives whether you do or not.
+
+Three ways forward, in the order I would consider them:
+
+1. **Leave it.** Drops stay the killer's private theatre. Cheapest, and the world is
+   already shared in the way that shows.
+2. **Visible but owned.** Everyone sees the drop with the owner's name on it; only the
+   owner can take it, and taking it is still theatre. Looks like an MMO, changes no
+   economy.
+3. **Loot on pickup.** Genuinely shared drops, granted by the server when collected,
+   with combat loot removed from settlement for supervised kills only. The honest
+   version, and a real change to how the game plays.
+
+### Phase B, remaining — NEXT
+
+- **Drops**, once the fork above is decided.
+- **Monster movement.** The server owns where a monster SPAWNS; each client then walks
+  it about with its own wander and chase, so two players see the same goblin drift to
+  different places. Nothing depends on it and nobody has complained, but it is the
+  visible half of "shared" that is still only half true. Reporting position on the
+  poll is the obvious fix and it is a payload decision, not a hard one.
+- **`tagged_by` is written and never read.** The column records who did the most damage
+  to a monster; nothing asks it yet. It exists because whichever way the drops fork
+  goes, that is the question it will need answered.
 
 ### Standing constraints
 
@@ -229,7 +267,7 @@ same sitting as anything else.
   `shop_test_grants` feature flag, which must be **explicitly** true — unknown flags are
   ON in this system, which is right for gameplay and catastrophic for a currency tap.
   Real purchasing needs store registration and server-side receipt validation first.
-- **Nothing has been pushed.** Nineteen commits sit on `server-authoritative` locally.
+- **Nothing has been pushed.** Twenty commits sit on `server-authoritative` locally.
   Push has never been authorised.
 - **I do not handle passwords, tokens or payment details.** The owner runs those.
 - **One monster type per zone** — a new map means authoring a new monster.

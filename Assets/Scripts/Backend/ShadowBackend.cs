@@ -97,6 +97,12 @@ namespace IdleExplorers.Backend
                                                                float x, float z, string say) =>
             _remote.ReportPresenceAsync(characterId, mapId, x, z, say);
 
+        // Straight through, like presence: there is no local population to compare
+        // against, so a shadow of this would be shadowing nothing.
+        public Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
+                                                   double damage, double seconds) =>
+            _remote.StrikeAsync(characterId, monsterId, damage, seconds);
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             _remote.GetPartyAsync(characterId);
 

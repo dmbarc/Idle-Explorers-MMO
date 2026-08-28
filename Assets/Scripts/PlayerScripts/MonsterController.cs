@@ -240,6 +240,78 @@ public class MonsterController : MonoBehaviour
     /// </summary>
     public float Armor => _data != null ? _data.level * 6f : 0f;
 
+    // ── Belonging to the map rather than to this client ───────────────────────
+
+    /// <summary>
+    /// This monster's row in the shared population, or empty when it is a local one.
+    ///
+    /// ══ WHY BOTH KINDS EXIST ══════════════════════════════════════════════════
+    ///
+    /// Offline and in the editor there is no server to own a population, and the old
+    /// MonsterSpawner runs unchanged so the game is playable with no network. Online
+    /// the server owns it and this is set. The difference is one field, checked in
+    /// the two places below where it actually changes behaviour.
+    /// </summary>
+    public string ServerId { get; private set; } = "";
+
+    /// <summary>True when the server decides this monster's health, not us.</summary>
+    public bool IsShared => !string.IsNullOrEmpty(ServerId);
+
+    /// <summary>Its full health, for a caller reconciling a server report.</summary>
+    public double MaxHealth => maxHealthPoints;
+
+    /// <summary>Ties this object to a row in the map's population.</summary>
+    public void BindToServer(string serverId) => ServerId = serverId ?? "";
+
+    /// <summary>
+    /// Takes the server's word for how much of this monster is left.
+    ///
+    /// ══ WHY IT DOES NOT REDRAW A DAMAGE NUMBER ════════════════════════════════
+    ///
+    /// Because the number was already drawn, by the swing that predicted it. Drawing
+    /// one here as well would mean every hit appears twice — once when it lands and
+    /// once when the server confirms it two seconds later — and somebody ELSE's hit
+    /// would pop a number over a monster this player never touched.
+    ///
+    /// The health moves silently and the bar follows. That is the whole difference
+    /// between predicting and being told.
+    /// </summary>
+    public void AdoptServerState(double health, double maxHealth, double secondsDead)
+    {
+        if (maxHealth > 0d) maxHealthPoints = maxHealth;
+
+        currentHealthPoints = System.Math.Max(0d, System.Math.Min(maxHealthPoints, health));
+
+        if (currentHealthPoints > 0d)
+        {
+            // Back on its feet. A revived row keeps its object rather than being
+            // rebuilt, so the walk animation does not restart on every poll.
+            if (!alive) Revive();
+            return;
+        }
+
+        if (alive) FallOver(ourKill: false);
+    }
+
+    /// <summary>
+    /// Stands a shared monster back up after the server respawned its row.
+    ///
+    /// The object is reused rather than replaced because the alternative — destroy
+    /// and rebuild — restarts every animation and throws away the health bar's
+    /// tweening twice a second for a monster nobody was looking at.
+    /// </summary>
+    private void Revive()
+    {
+        alive      = true;
+        regenTimer = 0f;
+
+        if (agent != null) agent.enabled = true;
+
+        SpumAnim.Revive(anim);
+
+        if (_healthBar != null) _healthBar.SetVisible(false);
+    }
+
     public void TakeDamage(double damageAmount) => TakeDamage(damageAmount, false);
 
     public void TakeDamage(double damageAmount, bool wasCrit)
@@ -249,35 +321,74 @@ public class MonsterController : MonoBehaviour
                            wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt,
                            prefix: "", big: wasCrit);
 
+        // ══ A SHARED MONSTER IS TOLD ABOUT, NOT DECIDED ═══════════════════════
+        //
+        // The hit is still applied locally, immediately, so the bar moves under the
+        // swing that caused it rather than two seconds later. The server's answer
+        // arrives on the next poll and overwrites this -- and in the ordinary case
+        // the two agree, because both are computed from the same shared rules.
+        //
+        // Reported so everybody ELSE sees it. Without this a shared population would
+        // be a population everybody watches one person fail to hurt.
+        if (IsShared) MonsterSync.ReportDamage(ServerId, damageAmount);
+
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
 
-        if (currentHealthPoints <= 0)
+        if (currentHealthPoints <= 0) FallOver(ourKill: true);
+        else                          SpumAnim.PlayHurt(anim);
+    }
+
+    /// <summary>
+    /// Dies, in every sense the client owns.
+    ///
+    /// ══ WHY THIS IS A METHOD NOW ══════════════════════════════════════════════
+    ///
+    /// A shared monster can die without this client having landed the last blow —
+    /// somebody else did, and the news arrives on a poll. So the death presentation
+    /// has to be reachable from two directions, and the alternative was AdoptServerState
+    /// growing a second copy of it that would drift.
+    ///
+    /// The loot and the kill event still fire on both paths, and both are LOCAL: the
+    /// drops are theatre and the kill count is a mirror. What a kill actually pays
+    /// comes from settlement, which integrates this player's own time — so a goblin
+    /// somebody else killed pays this player nothing, which is correct.
+    /// </summary>
+    private void FallOver(bool ourKill)
+    {
+        alive = false;
+
+        // ══ ONLY OUR OWN KILLS DROP AND COUNT ═════════════════════════════════
+        //
+        // A shared monster can fall because somebody ELSE landed the last blow, and
+        // the news arrives on a poll. Spawning loot for it would put items on the
+        // ground that this player never earned, and counting it would make the boss
+        // portal's label climb from other people's fighting.
+        //
+        // Neither is a duplication exploit -- the drops are theatre and the label is
+        // a mirror, and what a kill PAYS comes from settlement, which integrates this
+        // player's own time. Both would simply be lying about whose kill it was.
+        if (ourKill)
         {
-            alive = false;
             DropLoot();
             AwardKillRewards();
-
-            SpumAnim.PlayDeath(anim);
-
-            // Disable agent so the corpse doesn't slide
-            agent.enabled = false;
-            regenTimer = 0f;
-
-            if (spawner != null) spawner.MonsterDied();
-            if (_healthBar != null) _healthBar.SetVisible(true);
-
-            // The corpse holds its final frame because SpumAnim.PlayDeath sets the
-            // isDeath bool, which is the only condition on the transition out of the
-            // DEATH state. A coroutine used to try to do this by freezing the animator
-            // once the clip finished, and could not: it waited for a state called
-            // "4_Death", which is the name of the PARAMETER — the state is "DEATH".
-            // It never matched, so it never froze anything and simply polled every
-            // frame until the corpse despawned.
         }
-        else
-        {
-            SpumAnim.PlayHurt(anim);
-        }
+
+        SpumAnim.PlayDeath(anim);
+
+        // Disable agent so the corpse doesn't slide
+        if (agent != null) agent.enabled = false;
+        regenTimer = 0f;
+
+        if (spawner != null) spawner.MonsterDied();
+        if (_healthBar != null) _healthBar.SetVisible(true);
+
+        // The corpse holds its final frame because SpumAnim.PlayDeath sets the
+        // isDeath bool, which is the only condition on the transition out of the
+        // DEATH state. A coroutine used to try to do this by freezing the animator
+        // once the clip finished, and could not: it waited for a state called
+        // "4_Death", which is the name of the PARAMETER — the state is "DEATH".
+        // It never matched, so it never froze anything and simply polled every
+        // frame until the corpse despawned.
     }
 
     public void RegenHealth()

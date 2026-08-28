@@ -71,6 +71,18 @@ namespace IdleExplorers.Backend
         Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
                                                         float x, float z, string say);
 
+        /// <summary>
+        /// Reports damage dealt to one shared monster, and hears what is left of it.
+        ///
+        /// The damage is a PREDICTION, drawn from the same shared rules the server
+        /// computes with, and the server caps it at dps x elapsed. It is accepted at
+        /// all because an ordinary monster grants nothing -- loot and experience come
+        /// from settlement -- so the cap is there to stop one client emptying
+        /// everybody else's screen rather than to protect the economy.
+        /// </summary>
+        Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
+                                            double damage, double seconds);
+
         /// <summary>The group this character is in, or an empty one.</summary>
         Awaitable<PartySnapshot> GetPartyAsync(string characterId);
 
@@ -370,6 +382,63 @@ namespace IdleExplorers.Backend
         /// conversation to drift from the view other people have of it.
         /// </summary>
         public ChatLine[]     chat;
+
+        /// <summary>
+        /// The monsters standing in this map, as ONE population everybody shares.
+        ///
+        /// Carried on the presence poll rather than a poll of its own: position,
+        /// speech and the world are the same question — "what is around me" — and
+        /// asking it three ways would be three times the round trips for one answer.
+        /// </summary>
+        public WorldMonster[] monsters;
+    }
+
+    /// <summary>
+    /// One monster in the shared population.
+    ///
+    /// ══ WHY HEALTH IS HERE AND NOT ON THE CLIENT ══════════════════════════════════
+    ///
+    /// Because a shared monster has to die once. If health lived on each client, two
+    /// players hitting the same goblin would each watch it fall at their own moment
+    /// and the map would disagree with itself about how many were left.
+    ///
+    /// What it does NOT decide is anybody's reward: loot and experience come from
+    /// settlement, which integrates each player's own time. This is what is SEEN.
+    /// </summary>
+    [Serializable]
+    public class WorldMonster
+    {
+        public string id;
+        public string monsterId;
+        public float  x;
+        public float  z;
+        public double health;
+        public double maxHealth;
+
+        /// <summary>
+        /// Zero while alive. How long a corpse has lain there, so the client can fade
+        /// it rather than blink it out from under somebody still swinging at it.
+        /// </summary>
+        public double secondsDead;
+
+        public bool Alive => health > 0d;
+    }
+
+    /// <summary>
+    /// What a reported strike did.
+    ///
+    /// A false "hit" means there was no such LIVE monster -- somebody else landed the
+    /// last blow between the swing and the report. That is the NORMAL outcome of two
+    /// people fighting the same goblin, not an error, and the client picks another
+    /// target rather than showing a failure.
+    /// </summary>
+    [Serializable]
+    public class StrikeResult
+    {
+        public string monsterId;
+        public double health;
+        public bool   alive;
+        public bool   hit;
     }
 
     [Serializable]

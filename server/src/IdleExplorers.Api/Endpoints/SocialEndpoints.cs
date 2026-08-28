@@ -1,3 +1,5 @@
+using System.Linq;
+using IdleExplorers.Api.Services;
 using IdleExplorers.Api.Auth;
 using IdleExplorers.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
@@ -62,7 +64,8 @@ public static class SocialEndpoints
         var group = app.MapGroup("/presence").RequireAuthorization();
 
         group.MapPost("/{characterId:guid}", async Task<IResult> (
-            HttpContext http, Caller caller, Db db, IGameClock clock, Guid characterId,
+            HttpContext http, Caller caller, Db db, IGameClock clock,
+            PopulationService population, Guid characterId,
             [FromBody] PresenceRequest request) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
@@ -217,7 +220,35 @@ public static class SocialEndpoints
                 }
             }
 
-            return Results.Ok(new { mapId, others = others.ToArray(), chat = chat.ToArray() });
+            // ══ AND THE MONSTERS STANDING IN IT ══════════════════════════════
+            //
+            // On the poll that is already happening rather than on a poll of its own.
+            // Position, speech and the world are one question -- "what is around me" --
+            // and asking it three times a second in three requests would be three times
+            // the round trips for one answer.
+            //
+            // Corpses come back too, with how long they have been one, so the client
+            // can fade a body rather than blink it out from under a player who is
+            // still swinging at it.
+            var monsters = await population.RefreshAsync(connection, mapId, now, http.RequestAborted);
+
+            return Results.Ok(new
+            {
+                mapId,
+                others = others.ToArray(),
+                chat   = chat.ToArray(),
+
+                monsters = monsters.Select(m => new
+                {
+                    id          = m.Id,
+                    monsterId   = m.MonsterId,
+                    x           = m.X,
+                    z           = m.Z,
+                    health      = m.Health,
+                    maxHealth   = m.MaxHealth,
+                    secondsDead = m.SecondsDead,
+                }).ToArray(),
+            });
         });
     }
 
