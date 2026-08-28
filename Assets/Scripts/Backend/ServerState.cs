@@ -124,6 +124,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 Debug.LogError($"[ServerState] Could not load the account: {e.Message}");
                 return false;
             }
@@ -152,6 +154,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 Debug.LogError($"[ServerState] Could not load the character: {e.Message}");
                 return false;
             }
@@ -316,6 +320,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 GameEvents.FireToast(e.Title, ChatTone.Bad);
                 Debug.LogWarning($"[ServerState] Could not change activity: {e.Message}");
             }
@@ -337,6 +343,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 Debug.LogWarning($"[ServerState] Could not stop: {e.Message}");
             }
         }
@@ -371,6 +379,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 // Swallowed and logged. A settle runs on a timer, so a failed one is
                 // retried within seconds and the elapsed time it did not claim is still
                 // there to claim -- nothing is lost by staying quiet.
@@ -393,6 +403,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 // Not worth a toast. The face is already correct on screen, and the
                 // next save will carry it.
                 Debug.LogWarning($"[ServerState] Could not save appearance: {e.Message}");
@@ -424,6 +436,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 // "not enough relic coins", "no room in your inventory" -- written for
                 // a player, and the reason they need.
                 GameEvents.FireToast(e.Title, ChatTone.Bad);
@@ -461,6 +475,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 GameEvents.FireToast(e.Title, ChatTone.Bad);
                 return false;
             }
@@ -506,6 +522,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 GameEvents.FireToast(e.Title, ChatTone.Bad);
                 return null;
             }
@@ -514,6 +532,40 @@ namespace IdleExplorers.Backend
         /// <summary>
         /// Remembers where the character is standing, so they load in there next time.
         /// </summary>
+        /// <summary>
+        /// True once this client has been displaced by a sign-in somewhere else.
+        ///
+        /// ══ WHY IT LATCHES ═════════════════════════════════════════════════
+        ///
+        /// It never clears. A displaced client cannot un-displace itself -- the other
+        /// browser holds the account -- and the polling loops must STOP rather than
+        /// retry, or they hammer a 409 every two seconds for as long as the tab is
+        /// open.
+        ///
+        /// Reload to play again, which is honest: reloading signs in, and signing in
+        /// takes the account back.
+        /// </summary>
+        public static bool Displaced { get; private set; }
+
+        /// <summary>
+        /// Notices a displacement and says so, once.
+        ///
+        /// Called from every catch that handles a BackendException, because any
+        /// request can be the one that discovers it.
+        /// </summary>
+        internal static void NoteIfDisplaced(BackendException e)
+        {
+            if (!e.IsDisplaced || Displaced) return;
+
+            Displaced = true;
+
+            Debug.LogWarning("[ServerState] Displaced -- this account is being played elsewhere.");
+
+            GameEvents.FireToast(
+                "This account is being played somewhere else. Reload to take it back.",
+                ChatTone.Bad);
+        }
+
         /// <summary>
         /// Whether the server says a feature is on.
         ///
@@ -557,6 +609,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 // The server's refusal is the honest one: "not available" means the
                 // flag is off, and telling the player that beats a button that does
                 // nothing.
@@ -588,6 +642,8 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
+                NoteIfDisplaced(e);
+
                 Debug.LogWarning($"[ServerState] Could not save location: {e.Message}");
             }
         }

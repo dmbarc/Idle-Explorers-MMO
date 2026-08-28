@@ -168,6 +168,7 @@ namespace IdleExplorers.Backend
                 if (resumed.Ok)
                 {
                     Debug.Log("[Session] Completed a Google sign-in.");
+                    await ClaimAsync();
                     SignedInChanged?.Invoke(true);
                 }
                 else if (!string.IsNullOrEmpty(resumed.Message))
@@ -189,6 +190,7 @@ namespace IdleExplorers.Backend
                     if (restored.Ok)
                     {
                         Debug.Log("[Session] Signed in from a stored session.");
+                        await ClaimAsync();
                         SignedInChanged?.Invoke(true);
                     }
                 }
@@ -225,7 +227,11 @@ namespace IdleExplorers.Backend
 
             AuthResult result = await _auth.SignInAsync(email, password);
 
-            if (result.Ok) SignedInChanged?.Invoke(true);
+            if (result.Ok)
+            {
+                await ClaimAsync();
+                SignedInChanged?.Invoke(true);
+            }
 
             return result;
         }
@@ -236,7 +242,11 @@ namespace IdleExplorers.Backend
 
             AuthResult result = await _auth.SignUpAsync(email, password);
 
-            if (result.Ok) SignedInChanged?.Invoke(true);
+            if (result.Ok)
+            {
+                await ClaimAsync();
+                SignedInChanged?.Invoke(true);
+            }
 
             return result;
         }
@@ -254,14 +264,61 @@ namespace IdleExplorers.Backend
 
             AuthResult result = await GoogleSignIn.SignInAsync();
 
-            if (result.Ok) SignedInChanged?.Invoke(true);
+            if (result.Ok)
+            {
+                await ClaimAsync();
+                SignedInChanged?.Invoke(true);
+            }
 
             return result;
+        }
+
+        /// <summary>
+        /// Takes this client's claim on the account.
+        ///
+        /// ══ WHY EVERY SIGN-IN PATH CALLS IT ═════════════════════════════════
+        ///
+        /// Because there are five of them -- email, sign-up, Google, a returning Google
+        /// redirect and a restored stored session -- and an account is only protected
+        /// from being played twice if all five claim. One that forgot would be a way
+        /// in that quietly skipped the rule.
+        ///
+        /// Failure is not fatal. A client with no claim is treated as an older build
+        /// and allowed through, which is the deliberate soft edge in SessionGuard: the
+        /// guard is against holding the WRONG claim, not against holding none.
+        /// </summary>
+        private static async Awaitable ClaimAsync()
+        {
+            if (!ServerState.IsAuthoritative) return;
+
+            try
+            {
+                SessionClaimResult claim = await GameBackend.Current.ClaimSessionAsync();
+
+                ApiBackend.SessionClaim = claim?.sessionId ?? "";
+
+                Debug.Log("[Session] Holding the account.");
+            }
+            catch (BackendException e)
+            {
+                Debug.LogWarning($"[Session] Could not claim the account: {e.Message}");
+            }
         }
 
         public static async Awaitable SignOutAsync()
         {
             if (_auth == null) return;
+
+            // Released first, while the token still works. A claim left behind is
+            // harmless -- the next sign-in displaces it -- but releasing means the
+            // next one is a clean claim rather than a displacement.
+            if (ServerState.IsAuthoritative && !string.IsNullOrEmpty(ApiBackend.SessionClaim))
+            {
+                try   { await GameBackend.Current.ReleaseSessionAsync(); }
+                catch (BackendException) { /* the next sign-in takes it anyway */ }
+            }
+
+            ApiBackend.SessionClaim = "";
 
             await _auth.SignOutAsync();
 

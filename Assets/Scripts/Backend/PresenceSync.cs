@@ -73,6 +73,19 @@ namespace IdleExplorers.Backend
         {
             if (_busy || Time.time < _nextReportAt) return;
 
+            // ══ A DISPLACED CLIENT STOPS TALKING ═══════════════════════════════
+            //
+            // It cannot win the account back by asking again -- the other browser
+            // holds it -- so retrying every two seconds is a 409 on a timer for as
+            // long as the tab is open. It also keeps a stale body standing in
+            // everybody else's world.
+            if (ServerState.Displaced)
+            {
+                if (_views.Count > 0) Clear();
+                enabled = false;
+                return;
+            }
+
             if (!ServerState.IsAuthoritative || string.IsNullOrEmpty(ServerState.CharacterId))
             {
                 // Offline. Anything left over is from a session that had a server.
@@ -114,8 +127,13 @@ namespace IdleExplorers.Backend
             }
             catch (BackendException e)
             {
-                // Quiet. This runs on a timer, the next one is two seconds away, and a
-                // toast every two seconds during a blip is worse than the blip.
+                // Displacement is the exception to the quiet: it is permanent, and the
+                // loop has to be told to stop rather than keep asking.
+                ServerState.NoteIfDisplaced(e);
+
+                // Otherwise quiet. This runs on a timer, the next one is two seconds
+                // away, and a toast every two seconds during a blip is worse than the
+                // blip.
                 Debug.LogWarning($"[PresenceSync] {e.Message}");
             }
             finally

@@ -152,6 +152,11 @@ public class Program
         app.UseAuthentication();
         app.UseAuthorization();
 
+        // Before idempotency, so a displaced client's request is refused rather than
+        // recorded: a stored response under its key would then be replayed as though
+        // the work had been done.
+        app.UseMiddleware<SessionGuard>();
+
         // After authentication, because the key is scoped to an account, and before
         // any endpoint, because an endpoint that runs first has already had its effect.
         app.UseMiddleware<IdempotencyMiddleware>();
@@ -165,6 +170,7 @@ public class Program
         TalentEndpoints.Map(app);
         ShopEndpoints.Map(app);
         SocialEndpoints.Map(app);
+        SessionEndpoints.Map(app);
         BankEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
         TelemetryEndpoints.Map(app);

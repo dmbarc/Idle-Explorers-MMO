@@ -77,6 +77,11 @@ namespace IdleExplorers.Backend
         public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
             _remote.BuyProductAsync(characterId, productId);
 
+        /// <summary>The claim is the server's to hand out; the local side has no accounts.</summary>
+        public Awaitable<SessionClaimResult> ClaimSessionAsync() => _remote.ClaimSessionAsync();
+
+        public Awaitable ReleaseSessionAsync() => _remote.ReleaseSessionAsync();
+
         /// <summary>Only the server holds the credited-seconds balance.</summary>
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             _remote.UseItemAsync(characterId, itemId);

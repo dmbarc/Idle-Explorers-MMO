@@ -93,6 +93,21 @@ namespace IdleExplorers.Backend
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             PostAsync<TestGrantResult>("/shop/test-grant", new PackBody { packId = packId });
 
+        /// <summary>
+        /// The claim this client holds on the account, or empty before it has one.
+        ///
+        /// Static because it belongs to the PROCESS rather than to a backend instance:
+        /// swapping between shadow and live must not silently drop it and turn every
+        /// request into an unclaimed one.
+        /// </summary>
+        public static string SessionClaim { get; set; } = "";
+
+        public Awaitable<SessionClaimResult> ClaimSessionAsync() =>
+            PostAsync<SessionClaimResult>("/session/", null);
+
+        public async Awaitable ReleaseSessionAsync() =>
+            await SendAsync<EmptyResponse>("DELETE", "/session/", null);
+
         public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
             PostAsync<PurchaseResult>($"/shop/{characterId}/buy",
                                       new ProductBody { productId = productId });
@@ -253,6 +268,14 @@ namespace IdleExplorers.Backend
             // is deliberate: a missing key is a client bug and should be loud.
             if (method != UnityWebRequest.kHttpVerbGET)
                 request.SetRequestHeader("Idempotency-Key", requestId);
+
+            // ══ WHICH CLIENT THIS IS ═════════════════════════════════════════════
+            //
+            // The account can only be played in one place, and this is how the server
+            // tells the places apart. Sent on reads as well as writes -- it costs a
+            // header and means a displaced client is recognised whatever it does next.
+            if (!string.IsNullOrEmpty(SessionClaim))
+                request.SetRequestHeader("X-Idle-Session", SessionClaim);
 
             await request.SendWebRequest();
 

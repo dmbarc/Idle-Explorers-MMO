@@ -86,6 +86,18 @@ namespace IdleExplorers.Backend
         public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
             Completed<PurchaseResult>(null);
 
+        /// <summary>
+        /// Offline there is one client by definition, so there is nothing to claim.
+        ///
+        /// A null result rather than a fabricated id: ApiBackend.SessionClaim stays
+        /// empty, and an empty claim is exactly what SessionGuard treats as "no
+        /// opinion" rather than as a wrong one.
+        /// </summary>
+        public Awaitable<SessionClaimResult> ClaimSessionAsync() =>
+            Completed<SessionClaimResult>(null);
+
+        public Awaitable ReleaseSessionAsync() => Completed();
+
         /// <summary>Offline the item resolver already does this locally, so this says nothing.</summary>
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             Completed<UseItemResult>(null);

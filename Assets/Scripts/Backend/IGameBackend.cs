@@ -97,6 +97,17 @@ namespace IdleExplorers.Backend
         /// </summary>
         Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId);
 
+        /// <summary>
+        /// Takes this client's claim on the account, displacing any other.
+        ///
+        /// One account can only be played in one place; this is how the server tells
+        /// the places apart. See SessionGuard.
+        /// </summary>
+        Awaitable<SessionClaimResult> ClaimSessionAsync();
+
+        /// <summary>Gives the claim up, so the next sign-in is clean rather than a displacement.</summary>
+        Awaitable ReleaseSessionAsync();
+
         Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
                                                           SpumSaveData appearance);
 
@@ -385,6 +396,13 @@ namespace IdleExplorers.Backend
         public string name;
         public string classId;
         public int    level;
+    }
+
+    /// <summary>The claim this client now holds on the account.</summary>
+    [Serializable]
+    public class SessionClaimResult
+    {
+        public string sessionId;
     }
 
     /// <summary>What a shop purchase produced.</summary>
@@ -704,5 +722,19 @@ namespace IdleExplorers.Backend
 
         /// <summary>Worth trying again. Capacity and transport, never a refusal.</summary>
         public bool IsTransient => StatusCode is 0 or 408 or 429 or >= 500;
+
+        /// <summary>
+        /// This account is being played somewhere else and this client has lost it.
+        ///
+        /// ══ WHY IT IS ITS OWN QUESTION ══════════════════════════════════════
+        ///
+        /// Because the answer is not "try again" -- retrying is exactly what a
+        /// displaced client must stop doing, and the polling loops would otherwise
+        /// hammer a 409 every two seconds for as long as the tab stays open.
+        ///
+        /// Matched on the TITLE as well as the status, because 409 is also "group is
+        /// full" and "already fighting", and neither of those means stop.
+        /// </summary>
+        public bool IsDisplaced => StatusCode == 409 && Title == "signed in elsewhere";
     }
 }

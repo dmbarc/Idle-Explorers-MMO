@@ -67,6 +67,10 @@ namespace IdleExplorers.Backend
 
         private void Update()
         {
+        // A displaced client must not keep settling: the account is being played
+        // somewhere else, and every request from here is a 409 on a timer.
+        if (IdleExplorers.Backend.ServerState.Displaced) { enabled = false; return; }
+
             // Nothing at all offline or in shadow mode. The local managers are the game
             // in both, and settling against a server whose answers are not used would
             // write rows nobody reads.
