@@ -99,6 +99,18 @@ public class EquipmentManager : MonoBehaviour
             return false;
         }
 
+        // ══ THE SERVER DECIDES WHEN THERE IS ONE ══════════════════════════════
+        //
+        // Everything below this line -- the slot resolution, the two-handed rule, the
+        // skill requirement, the durability bookkeeping -- is duplicated in
+        // EquipmentEndpoints and enforced there against state a player cannot edit.
+        // Running both would mean the client's answer briefly showing and then being
+        // overwritten, and the client's answer is the one a cheat can change.
+        //
+        // Returns true so the caller sees a request accepted. The result arrives as
+        // state a moment later.
+        if (ServerActions.Equip(entry.itemId, slotId)) return true;
+
         if (!MeetsRequirement(item, out string blocked))
         {
             GameEvents.FireToast(blocked);
@@ -201,6 +213,9 @@ public class EquipmentManager : MonoBehaviour
     {
         string itemId = GetEquipped(slotId);
         if (string.IsNullOrEmpty(itemId)) return false;
+
+        // The server owns the bag-full refusal too -- see the note in Equip.
+        if (ServerActions.Unequip(slotId)) return true;
 
         if (GameManager.Inventory?.CanAddItem(itemId) != true)
         {

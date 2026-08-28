@@ -77,6 +77,28 @@ public class BankManager : MonoBehaviour
     /// <summary>Moves one inventory slot into a specific bank slot (drag and drop).</summary>
     public bool DepositSlot(int inventorySlot, int bankSlot)
     {
+        // ══ THE BANK IS ACCOUNT-WIDE, WHICH MAKES IT RACEABLE ═════════════════
+        //
+        // Two of a player's own characters, logged in on two tabs, can move the same
+        // stack at the same time. The server serialises that under an account lock;
+        // this list cannot, and a local move would be one of the two writes that
+        // silently loses.
+        //
+        // Slot indices are not sent: the server decides where a stack lands, and the
+        // exact slot is presentation. What matters is the item and the quantity.
+        var moving = GameManager.Inventory?.Items;
+
+        if (moving != null && inventorySlot >= 0 && inventorySlot < moving.Count)
+        {
+            var entry = moving[inventorySlot];
+
+            if (!SlotContainer.IsEmpty(entry) &&
+                ServerActions.Deposit(entry.itemId, entry.quantity))
+            {
+                return true;
+            }
+        }
+
         if (!SlotContainer.Transfer(GameManager.Inventory?.Items, inventorySlot, Items, bankSlot))
             return false;
 
@@ -88,6 +110,19 @@ public class BankManager : MonoBehaviour
     /// <summary>Moves one bank slot into a specific inventory slot (drag and drop).</summary>
     public bool WithdrawSlot(int bankSlot, int inventorySlot)
     {
+        // Server-side for the same reason as DepositSlot: the bank is account-wide and
+        // two of a player's own characters can race it.
+        if (bankSlot >= 0 && bankSlot < Items.Count)
+        {
+            var entry = Items[bankSlot];
+
+            if (!SlotContainer.IsEmpty(entry) &&
+                ServerActions.Withdraw(entry.itemId, entry.quantity))
+            {
+                return true;
+            }
+        }
+
         if (!SlotContainer.Transfer(Items, bankSlot, GameManager.Inventory?.Items, inventorySlot))
             return false;
 

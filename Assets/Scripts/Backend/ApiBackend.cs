@@ -110,6 +110,30 @@ namespace IdleExplorers.Backend
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             PostAsync<LootClaim>($"/encounter/{characterId}/loot", null);
 
+        public Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId) =>
+            PostAsync<CharacterSnapshot>($"/equipment/{characterId}/equip",
+                                         new EquipBody { itemId = itemId, slotId = slotId });
+
+        public Awaitable<CharacterSnapshot> UnequipAsync(string characterId, string slotId) =>
+            PostAsync<CharacterSnapshot>($"/equipment/{characterId}/unequip",
+                                         new SlotBody { slotId = slotId });
+
+        public Awaitable<BankMoveResult> DepositAsync(string characterId, string itemId, long quantity) =>
+            PostAsync<BankMoveResult>($"/bank/{characterId}/deposit",
+                                      new MoveBody { itemId = itemId, quantity = quantity });
+
+        public Awaitable<BankMoveResult> WithdrawAsync(string characterId, string itemId, long quantity) =>
+            PostAsync<BankMoveResult>($"/bank/{characterId}/withdraw",
+                                      new MoveBody { itemId = itemId, quantity = quantity });
+
+        public Awaitable<BankSnapshot> GetBankAsync() => GetAsync<BankSnapshot>("/bank/");
+
+        public Awaitable<TalentSnapshot> SpendTalentAsync(string characterId, string nodeId) =>
+            PostAsync<TalentSnapshot>($"/talent/{characterId}", new NodeIdBody { nodeId = nodeId });
+
+        public Awaitable<TalentSnapshot> GetTalentsAsync(string characterId) =>
+            GetAsync<TalentSnapshot>($"/talent/{characterId}");
+
         public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId) =>
             GetAsync<BossGateSnapshot>($"/boss/{characterId}/gate");
 
@@ -260,6 +284,10 @@ namespace IdleExplorers.Backend
         [Serializable] private class RecipeBody          { public string recipeId; }
         [Serializable] private class MonsterBody         { public string monsterId; }
         [Serializable] private class GradesBody          { public string[] grades; }
+        [Serializable] private class EquipBody           { public string itemId; public string slotId; }
+        [Serializable] private class SlotBody            { public string slotId; }
+        [Serializable] private class MoveBody            { public string itemId; public long quantity; }
+        [Serializable] private class NodeIdBody          { public string nodeId; }
         [Serializable] private class ActionsBody         { public BossActionReport[] actions; }
 
         /// <summary>For calls whose answer nobody reads.</summary>

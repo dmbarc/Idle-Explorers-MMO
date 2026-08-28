@@ -196,6 +196,55 @@ namespace IdleExplorers.Backend
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             _remote.ClaimLootAsync(characterId);
 
+        // Mirrored, not compared. The local side answers these from managers that are
+        // still the authority in shadow mode, so every comparison would report a
+        // divergence by construction -- noise that buries real findings.
+
+        public async Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId)
+        {
+            var local = await _local.EquipAsync(characterId, itemId, slotId);
+            await MirrorAsync("Equip", () => _remote.EquipAsync(characterId, itemId, slotId));
+
+            return local;
+        }
+
+        public async Awaitable<CharacterSnapshot> UnequipAsync(string characterId, string slotId)
+        {
+            var local = await _local.UnequipAsync(characterId, slotId);
+            await MirrorAsync("Unequip", () => _remote.UnequipAsync(characterId, slotId));
+
+            return local;
+        }
+
+        public async Awaitable<BankMoveResult> DepositAsync(string characterId, string itemId, long quantity)
+        {
+            var local = await _local.DepositAsync(characterId, itemId, quantity);
+            await MirrorAsync("Deposit", () => _remote.DepositAsync(characterId, itemId, quantity));
+
+            return local;
+        }
+
+        public async Awaitable<BankMoveResult> WithdrawAsync(string characterId, string itemId, long quantity)
+        {
+            var local = await _local.WithdrawAsync(characterId, itemId, quantity);
+            await MirrorAsync("Withdraw", () => _remote.WithdrawAsync(characterId, itemId, quantity));
+
+            return local;
+        }
+
+        public Awaitable<BankSnapshot> GetBankAsync() => _local.GetBankAsync();
+
+        public async Awaitable<TalentSnapshot> SpendTalentAsync(string characterId, string nodeId)
+        {
+            var local = await _local.SpendTalentAsync(characterId, nodeId);
+            await MirrorAsync("SpendTalent", () => _remote.SpendTalentAsync(characterId, nodeId));
+
+            return local;
+        }
+
+        public Awaitable<TalentSnapshot> GetTalentsAsync(string characterId) =>
+            _local.GetTalentsAsync(characterId);
+
         public async Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId)
         {
             var local = await _local.UnlockBossAsync(characterId);

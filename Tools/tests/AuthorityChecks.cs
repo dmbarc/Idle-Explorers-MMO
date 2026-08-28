@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace IdleExplorersTests
@@ -31,6 +32,7 @@ namespace IdleExplorersTests
 
             TheCoreLoopCallsTheServer(check, root);
             TheClientStopsPayingItself(check, root);
+            TheRestGoesToTheServerToo(check, root);
             TheSyncLoopRuns(check, root);
         }
 
@@ -157,6 +159,98 @@ namespace IdleExplorersTests
             check(Regex.IsMatch(activity,
                       @"ProcessAFKRewards[\s\S]{0,900}?IsAuthoritative[\s\S]{0,120}?return null"),
                   "ProcessAFKRewards refuses to pay when the server is authoritative");
+        }
+
+        // ══ EQUIPMENT, BANK AND TALENTS ═══════════════════════════════════════
+        //
+        // The last three things still decided on the client after the core loop moved.
+        // Each is Critical tier: a worn item is a stat, a banked item is an item, and a
+        // talent point is a stat -- all three feed damage per second.
+        //
+        // Same structural pattern as LocalRewards, for the same reason: an invariant
+        // spread across if-statements is only checkable by proximity, and proximity
+        // checks were fooled three times on the gathering path.
+        private static void TheRestGoesToTheServerToo(Action<bool, string> check, string root)
+        {
+            string actions = Strip(Read(root, "Assets/Scripts/Managers/ServerActions.cs"));
+
+            check(actions.Length > 0, "ServerActions exists");
+
+            if (actions.Length == 0) return;
+
+            foreach (string call in new[]
+                     { "EquipAsync", "UnequipAsync", "DepositAsync", "WithdrawAsync", "SpendTalentAsync" })
+            {
+                check(actions.Contains(call), $"ServerActions calls {call}");
+            }
+
+            // Each entry point asks who decides before doing anything. Per-method, not
+            // per-file -- a guard in a neighbouring method is not a guard on this one,
+            // which is a mistake this suite has already made.
+            string[] methods = actions.Split(new[] { "public static bool" }, StringSplitOptions.None);
+
+            for (int i = 1; i < methods.Length; i++)
+            {
+                string body = methods[i];
+
+                if (body.Contains("ClientDecides =>")) continue;   // the definition
+
+                string name = body.Split('(')[0].Trim();
+
+                check(body.Contains("ClientDecides"),
+                      $"ServerActions.{name} defers to the server when there is one");
+            }
+
+            // And the managers actually call it, rather than deciding for themselves.
+            var wired = new (string File, string Call, string Why)[]
+            {
+                ("Assets/Scripts/Managers/EquipmentManager.cs", "ServerActions.Equip",
+                 "equipping goes to the server"),
+                ("Assets/Scripts/Managers/EquipmentManager.cs", "ServerActions.Unequip",
+                 "unequipping goes to the server"),
+                ("Assets/Scripts/Managers/BankManager.cs", "ServerActions.Deposit",
+                 "depositing goes to the server, which holds the account lock"),
+                ("Assets/Scripts/Managers/BankManager.cs", "ServerActions.Withdraw",
+                 "withdrawing goes to the server"),
+                ("Assets/Scripts/Managers/TalentManager.cs", "ServerActions.SpendTalent",
+                 "spending a talent point goes to the server"),
+            };
+
+            foreach (var (file, call, why) in wired)
+                check(Strip(Read(root, file)).Contains(call), why);
+
+            // ══ EACH HOOK MUST SHORT-CIRCUIT ═════════════════════════════════
+            //
+            // Otherwise the local path runs as well, and the player sees the client's
+            // answer flicker and then be replaced -- with the client's answer being the
+            // one a cheat could have changed.
+            //
+            // Checked by what IMMEDIATELY follows the call rather than by a character
+            // window. A window wide enough for the bank's multi-line `if` is also wide
+            // enough to match a `return true` that has nothing to do with the call, and
+            // this suite has already been fooled by exactly that kind of slack.
+            //
+            // Stripping only whitespace, ) and { leaves the very next statement, which
+            // must be the return.
+            foreach (var (file, call, _) in wired)
+            {
+                string text = Strip(Read(root, file));
+                int at = text.IndexOf(call, StringComparison.Ordinal);
+
+                if (at < 0) continue;
+
+                string after = text.Substring(at + call.Length);
+
+                // Past the call's own argument list, then past any closing punctuation.
+                int open = after.IndexOf(')');
+                if (open >= 0) after = after.Substring(open + 1);
+
+                string next = new string(after.Where(c => !char.IsWhiteSpace(c)
+                                                       && c != ')' && c != '{').ToArray());
+
+                check(next.StartsWith("returntrue", StringComparison.Ordinal),
+                      $"{call} is immediately followed by a return, not by the local path");
+            }
         }
 
         // ══ SOMETHING KEEPS IT IN STEP ════════════════════════════════════════

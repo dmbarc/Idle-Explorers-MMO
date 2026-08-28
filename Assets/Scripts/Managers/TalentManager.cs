@@ -226,6 +226,17 @@ public static class TalentManager
 
         if (!CanSpend(character, node, out reason)) return false;
 
+        // ══ THE SERVER SPENDS IT WHEN THERE IS ONE ════════════════════════════
+        //
+        // CanSpend above still runs, and should: it is the same shared function the
+        // server uses, so the button greys out for the same reasons the server would
+        // refuse. What it must NOT do is then write the rank locally -- a point is a
+        // stat, a stat is damage per second, and damage decides both farm rate and
+        // whether the enrage timer is beaten.
+        //
+        // Checked here AFTER CanSpend so an impossible spend never reaches the network.
+        if (ServerActions.SpendTalent(nodeId)) return true;
+
         character.talents ??= new List<TalentRank>();
 
         var existing = character.talents.Find(t => t != null && t.nodeId == nodeId);

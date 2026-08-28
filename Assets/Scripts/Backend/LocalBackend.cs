@@ -93,6 +93,34 @@ namespace IdleExplorers.Backend
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             Completed(LootClaim.Nothing);
 
+        // ══ THE LOCAL MANAGERS ALREADY DO ALL OF THIS ═════════════════════════
+        //
+        // Offline, EquipmentManager and BankManager ARE the game and this scaffold has
+        // nothing to add -- returning a snapshot here would mean describing state the
+        // caller is about to be handed anyway. Nothing, so the caller keeps using them.
+        //
+        // Deleted at cutover along with the rest of this file.
+
+        public Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId) =>
+            Completed<CharacterSnapshot>(null);
+
+        public Awaitable<CharacterSnapshot> UnequipAsync(string characterId, string slotId) =>
+            Completed<CharacterSnapshot>(null);
+
+        public Awaitable<BankMoveResult> DepositAsync(string characterId, string itemId, long quantity) =>
+            Completed(BankMoveResult.Nothing);
+
+        public Awaitable<BankMoveResult> WithdrawAsync(string characterId, string itemId, long quantity) =>
+            Completed(BankMoveResult.Nothing);
+
+        public Awaitable<BankSnapshot> GetBankAsync() => Completed(BankSnapshot.Nothing);
+
+        public Awaitable<TalentSnapshot> SpendTalentAsync(string characterId, string nodeId) =>
+            Completed(TalentSnapshot.Nothing);
+
+        public Awaitable<TalentSnapshot> GetTalentsAsync(string characterId) =>
+            Completed(TalentSnapshot.Nothing);
+
         public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId)
         {
             var character = Find(characterId);

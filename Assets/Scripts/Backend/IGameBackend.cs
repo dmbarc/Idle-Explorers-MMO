@@ -121,6 +121,35 @@ namespace IdleExplorers.Backend
         /// <summary>Move earned loot from pending into the bag and the wallet.</summary>
         Awaitable<LootClaim> ClaimLootAsync(string characterId);
 
+        // ── The rest of what persists ─────────────────────────────────────
+        //
+        // Equipment, the bank and talents. Each was the last of its kind still being
+        // decided on the client: a stat, an item and a stat respectively, all three of
+        // which feed damage per second and therefore how fast somebody farms and
+        // whether they beat the enrage timer.
+        //
+        // Every one of these RETURNS the character, rather than a success flag. The
+        // server has just changed the thing the client draws, and asking for it again
+        // afterwards is a second round trip and a window where the two disagree.
+
+        /// <summary>Wear an item. The server checks ownership, the slot and the requirement.</summary>
+        Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId);
+
+        Awaitable<CharacterSnapshot> UnequipAsync(string characterId, string slotId);
+
+        /// <summary>Bag to bank. Refused rather than truncated when the bank is full.</summary>
+        Awaitable<BankMoveResult> DepositAsync(string characterId, string itemId, long quantity);
+
+        Awaitable<BankMoveResult> WithdrawAsync(string characterId, string itemId, long quantity);
+
+        /// <summary>What is in the bank. Account-wide, so it takes no character.</summary>
+        Awaitable<BankSnapshot> GetBankAsync();
+
+        /// <summary>Put a point into a talent. The server owns the tier and prerequisite rules.</summary>
+        Awaitable<TalentSnapshot> SpendTalentAsync(string characterId, string nodeId);
+
+        Awaitable<TalentSnapshot> GetTalentsAsync(string characterId);
+
         /// <summary>How close this character is to the boss portal.</summary>
         Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId);
 
@@ -417,6 +446,58 @@ namespace IdleExplorers.Backend
 
         public static readonly LootClaim Nothing = new();
     }
+
+    // ══ Equipment, bank and talents ═══════════════════════════════════════════
+
+    [Serializable]
+    public class BankSnapshot
+    {
+        public int          capacity;
+        public int          used;
+        public BankSlot[]   slots;
+
+        public static readonly BankSnapshot Nothing = new();
+    }
+
+    [Serializable]
+    public class BankSlot
+    {
+        public int    slot;
+        public string itemId;
+        public long   quantity;
+    }
+
+    /// <summary>
+    /// What a deposit or withdrawal actually moved.
+    ///
+    /// `moved` rather than a boolean, because a full container moves SOME of a stack
+    /// and reporting that as success loses the rest silently -- a player who banks
+    /// 4,000 ore and finds 1,200 will not notice until much later.
+    /// </summary>
+    [Serializable]
+    public class BankMoveResult
+    {
+        public string itemId;
+        public long   moved;
+        public long   requested;
+        public bool   partial;
+
+        public static readonly BankMoveResult Nothing = new();
+    }
+
+    [Serializable]
+    public class TalentSnapshot
+    {
+        public int           level;
+        public int           total;
+        public int           spent;
+        public int           available;
+        public TalentRankRow[] ranks;
+
+        public static readonly TalentSnapshot Nothing = new();
+    }
+
+    [Serializable] public class TalentRankRow { public string nodeId; public int rank; }
 
     [Serializable]
     public class BossGateSnapshot
