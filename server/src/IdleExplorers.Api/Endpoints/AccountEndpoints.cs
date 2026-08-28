@@ -38,7 +38,7 @@ public static class AccountEndpoints
 
             await using (var command = connection.Sql(
                 """
-                select id, name, class_id, xp, last_map_id, created_at
+                select id, name, class_id, xp, last_map_id, created_at, appearance::text
                   from character
                  where account_id = $1 and deleted_at is null
                  order by created_at;
@@ -72,6 +72,11 @@ public static class AccountEndpoints
                         level     = IdleExplorers.Rules.Levelling.CharacterLevel(xp),
                         lastMapId = reader.GetString(4),
                         createdAt = reader.GetFieldValue<DateTimeOffset>(5),
+
+                        // Sent with the ROSTER, not only with the character, so the
+                        // select screen can draw the face somebody made. Fetching it
+                        // per card would be one request per character to render a list.
+                        appearance = CharacterEndpoints.AppearanceOf(reader.GetString(6)),
                     });
                 }
             }

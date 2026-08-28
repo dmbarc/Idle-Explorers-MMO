@@ -177,7 +177,21 @@ public class GameManager : MonoBehaviour
         TransitionTo(GameState.InGame);
         Zone?.EnterMap(mapId);
 
-        if (character != null) character.lastMapId = mapId;
+        if (character == null) return;
+
+        character.lastMapId = mapId;
+
+        // ══ AND THE SERVER IS TOLD ══════════════════════════════════════════
+        //
+        // last_map_id existed in the schema and was already returned in the roster.
+        // Nothing had ever written to it, so every character loaded into the starting
+        // map for ever -- including one that had travelled somewhere else a minute
+        // earlier and logged out there.
+        //
+        // Fire and forget: the map is already loading, and a player whose location
+        // failed to save has lost nothing they can see. The next map change writes it
+        // again.
+        _ = IdleExplorers.Backend.ServerState.SaveLocationAsync(mapId);
     }
     public void ReturnToMainMenu()
     {

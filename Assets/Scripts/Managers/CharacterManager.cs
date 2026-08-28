@@ -25,7 +25,15 @@ public class CharacterManager : MonoBehaviour
     /// </summary>
     private async Awaitable PullFromServerAsync(CharacterData character)
     {
-        await IdleExplorers.Backend.ServerState.SettleAsync();
+        // ══ THE ANSWER IS NOT THROWN AWAY ANY MORE ══════════════════════════
+        //
+        // This used to discard the settlement. The server had already integrated the
+        // whole time away and granted every item, and the player was shown nothing --
+        // no summary screen, no explanation for an inventory that had changed while
+        // they were gone. The game's central promise, kept and then not mentioned.
+        var settled = await IdleExplorers.Backend.ServerState.SettleAsync();
+
+        GameManager.Activity?.AdoptServerSettlement(settled, character);
 
         // Settle already pulls when it pays. This covers the case where it paid
         // nothing -- a character logged out idle still needs its inventory.
@@ -35,6 +43,29 @@ public class CharacterManager : MonoBehaviour
         // object so it lives exactly as long as the managers do.
         IdleExplorers.Backend.ServerSync.Attach(gameObject);
     }
+
+    /// <summary>
+    /// Selects a character and waits for the server to finish settling it.
+    ///
+    /// ══ WHY THE PULL IS AWAITED ═════════════════════════════════════════
+    ///
+    /// It used to be fire-and-forget, and the caller read PendingSummary on the very
+    /// next line -- before the request had left, let alone come back. So the AFK
+    /// summary was always null under an authoritative server and the game went
+    /// straight in, every time, no matter how long the player had been away.
+    ///
+    /// A race that is lost one hundred per cent of the time looks exactly like a
+    /// feature that was never built.
+    /// </summary>
+    public async Awaitable SelectCharacterAsync(CharacterData character)
+    {
+        SelectCharacter(character);
+
+        if (_entry != null) await _entry;
+    }
+
+    /// <summary>The in-flight server entry, so a caller can wait for it.</summary>
+    private Awaitable _entry;
 
     public void SelectCharacter(CharacterData character)
     {
@@ -59,7 +90,7 @@ public class CharacterManager : MonoBehaviour
         // everything downstream reads Current expecting it to be populated.
         if (IdleExplorers.Backend.ServerState.IsAuthoritative)
         {
-            _ = PullFromServerAsync(character);
+            _entry = PullFromServerAsync(character);
         }
         else if (character.lastLogoutUnixTime > 0)
         {
@@ -274,7 +305,7 @@ public class CharacterManager : MonoBehaviour
         try
         {
             var created = await IdleExplorers.Backend.GameBackend.Current
-                .CreateCharacterAsync(character.characterName, character.classId);
+                .CreateCharacterAsync(character.characterName, character.classId, character.spumConfig);
 
             if (created == null || string.IsNullOrEmpty(created.characterId))
             {

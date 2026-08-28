@@ -81,11 +81,14 @@ public static class CharacterEndpoints
                 {
                     characterId = await connection.ScalarAsync<Guid>(
                         """
-                        insert into character (account_id, name, class_id)
-                        values ($1, $2, $3)
+                        insert into character (account_id, name, class_id, appearance)
+                        values ($1, $2, $3, $4::jsonb)
                         returning id;
                         """,
-                        tx, accountId.Value, name, classId);
+                        tx, accountId.Value, name, classId,
+                        System.Text.Json.JsonSerializer.Serialize(
+                            request.Appearance ?? new SpumSaveData(),
+                            AppearanceJson));
                 }
                 catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
                 {
@@ -121,8 +124,10 @@ public static class CharacterEndpoints
                     characterId,
                     name,
                     classId,
-                    xp      = 0L,
-                    level   = 1,
+                    xp          = 0L,
+                    level       = 1,
+                    appearance  = request.Appearance,
+                    lastMapId   = "",
                 });
             }, http.RequestAborted);
         });
@@ -141,6 +146,14 @@ public static class CharacterEndpoints
 
             long xp = await connection.ScalarAsync<long>(
                 "select xp from character where id = $1;", null, characterId);
+
+            string appearanceJson = await connection.ScalarAsync<string>(
+                "select appearance::text from character where id = $1;",
+                null, characterId) ?? "{}";
+
+            string lastMapId = await connection.ScalarAsync<string>(
+                "select last_map_id from character where id = $1;",
+                null, characterId) ?? "";
 
             var skills = new List<object>();
 
@@ -234,6 +247,8 @@ public static class CharacterEndpoints
                 characterId,
                 xp,
                 level = Levelling.CharacterLevel(xp),
+                appearance = AppearanceOf(appearanceJson),
+                lastMapId,
                 skills,
                 inventory,
                 equipment,
@@ -262,7 +277,116 @@ public static class CharacterEndpoints
 
             return Results.Ok(new { characterId, deleted = true });
         });
+
+        // ── What they look like ───────────────────────────────────────────────
+        //
+        // Stored, never interpreted. This is the one thing the server holds that it
+        // has no opinion about: it exists here so a face survives a character select
+        // and follows the player to another machine, not because anybody could cheat
+        // by having nicer hair.
+        group.MapPut("/{characterId:guid}/appearance", async (
+            HttpContext http, Caller caller, Db db, Guid characterId,
+            [FromBody] AppearanceRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            await using var connection = await db.OpenAsync(http.RequestAborted);
+
+            await connection.ExecuteAsync(
+                "update character set appearance = $2::jsonb where id = $1;",
+                null, characterId,
+                System.Text.Json.JsonSerializer.Serialize(
+                    request.Appearance ?? new SpumSaveData(), AppearanceJson));
+
+            return Results.Ok(new { characterId, appearance = request.Appearance });
+        });
+
+        // ── Where they are ────────────────────────────────────────────────────
+        //
+        // ══ WHY THE MAP IS CHECKED AND THE HAIRSTYLE IS NOT ═════════════
+        //
+        // Because the map decides what a character can gather and fight when they
+        // next log in. An unvalidated map id is a client choosing to wake up in a zone
+        // it has not unlocked, which is a progression skip rather than a cosmetic one.
+        group.MapPut("/{characterId:guid}/location", async (
+            HttpContext http, Caller caller, Db db, ContentCache content, Guid characterId,
+            [FromBody] LocationRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string mapId = (request.MapId ?? "").Trim();
+
+            // GetMap, not GetZone. A zone is a REGION -- verdant_wilds -- and the maps
+            // inside it are what a character stands in: goblin_camp is a map of the
+            // verdant_wilds zone. Validating against zones refused every real location,
+            // including the starting map, which the paired test caught only because it
+            // asserts a good value is ACCEPTED as well as a bad one refused.
+            if (content.Catalogue.GetMap(mapId) is null)
+            {
+                return Results.Problem(
+                    title:      "unknown map",
+                    detail:     $"There is no map '{mapId}'.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            await using var connection = await db.OpenAsync(http.RequestAborted);
+
+            await connection.ExecuteAsync(
+                "update character set last_map_id = $2 where id = $1;",
+                null, characterId, mapId);
+
+            return Results.Ok(new { characterId, lastMapId = mapId });
+        });
     }
+
+    /// <summary>
+    /// Appearance as an object rather than a string of JSON.
+    ///
+    /// Returned parsed so the client reads a nested object, which is what JsonUtility
+    /// can deserialise. Handed back as text it would need a second parse the client
+    /// has no reason to know about.
+    /// </summary>
+    internal static SpumSaveData AppearanceOf(string json)
+    {
+        try
+        {
+            return System.Text.Json.JsonSerializer
+                       .Deserialize<SpumSaveData>(json, AppearanceJson)
+                   ?? new SpumSaveData();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // A row written by an older shape. A default face beats a 500.
+            return new SpumSaveData();
+        }
+    }
+
+    /// <summary>
+    /// Fields, because SpumSaveData is made of them.
+    ///
+    /// The global options do this too, but this serialiser is called directly rather
+    /// than through the pipeline -- and System.Text.Json silently writes {} for a
+    /// type of pure fields without it, which would store an empty face and look like
+    /// the bug this column was added to fix.
+    /// </summary>
+    private static readonly System.Text.Json.JsonSerializerOptions AppearanceJson =
+        new(System.Text.Json.JsonSerializerDefaults.Web)
+        {
+            IncludeFields = true,
+
+            // SpumSaveData carries a computed IsEmpty. Without this it is written into
+            // the stored document as though it were data, which is noise in the column
+            // and a field the client would have to be told to ignore.
+            IgnoreReadOnlyProperties = true,
+        };
 
     /// <summary>
     /// The same answer for "does not exist" and "not yours".
@@ -276,5 +400,12 @@ public static class CharacterEndpoints
             detail:     "That character does not exist, or does not belong to you.",
             statusCode: StatusCodes.Status404NotFound);
 
-    public sealed record CreateRequest(string? Name, string? ClassId);
+    public sealed record CreateRequest(string? Name, string? ClassId,
+                                       SpumSaveData? Appearance);
+
+    /// <summary>What the character looks like. Stored as given; the server reads no field of it.</summary>
+    public sealed record AppearanceRequest(SpumSaveData? Appearance);
+
+    /// <summary>Where the character is. Written on map change and on leaving the world.</summary>
+    public sealed record LocationRequest(string? MapId);
 }

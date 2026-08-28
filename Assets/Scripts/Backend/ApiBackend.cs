@@ -66,11 +66,25 @@ namespace IdleExplorers.Backend
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId) =>
             GetAsync<CharacterSnapshot>($"/character/{characterId}");
 
-        public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId) =>
+        public async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
+            await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/appearance",
+                                           new AppearanceBody { appearance = appearance });
+
+        public async Awaitable SaveLocationAsync(string characterId, string mapId) =>
+            await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/location",
+                                           new MapBody { mapId = mapId });
+
+        public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
+                                                                 SpumSaveData appearance) =>
             PostAsync<CharacterSnapshot>("/character/", new CreateCharacterBody
             {
-                name    = name,
-                classId = classId ?? "",
+                name       = name,
+                classId    = classId ?? "",
+
+                // Sent WITH the creation rather than saved after it. A second call
+                // that can fail on its own is a character created with a default face
+                // and no obvious way for the player to tell why.
+                appearance = appearance,
             });
 
         public Awaitable<ActivitySnapshot> SetGatheringAsync(string characterId, string nodeId) =>
@@ -279,7 +293,12 @@ namespace IdleExplorers.Backend
 
         // ── Request bodies ────────────────────────────────────────────────────
 
-        [Serializable] private class CreateCharacterBody { public string name; public string classId; }
+        [Serializable] private class CreateCharacterBody
+        {
+            public string       name;
+            public string       classId;
+            public SpumSaveData appearance;
+        }
         [Serializable] private class NodeBody            { public string nodeId; }
         [Serializable] private class RecipeBody          { public string recipeId; }
         [Serializable] private class MonsterBody         { public string monsterId; }
@@ -289,6 +308,8 @@ namespace IdleExplorers.Backend
         [Serializable] private class MoveBody            { public string itemId; public long quantity; }
         [Serializable] private class NodeIdBody          { public string nodeId; }
         [Serializable] private class ActionsBody         { public BossActionReport[] actions; }
+        [Serializable] private class AppearanceBody      { public SpumSaveData appearance; }
+        [Serializable] private class MapBody             { public string mapId; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

@@ -76,6 +76,12 @@ public class AppearanceModal : UIScreen
         character.spumConfig = _draft;
         GameManager.Save?.Save();
 
+        // The local save is not the source of anything under an authoritative server,
+        // and a look kept only there vanishes at the next character select. Fire and
+        // forget: the rig has already redrawn and a failed save is retried the next
+        // time somebody visits the barber.
+        _ = IdleExplorers.Backend.ServerState.SaveAppearanceAsync(character.characterId, _draft);
+
         // Pop BEFORE announcing, so the live rig redraws behind a screen that is
         // already on its way out rather than under a modal covering it.
         GameManager.UI?.Pop();

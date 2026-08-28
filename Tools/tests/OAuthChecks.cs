@@ -29,6 +29,7 @@ namespace IdleExplorersTests
             Challenges(check);
             Wiring(check, root);
             WebStorage(check, root);
+            StartupSignIn(check, root);
         }
 
         // ══ THE VERIFIER ══════════════════════════════════════════════════════
@@ -255,6 +256,47 @@ namespace IdleExplorersTests
             }
 
             return "";
+        }
+
+        // ══ A SIGN-IN THAT NOBODY IS LISTENING FOR ══════════════════════════
+
+        /// <summary>
+        /// The startup sign-in has to be observable as STATE, not only as an event.
+        ///
+        /// Session.Begin runs at BeforeSceneLoad. A Google redirect coming back, or a
+        /// stored session being restored, therefore raises SignedInChanged before any
+        /// scene exists -- so nothing is subscribed, and nothing can be.
+        ///
+        /// The result was a sign-in that worked in every respect and a player looking
+        /// at a login form. Token obtained, account row written, event fired into an
+        /// empty room. It reads exactly like a button that does nothing, which is where
+        /// the debugging went.
+        ///
+        /// So the login screen must ASK. Checked here because the failure leaves no
+        /// trace: no exception, no warning, and a screen that looks like it is simply
+        /// waiting for input.
+        /// </summary>
+        private static void StartupSignIn(Action<bool, string> check, string root)
+        {
+            string login = Strip(Read(root, "Assets/Scripts/UI/Screens/LoginScreen.cs"));
+
+            if (login.Length == 0)
+            {
+                check(false, "LoginScreen.cs exists");
+                return;
+            }
+
+            check(login.Contains("Session.IsSignedIn"),
+                  "the login screen asks whether somebody is ALREADY signed in, rather " +
+                  "than waiting for an event raised before it existed");
+
+            check(login.Contains("UntilReadyAsync") || login.Contains("Session.Ready"),
+                  "it waits for the startup token exchange instead of racing it");
+
+            // A screen that skips ahead on a stale answer would send a signed-out
+            // player to a roster they cannot load.
+            check(login.Contains("LoadAccountAsync"),
+                  "and pulls the account before showing the roster");
         }
 
         private static string Read(string root, string relative)

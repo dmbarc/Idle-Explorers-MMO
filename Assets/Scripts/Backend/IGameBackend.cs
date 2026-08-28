@@ -47,7 +47,14 @@ namespace IdleExplorers.Backend
 
         Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId);
 
-        Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId);
+        /// <summary>Saves the look. Stored as given -- the server has no opinion about hair.</summary>
+        Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance);
+
+        /// <summary>Remembers where the character is, so they load in there next time.</summary>
+        Awaitable SaveLocationAsync(string characterId, string mapId);
+
+        Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
+                                                          SpumSaveData appearance);
 
         /// <summary>Start working a gathering node.</summary>
         Awaitable<ActivitySnapshot> SetGatheringAsync(string characterId, string nodeId);
@@ -232,6 +239,14 @@ namespace IdleExplorers.Backend
         public long   xp;
         public int    level;
         public string lastMapId;
+
+        /// <summary>
+        /// What this character looks like, so the select screen can draw the face.
+        ///
+        /// Carried on the ROSTER rather than fetched per card: one request that
+        /// renders the whole list beats one request per character to render it.
+        /// </summary>
+        public SpumSaveData appearance;
     }
 
     [Serializable]
@@ -241,6 +256,18 @@ namespace IdleExplorers.Backend
         public string          name;
         public long            xp;
         public int             level;
+
+        /// <summary>
+        /// The look, and where they left off.
+        ///
+        /// Both used to live only in the client's local save, which under an
+        /// authoritative server is not the source of anything. A player customised a
+        /// character, went to character select, and came back to the default face;
+        /// and every character loaded into the starting map however far they had
+        /// walked.
+        /// </summary>
+        public SpumSaveData    appearance;
+        public string          lastMapId;
         public SkillSnapshot[] skills;
         public SlotSnapshot[]  inventory;
         public EquipSnapshot[] equipment;

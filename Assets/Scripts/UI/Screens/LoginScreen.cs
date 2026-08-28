@@ -100,6 +100,10 @@ public class LoginScreen : UIScreen
     {
         ClearHint();
 
+        // Asked every time this screen appears, because the answer may already be yes
+        // before it ever did. See the note on Session.SignedInChanged.
+        if (Connected) _ = ResumeIfAlreadySignedInAsync();
+
         if (_nameField == null) return;
 
         if (Connected)
@@ -293,6 +297,54 @@ public class LoginScreen : UIScreen
         {
             _busy = false;
         }
+    }
+
+    /// <summary>
+    /// Goes straight through when the player is already signed in.
+    ///
+    /// ══ WHY THIS SCREEN HAS TO ASK ══════════════════════════════════════
+    ///
+    /// Because nothing tells it. Session raises SignedInChanged when a Google redirect
+    /// completes or a stored session is restored -- but both happen in Begin(), at
+    /// BeforeSceneLoad, when no scene exists and nothing is subscribed. The event goes
+    /// nowhere.
+    ///
+    /// So a player came back from Google correctly signed in, with a token and an
+    /// account, and sat looking at a login form. The same was true of anyone
+    /// reopening the tab with a valid stored session: signed in, and asked to sign in.
+    ///
+    /// Asking on show fixes both, and cannot be defeated by ordering the way a
+    /// subscription can -- a state is true whenever you look at it, a moment is not.
+    ///
+    /// ══ WHY IT WAITS ════════════════════════════════════════════════════
+    ///
+    /// The token exchange is a network round trip started before the splash. It has
+    /// usually finished by the time content has loaded, but "usually" decides whether
+    /// a player signs in twice, so the screen waits for the answer rather than racing
+    /// it.
+    /// </summary>
+    private async Awaitable ResumeIfAlreadySignedInAsync()
+    {
+        if (!IdleExplorers.Backend.Session.Ready)
+        {
+            ShowHint("Restoring your session…");
+            await IdleExplorers.Backend.Session.UntilReadyAsync();
+        }
+
+        // Signed out, or never signed in. The form is the right answer.
+        if (!IdleExplorers.Backend.Session.IsSignedIn)
+        {
+            // A sign-in that was attempted and FAILED says so, rather than dropping the
+            // player back here with no explanation for the trip they just took.
+            string problem = IdleExplorers.Backend.Session.ResumeProblem;
+
+            if (!string.IsNullOrEmpty(problem)) ShowHint(problem);
+            else                                ClearHint();
+
+            return;
+        }
+
+        await LoadAccountAsync();
     }
 
     /// <summary>

@@ -191,11 +191,17 @@ public class CharacterSelectScreen : UIScreen
         }, width: 0f), theme.buttonHeight * 0.8f);
     }
 
-    private void PlayCharacter(CharacterData data)
+    private async void PlayCharacter(CharacterData data)
     {
         // SelectCharacter runs AFK accrual internally — calling ProcessAFKRewards
         // here as well would grant every reward twice.
-        GameManager.Character?.SelectCharacter(data);
+        //
+        // AWAITED, because under an authoritative server the accrual is a round trip.
+        // Reading PendingSummary immediately after a fire-and-forget call read it
+        // before the request had even been sent, so the summary was always empty and
+        // the screen never appeared.
+        if (GameManager.Character != null)
+            await GameManager.Character.SelectCharacterAsync(data);
 
         var summary = GameManager.Activity?.PendingSummary;
         if (summary != null && summary.HasAnything)

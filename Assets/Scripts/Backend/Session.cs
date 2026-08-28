@@ -40,6 +40,8 @@ namespace IdleExplorers.Backend
         private static ServerConfig        _config;
         private static SupabaseAuthClient  _auth;
         private static bool                _started;
+        private static bool                _ready;
+        private static string              _resumeProblem = "";
 
         /// <summary>The auth client, or null when the game is running offline.</summary>
         public static SupabaseAuthClient Auth => _auth;
@@ -50,8 +52,52 @@ namespace IdleExplorers.Backend
         /// <summary>Whether somebody is signed in right now.</summary>
         public static bool IsSignedIn => _auth is { IsSignedIn: true };
 
-        /// <summary>Raised when the signed-in state changes, so screens can react.</summary>
+        /// <summary>
+        /// Raised when the signed-in state changes.
+        ///
+        /// ══ DO NOT RELY ON THIS FOR THE STARTUP SIGN-IN ═══════════════════════
+        ///
+        /// It is useless for that, and believing otherwise cost a whole round of
+        /// debugging. Begin() runs at BeforeSceneLoad, so a Google redirect coming
+        /// back, or a stored session being restored, raises this BEFORE ANY SCENE
+        /// EXISTS. There is nothing subscribed yet and there cannot be.
+        ///
+        /// The symptom is a sign-in that works perfectly and a player looking at the
+        /// login screen: token obtained, account created, event fired into an empty
+        /// room. Use Ready and IsSignedIn -- a state a screen can ASK about whenever
+        /// it happens to start -- rather than a moment it has to be present for.
+        /// </summary>
         public static event Action<bool> SignedInChanged;
+
+        /// <summary>
+        /// Whether startup has finished deciding whether somebody is signed in.
+        ///
+        /// False for the first moments of the process, which matters because the login
+        /// screen can appear before the token exchange has come back.
+        /// </summary>
+        public static bool Ready => _ready;
+
+        /// <summary>
+        /// Why a sign-in that was in progress at startup did not complete, or empty.
+        ///
+        /// Kept rather than only logged, so the login screen can say it. A silent
+        /// return to the login form after a successful trip through Google is
+        /// indistinguishable from the game ignoring the button.
+        /// </summary>
+        public static string ResumeProblem => _resumeProblem;
+
+        /// <summary>
+        /// Waits until startup has settled, then returns.
+        ///
+        /// A loop rather than a completion source because it is correct when called
+        /// AFTER the fact as well -- which is the common case, since content loading
+        /// usually outlasts the token exchange -- and needs nothing reset between
+        /// play sessions.
+        /// </summary>
+        public static async Awaitable UntilReadyAsync()
+        {
+            while (!_ready) await Awaitable.NextFrameAsync();
+        }
 
         /// <summary>
         /// Runs before the first scene loads.
@@ -77,6 +123,7 @@ namespace IdleExplorers.Backend
                     // for somebody working on presentation, and it plays fine.
                     Debug.Log("[Session] No ServerConfig asset — playing offline.");
                     GameBackend.GoLocal();
+                    _ready = true;
                     return;
                 }
 
@@ -93,6 +140,7 @@ namespace IdleExplorers.Backend
                 {
                     Debug.Log("[Session] No API configured — playing offline.");
                     GameBackend.GoLocal();
+                    _ready = true;
                     return;
                 }
 
@@ -124,6 +172,8 @@ namespace IdleExplorers.Backend
                 }
                 else if (!string.IsNullOrEmpty(resumed.Message))
                 {
+                    _resumeProblem = resumed.Message;
+
                     // A resume that FAILED with something to say. The empty-message case
                     // is the ordinary page load with no code on it, which is almost every
                     // page load and must stay quiet -- but a real refusal from the token
@@ -144,6 +194,8 @@ namespace IdleExplorers.Backend
                 }
 
                 Keep();
+
+                _ready = true;
             }
             catch (Exception e)
             {
@@ -151,6 +203,10 @@ namespace IdleExplorers.Backend
                 // game; a failed launcher is not.
                 Debug.LogError($"[Session] Could not start against the server: {e.Message}");
                 GameBackend.GoLocal();
+
+                // Set even on the failure path, or every screen waiting on it hangs
+                // forever on the one morning the server is down.
+                _ready = true;
             }
         }
 
@@ -251,9 +307,11 @@ namespace IdleExplorers.Backend
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
         {
-            _started = false;
-            _config  = null;
-            _auth    = null;
+            _started       = false;
+            _ready         = false;
+            _resumeProblem = "";
+            _config        = null;
+            _auth          = null;
 
             SignedInChanged = null;
         }

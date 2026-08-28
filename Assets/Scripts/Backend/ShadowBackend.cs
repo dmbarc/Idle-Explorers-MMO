@@ -63,6 +63,18 @@ namespace IdleExplorers.Backend
             return local;
         }
 
+        public async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance)
+        {
+            await _local.SaveAppearanceAsync(characterId, appearance);
+            await _remote.SaveAppearanceAsync(characterId, appearance);
+        }
+
+        public async Awaitable SaveLocationAsync(string characterId, string mapId)
+        {
+            await _local.SaveLocationAsync(characterId, mapId);
+            await _remote.SaveLocationAsync(characterId, mapId);
+        }
+
         public async Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
         {
             var local = await _local.GetCharacterAsync(characterId);
@@ -114,13 +126,14 @@ namespace IdleExplorers.Backend
             return local;
         }
 
-        public async Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId)
+        public async Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
+                                                                       SpumSaveData appearance)
         {
-            var local = await _local.CreateCharacterAsync(name, classId);
+            var local = await _local.CreateCharacterAsync(name, classId, appearance);
 
             // Not compared: the two will assign different ids, and that is correct
             // rather than a divergence. Mirrored so the server has the character.
-            await MirrorAsync("CreateCharacter", () => _remote.CreateCharacterAsync(name, classId));
+            await MirrorAsync("CreateCharacter", () => _remote.CreateCharacterAsync(name, classId, appearance));
 
             return local;
         }

@@ -351,6 +351,67 @@ public class ActivityManager : MonoBehaviour
     public void ConsumePendingSummary() => PendingSummary = null;
 
     /// <summary>
+    /// Turns a server settlement into the summary the AFK screen already knows how to draw.
+    ///
+    /// ══ WHY THIS EXISTS ═════════════════════════════════════════════════════════
+    ///
+    /// The server settles the time away and grants everything correctly -- and the
+    /// player saw none of it. ProcessAFKRewards returns null under an authoritative
+    /// server, by design, so PendingSummary stayed empty and CharacterSelectScreen
+    /// went straight into the game.
+    ///
+    /// The rewards were in the inventory. Nothing said where they came from, which
+    /// makes the game silently break its central promise: you go away, you come back,
+    /// and something happened while you were gone.
+    ///
+    /// ══ WHY IT CONVERTS RATHER THAN RECALCULATES ════════════════════════════════
+    ///
+    /// The numbers are the SERVER'S. This reads them across and formats them; it does
+    /// not decide anything. A screen that recomputed its own totals would be a second
+    /// implementation of the payout, which is exactly what the shared rules tree
+    /// exists to prevent.
+    /// </summary>
+    public AFKRewardSummary AdoptServerSettlement(
+        IdleExplorers.Backend.SettlementSnapshot settled, CharacterData character)
+    {
+        if (settled == null || settled.IsEmpty) return null;
+
+        var summary = new AFKRewardSummary
+        {
+            elapsedSeconds = (long)settled.elapsedSeconds,
+            realElapsed    = (long)settled.elapsedSeconds,
+            characterName  = character?.characterName ?? "",
+            skillId        = character?.currentActivity?.skillId ?? "",
+            activityName   = DescribeActivity(character),
+        };
+
+        if (settled.items != null)
+            foreach (var stack in settled.items)
+                if (stack != null) summary.AddItem(stack.itemId, stack.quantity);
+
+        // The settlement reports one XP total against the activity's own skill --
+        // the server does not split a fishing session across several skills, because
+        // one activity trains one thing.
+        if (settled.xpGained > 0 && !string.IsNullOrEmpty(summary.skillId))
+            summary.AddXP(summary.skillId, settled.xpGained);
+
+        PendingSummary = summary.HasAnything ? summary : null;
+
+        return PendingSummary;
+    }
+
+    private static string DescribeActivity(CharacterData character)
+    {
+        var activity = character?.currentActivity;
+
+        if (activity == null || string.IsNullOrEmpty(activity.skillId)) return "Idling";
+
+        var skill = GameManager.Content?.GetSkill(activity.skillId);
+
+        return skill != null ? skill.DisplayName : activity.skillId;
+    }
+
+    /// <summary>
     /// Calculates and grants AFK rewards earned since lastLogoutUnixTime.
     /// Called by CharacterManager when a character is selected after being offline.
     /// Returns the summary (also stored as PendingSummary), or null if nothing accrued.

@@ -159,6 +159,18 @@ namespace IdleExplorers.Backend
             character.xp    = snapshot.xp;
             character.level = snapshot.level;
 
+            // ══ ONLY WHEN THE SERVER HAS ONE ═════════════════════════════════
+            //
+            // A character created before the appearance column existed comes back with
+            // an empty face. Writing that over a good local one would reproduce, on
+            // every pull, exactly the bug this column was added to fix -- so an empty
+            // answer means "no opinion", not "make them bald".
+            if (snapshot.appearance is { IsEmpty: false })
+                character.spumConfig = snapshot.appearance;
+
+            if (!string.IsNullOrEmpty(snapshot.lastMapId))
+                character.lastMapId = snapshot.lastMapId;
+
             ApplySkills(character, snapshot.skills);
             ApplyInventory(character, snapshot.inventory);
             ApplyEquipment(character, snapshot.equipment);
@@ -349,6 +361,43 @@ namespace IdleExplorers.Backend
             }
         }
 
+        /// <summary>
+        /// Remembers the look, so it survives a character select and follows the player.
+        /// </summary>
+        public static async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData look)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(characterId) || look == null) return;
+
+            try
+            {
+                await GameBackend.Current.SaveAppearanceAsync(characterId, look);
+            }
+            catch (BackendException e)
+            {
+                // Not worth a toast. The face is already correct on screen, and the
+                // next save will carry it.
+                Debug.LogWarning($"[ServerState] Could not save appearance: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Remembers where the character is standing, so they load in there next time.
+        /// </summary>
+        public static async Awaitable SaveLocationAsync(string mapId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(mapId))
+                return;
+
+            try
+            {
+                await GameBackend.Current.SaveLocationAsync(CharacterId, mapId);
+            }
+            catch (BackendException e)
+            {
+                Debug.LogWarning($"[ServerState] Could not save location: {e.Message}");
+            }
+        }
+
         public static async Awaitable HeartbeatAsync()
         {
             if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId)) return;
@@ -418,6 +467,11 @@ namespace IdleExplorers.Backend
                 existing.xp            = summary.xp;
                 existing.level         = summary.level;
                 existing.lastMapId     = summary.lastMapId;
+
+                // Same reasoning as Apply: an empty face from the server is silence,
+                // not an instruction.
+                if (summary.appearance is { IsEmpty: false })
+                    existing.spumConfig = summary.appearance;
 
                 kept.Add(existing);
             }

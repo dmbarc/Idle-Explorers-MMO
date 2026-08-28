@@ -61,6 +61,17 @@ namespace IdleExplorers.Backend
             return Completed(snapshot);
         }
 
+        /// <summary>
+        /// Offline these are already saved -- the local save IS the character.
+        ///
+        /// Writing them again here would be the same bytes twice, and the whole point
+        /// of this backend is that it wraps what the managers already do.
+        /// </summary>
+        public Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
+            Completed();
+
+        public Awaitable SaveLocationAsync(string characterId, string mapId) => Completed();
+
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
         {
             var character = Find(characterId);
@@ -140,7 +151,8 @@ namespace IdleExplorers.Backend
 
         // ── Writes ────────────────────────────────────────────────────────────
 
-        public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId)
+        public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
+                                                                 SpumSaveData appearance)
         {
             // CreateCharacter fills in the id rather than returning one, so the object
             // is built here and read back after.
