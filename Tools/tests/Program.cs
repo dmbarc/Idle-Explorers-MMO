@@ -46,6 +46,8 @@ internal static class Program
         Console.WriteLine("Shared rules purity");
         RulesPurity.Run(Check, RepoRoot());
 
+        IdleExplorersTests.BuildSizeChecks.Run(Check, RepoRoot());
+
         IdleExplorersTests.AuthorityChecks.Run(Check, RepoRoot());
 
         IdleExplorersTests.OAuthChecks.Run(Check, RepoRoot());
