@@ -234,5 +234,20 @@ public static class GoblinCampSetup
         Execute(showDialog: true);
     }
 
+    /// <summary>
+    /// Builds it with no dialogs, for -batchmode -executeMethod.
+    ///
+    /// ══ WHY THIS EXISTS ════════════════════════════════════════════════════
+    ///
+    /// EditorUtility.DisplayDialog returns FALSE in batch mode, so BuildMenu quietly
+    /// cancelled and reported success -- the log said it had run, the scene file was
+    /// untouched, and the change nobody could see was the portal still standing in the
+    /// old place.
+    ///
+    /// A build script that cannot be scripted is a build step somebody has to
+    /// remember, and the failure of forgetting is silent.
+    /// </summary>
+    public static void BuildSilent() => Execute(showDialog: false);
+
     public static void Execute(bool showDialog) => GridMapSetup.Build(Recipe(), showDialog);
 }

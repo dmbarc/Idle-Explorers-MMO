@@ -108,6 +108,18 @@ public static class CharacterEndpoints
                 // The funnel starts here, and only the server can say it started. In
                 // the same transaction as the insert, so a rolled-back creation cannot
                 // leave a character in the funnel that no table has ever heard of.
+                // The starting class is an OWNED class, not just a name. Without this
+                // row a fresh character has no tree the talent endpoint can see.
+                if (!string.IsNullOrEmpty(classId))
+                {
+                    await connection.ExecuteAsync(
+                        """
+                        insert into character_class (character_id, class_id)
+                        values ($1, $2) on conflict do nothing;
+                        """,
+                        tx, characterId, classId);
+                }
+
                 await DressAsync(connection, tx, accountId.Value, characterId, classId,
                                  content, http.RequestAborted);
 
@@ -289,6 +301,68 @@ public static class CharacterEndpoints
             return Results.Ok(new { characterId, deleted = true });
         });
 
+        // ── Taking a second class ─────────────────────────────────────────────
+        //
+        // ══ WHY THE SERVER HAS TO KNOW ═══════════════════════════════════
+        //
+        // Multi-classing existed only on the client: CharacterData carries a list of
+        // class ids and the server had one column. So a second class unlocked, its
+        // tree drew, and spending a point in it answered "no such talent" -- the
+        // server telling the truth about a class it had never been told about.
+        group.MapPost("/{characterId:guid}/class", async Task<IResult> (
+            HttpContext http, Caller caller, Db db, ContentCache content, IGameClock clock,
+            Guid characterId, [FromBody] AddClassRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string classId = (request.ClassId ?? "").Trim();
+
+            // Validated against content, so a client cannot invent a class and inherit
+            // whatever a missing one resolves to.
+            if (content.Catalogue.GetClass(classId) is null)
+            {
+                return Results.Problem(
+                    title:      "unknown class",
+                    detail:     $"There is no class '{classId}'.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            await using var connection = await db.OpenAsync(http.RequestAborted);
+
+            // Idempotent by the primary key rather than by remembering: taking a class
+            // twice is having it once.
+            await connection.ExecuteAsync(
+                """
+                insert into character_class (character_id, class_id)
+                values ($1, $2)
+                on conflict (character_id, class_id) do nothing;
+                """,
+                null, characterId, classId);
+
+            await TelemetryEndpoints.RecordAsync(
+                connection, null, accountId.Value, characterId,
+                "class_add", await clock.NowAsync(http.RequestAborted),
+                ("classId", classId));
+
+            var owned = new List<string>();
+
+            await using (var command = connection.Sql(
+                "select class_id from character_class where character_id = $1 order by added_at;",
+                null, characterId))
+            {
+                await using var reader = await command.ExecuteReaderAsync(http.RequestAborted);
+
+                while (await reader.ReadAsync(http.RequestAborted))
+                    owned.Add(reader.GetString(0));
+            }
+
+            return Results.Ok(new { characterId, classIds = owned.ToArray() });
+        });
+
         // ── What they look like ───────────────────────────────────────────────
         //
         // Stored, never interpreted. This is the one thing the server holds that it
@@ -353,14 +427,18 @@ public static class CharacterEndpoints
             // Clamped with the same rule presence uses. Position is presentation and
             // is not validated -- this is about keeping a broken float out of a column
             // other people's arithmetic will read, not about cheating.
-            float x = IdleExplorers.Rules.Presence.Clamp(request.X);
-            float z = IdleExplorers.Rules.Presence.Clamp(request.Z);
-
+            // ══ THE MAP ONLY. POSITION BELONGS TO PRESENCE ═════════════════════
+            //
+            // This runs the moment a map finishes loading, when the character is
+            // standing on the spawn point -- so writing a position here wrote the spawn
+            // point over wherever they actually were, and the restore that followed put
+            // them back on it. Presence updates last_x and last_z every two seconds
+            // from a rig that has finished arriving.
             await connection.ExecuteAsync(
-                "update character set last_map_id = $2, last_x = $3, last_z = $4 where id = $1;",
-                null, characterId, mapId, x, z);
+                "update character set last_map_id = $2 where id = $1;",
+                null, characterId, mapId);
 
-            return Results.Ok(new { characterId, lastMapId = mapId, lastX = x, lastZ = z });
+            return Results.Ok(new { characterId, lastMapId = mapId });
         });
     }
 
@@ -488,4 +566,7 @@ public static class CharacterEndpoints
 
     /// <summary>Where the character is. Written on map change and on leaving the world.</summary>
     public sealed record LocationRequest(string? MapId, float X, float Z);
+
+    /// <summary>A class this character is taking on. Validated against content.</summary>
+    public sealed record AddClassRequest(string? ClassId);
 }

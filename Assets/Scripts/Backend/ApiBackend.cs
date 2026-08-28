@@ -66,6 +66,10 @@ namespace IdleExplorers.Backend
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId) =>
             GetAsync<CharacterSnapshot>($"/character/{characterId}");
 
+        public async Awaitable AddClassAsync(string characterId, string classId) =>
+            await PostAsync<EmptyResponse>($"/character/{characterId}/class",
+                                           new ClassBody { classId = classId });
+
         public async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
             await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/appearance",
                                            new AppearanceBody { appearance = appearance });
@@ -362,6 +366,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class MapBody             { public string mapId; public float x; public float z; }
         [Serializable] private class PackBody            { public string packId; }
         [Serializable] private class ProductBody         { public string productId; }
+        [Serializable] private class ClassBody           { public string classId; }
         [Serializable] private class ItemBody            { public string itemId; }
         [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; public string say; }
 

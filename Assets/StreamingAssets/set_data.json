@@ -2,7 +2,14 @@
   {
     "id": "weak_tin_man",
     "name": "Weak Tin Man",
-    "itemIds": [ "tin_helmet", "tin_shoulders", "tin_platebody", "tin_gloves", "tin_boots", "tin_legguards" ],
+    "itemIds": [
+      "tin_helmet",
+      "tin_shoulders",
+      "tin_platebody",
+      "tin_gloves",
+      "tin_boots",
+      "tin_legguards"
+    ],
     "bonuses": [
       {
         "piecesRequired": 2,
@@ -15,37 +22,37 @@
       },
       {
         "piecesRequired": 4,
-        "description": "When dealing damage, has a chance to hurl a piece of your armor at the enemy. It hits very hard and lands on the ground where it fell.",
-        "action": "armorThrow",
-        "chance": 0.05,
-        "magnitude": 7.0
-      },
-      {
-        "piecesRequired": 6,
-        "description": "When taking damage, has a chance to steal durability from the rest of your armor and pour it into whichever piece is worst off.",
-        "action": "durabilitySiphon",
-        "chance": 0.20
-      },
-      {
-        "piecesRequired": 4,
         "description": "When dealing damage, has a chance to scoop up armor lying on the ground nearby and put it straight back on.",
         "action": "scavenge",
         "chance": 0.25,
         "radius": 8.0
+      },
+      {
+        "piecesRequired": 6,
+        "description": "When dealing damage, has a chance to hurl a piece of your armor at the enemy. It hits very hard and lands on the ground where it fell.",
+        "action": "armorThrow",
+        "chance": 0.05,
+        "magnitude": 7.0
       }
     ]
   },
-
   {
     "id": "verdigris_vanguard",
     "name": "The Verdigris Vanguard",
-    "itemIds": [ "copper_helmet", "copper_shoulders", "copper_platebody", "copper_gloves", "copper_boots", "copper_legguards" ],
+    "itemIds": [
+      "copper_helmet",
+      "copper_shoulders",
+      "copper_platebody",
+      "copper_gloves",
+      "copper_boots",
+      "copper_legguards"
+    ],
     "bonuses": [
       {
         "piecesRequired": 2,
         "description": "Verdigris blooms wherever you are struck. 20% of the damage you take is returned to everything within six metres.",
         "action": "thorns",
-        "magnitude": 0.20,
+        "magnitude": 0.2,
         "radius": 6.0
       },
       {
@@ -59,16 +66,22 @@
         "piecesRequired": 6,
         "description": "Every kill has a chance to mend two points of wear on whichever piece of your armor is in the worst condition.",
         "action": "mend",
-        "chance": 0.30,
+        "chance": 0.3,
         "magnitude": 2.0
       }
     ]
   },
-
   {
     "id": "bronze_age_reenactor",
     "name": "Bronze Age Reenactor",
-    "itemIds": [ "bronze_helmet", "bronze_shoulders", "bronze_platebody", "bronze_gloves", "bronze_boots", "bronze_legguards" ],
+    "itemIds": [
+      "bronze_helmet",
+      "bronze_shoulders",
+      "bronze_platebody",
+      "bronze_gloves",
+      "bronze_boots",
+      "bronze_legguards"
+    ],
     "bonuses": [
       {
         "piecesRequired": 2,

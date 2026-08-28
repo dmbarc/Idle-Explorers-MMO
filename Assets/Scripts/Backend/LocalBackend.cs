@@ -67,6 +67,9 @@ namespace IdleExplorers.Backend
         /// Writing them again here would be the same bytes twice, and the whole point
         /// of this backend is that it wraps what the managers already do.
         /// </summary>
+        /// <summary>Offline the class list is already the local one, so this says nothing.</summary>
+        public Awaitable AddClassAsync(string characterId, string classId) => Completed();
+
         public Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
             Completed();
 

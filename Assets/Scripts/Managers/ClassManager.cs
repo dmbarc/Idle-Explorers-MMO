@@ -134,6 +134,18 @@ public static class ClassManager
         held.Add(classId);
         SyncLegacyClassId(character);
 
+        // ══ AND THE SERVER IS TOLD ══════════════════════════════════════════
+        //
+        // Multi-classing lived entirely here. The server kept one class_id column, so
+        // a second class unlocked, its talent tree drew, and spending a point in it
+        // came back "no such talent" -- the server answering honestly about a class it
+        // had never heard of.
+        //
+        // Fire and forget: the tree is drawn from the local list either way, and a
+        // failed call means the next point refuses with a message rather than
+        // silently doing nothing.
+        _ = IdleExplorers.Backend.ServerState.AddClassAsync(classId);
+
         GameManager.Save?.Save();
 
         GameEvents.OnClassChanged?.Invoke(character.classId);

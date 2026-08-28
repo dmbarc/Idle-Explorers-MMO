@@ -183,10 +183,38 @@ public static class TalentEndpoints
                 ranks.Add(new TalentRank { nodeId = reader.GetString(0), rank = reader.GetInt32(1) });
         }
 
+        // ══ EVERY CLASS, NOT JUST THE PRIMARY ONE ═════════════════════════════
+        //
+        // This read character.class_id alone, so a second class existed on the client
+        // and nowhere the server could see. Spending a point in its tree came back
+        // "no such talent" -- which was true, and the reason it was true was here.
+        //
+        // The primary class is still included even if the join returns nothing, so a
+        // character whose rows predate the backfill is never left with no tree at all.
         var classes = new List<ClassData>();
+        var seen    = new HashSet<string>(StringComparer.Ordinal);
 
-        if (!string.IsNullOrEmpty(classId) && content.Catalogue.GetClass(classId) is { } resolved)
+        await using (var command = connection.Sql(
+            "select class_id from character_class where character_id = $1 order by added_at;",
+            tx, characterId))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation))
+            {
+                string owned = reader.GetString(0);
+
+                if (!seen.Add(owned)) continue;
+
+                if (content.Catalogue.GetClass(owned) is { } tree) classes.Add(tree);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(classId) && seen.Add(classId) &&
+            content.Catalogue.GetClass(classId) is { } resolved)
+        {
             classes.Add(resolved);
+        }
 
         return new Sheet(Levelling.CharacterLevel(xp), ranks, Talents.NodesOf(classes));
     }

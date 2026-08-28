@@ -25,13 +25,17 @@ using UnityEngine;
 /// pre-compressed static assets is genuinely unresolved -- their docs do not say and
 /// community reports contradict each other across several years.
 ///
-/// So compression is DISABLED here and the edge is left to compress on the fly.
-/// application/wasm is on Cloudflare's default compressible list, streaming compilation
-/// survives, and there is no header to argue about. The cost is that the 25 MiB
-/// per-file limit applies to the UNCOMPRESSED size, which is why the build reports its
-/// largest files at the end.
+/// Disabling compression was tried first, on the theory that letting the edge compress
+/// avoids the argument entirely. It does -- but the 25 MiB per-file cap then applies to
+/// the UNCOMPRESSED size, and the wasm came out at 58 MB. That is a hard limit, so the
+/// theory was simply wrong for a build this size.
 ///
-/// If the probe later shows Brotli works, this is one line.
+/// So: Brotli, with Unity's own decompressor rather than the header. Works on any host,
+/// needs no configuration, and cannot be broken by a CDN behaving unexpectedly. The
+/// cost is streaming compilation and a few seconds on first load.
+///
+/// If the encoding probe later shows Cloudflare serves Content-Encoding correctly,
+/// turning the fallback off recovers those seconds. Two lines.
 /// </summary>
 public static class WebGLBuild
 {
@@ -121,12 +125,44 @@ public static class WebGLBuild
 
         PlayerSettings.WebGL.linkerTarget = WebGLLinkerTarget.Wasm;
 
-        // Disabled, so Cloudflare compresses at the edge. See the class comment.
-        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
+        // ══ KEEP RUNNING WHEN THE TAB IS NOT IN FRONT ═══════════════════════
+        //
+        // Unity pauses a player that loses focus by default. For a single-player game
+        // that is polite; for one whose whole loop is a server settling time, it means
+        // tabbing away stops the heartbeat, stops presence, and freezes other players
+        // where they stand.
+        //
+        // Worth knowing what this does NOT buy: browsers throttle background timers
+        // regardless, so a hidden tab still ticks slowly. That is fine here -- the
+        // server integrates from its own clock, so slow ticks lose nothing but
+        // smoothness. What matters is that it keeps talking at all.
+        PlayerSettings.runInBackground = true;
 
-        // Only meaningful WITH compression, and actively harmful without it: it ships
-        // a JavaScript decompressor that costs streaming compilation for nothing.
-        PlayerSettings.WebGL.decompressionFallback = false;
+        // ══ BROTLI, WITH THE FALLBACK ═════════════════════════════════════════
+        //
+        // Compression is not optional after all. Uncompressed, WebGL.wasm is 58 MB and
+        // WebGL.data is 36 MB, and both hosts worth using cap a single file at 25 MiB
+        // -- a hard limit, not a billing tier. Brotli takes the wasm to roughly 13 MB.
+        //
+        // The fallback is ON, and that is the whole reason this arrangement was chosen
+        // over the alternatives. It makes Unity ship a JavaScript decompressor and
+        // decompress the files itself, so the build works on ANY static host with no
+        // header configuration whatsoever -- which sidesteps the Content-Encoding
+        // question that has no documented answer for Cloudflare and contradictory
+        // community reports going back years.
+        //
+        // It costs streaming compilation, so the first load is a few seconds slower.
+        // That is the right trade for a first playtest: a slightly slow game beats a
+        // game that does not load and a day spent finding out why.
+        //
+        // ══ DO NOT SET Content-Encoding WITH THIS ON ══════════════════════════
+        //
+        // If the host also declares the files as Brotli, the BROWSER decompresses them
+        // and hands Unity's decompressor data that is already plain -- which fails, and
+        // fails in a way that looks like a corrupt build. Fallback and the header are
+        // alternatives, never both.
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+        PlayerSettings.WebGL.decompressionFallback = true;
 
         // The build is cached in the browser's IndexedDB, so a returning player does
         // not re-download tens of megabytes. Free, and the single biggest improvement

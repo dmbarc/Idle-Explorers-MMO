@@ -113,6 +113,14 @@ namespace IdleExplorers.Backend
             if (_started) return;
             _started = true;
 
+            // ══ AND AT RUNTIME, BELT AND BRACES ═════════════════════════════════
+            //
+            // The player setting is the real one; this covers a build made before it
+            // was set and the editor, where the setting is a separate checkbox nobody
+            // remembers. An online game that stops when the tab loses focus stops
+            // being online.
+            Application.runInBackground = true;
+
             try
             {
                 _config = ServerConfig.Load();

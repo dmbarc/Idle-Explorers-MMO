@@ -89,12 +89,20 @@ public class ZoneManager : MonoBehaviour
         //
         // Here it cannot be bypassed, which is the same reasoning as routing every
         // reward through LocalRewards rather than guarding each grant site.
+        // ══ RESTORE FIRST, THEN RECORD THE MAP ═════════════════════════════
+        //
+        // Order matters and got this wrong twice. RestorePosition reads lastMapId to
+        // decide whether the saved coordinates belong here, so setting lastMapId
+        // before restoring makes every map look like the one they left -- and the
+        // save that used to sit between them wrote the spawn point over the very
+        // coordinates about to be read.
+        RestorePosition(map);
+
         if (CharacterManager.Current != null) CharacterManager.Current.lastMapId = map.id;
 
+        // The map only. Presence writes the position, every two seconds, from a rig
+        // that has finished arriving.
         _ = IdleExplorers.Backend.ServerState.SaveLocationAsync(map.id);
-
-        // Put them back where they were standing, if this is the map they left from.
-        RestorePosition(map);
 
         Debug.Log($"[ZoneManager] Entered {map.DisplayName} ({map.id}) in {CurrentZone?.DisplayName ?? map.zoneId}");
     }
@@ -173,7 +181,10 @@ public class ZoneManager : MonoBehaviour
             return;
         }
 
-        GameManager.Activity?.SetDefaultCombatActivity(map.id);
+        // Arriving on a map with nothing to resume means the character is here to
+        // fight, so the fight actually starts. Walking away from the anvil does not --
+        // see the note on startFighting.
+        GameManager.Activity?.SetDefaultCombatActivity(map.id, startFighting: true);
     }
 
     // ── Teardown ──────────────────────────────────────────────────────────────

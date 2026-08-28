@@ -63,6 +63,10 @@ namespace IdleExplorers.Backend
             return local;
         }
 
+        /// <summary>Only the server keeps a class list that talents are checked against.</summary>
+        public Awaitable AddClassAsync(string characterId, string classId) =>
+            _remote.AddClassAsync(characterId, classId);
+
         public async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance)
         {
             await _local.SaveAppearanceAsync(characterId, appearance);

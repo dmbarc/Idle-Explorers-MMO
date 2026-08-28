@@ -329,7 +329,13 @@ public static class ItemTooltip
         sb.AppendLine();
         sb.AppendLine(Colour("Equip:", FlavorHex));
 
-        foreach (var bonus in set.bonuses)
+        // ══ BY TIER, NOT BY FILE ORDER ════════════════════════════════════
+        //
+        // The tin set listed 2pc, 4pc, 6pc, 4pc, because that was the order somebody
+        // had appended them in. A ladder printed out of order reads as a data error
+        // even when the data is fine, and it hid a real one -- two bonuses sharing a
+        // tier -- inside what looked like a display quirk.
+        foreach (var bonus in ByTier(set.bonuses))
         {
             // A blank description is deliberate, not missing: some bonuses take two
             // entries to implement — one for what happens when you are hit and one for
@@ -361,7 +367,7 @@ public static class ItemTooltip
 
             if (set.bonuses == null) continue;
 
-            foreach (var bonus in set.bonuses)
+            foreach (var bonus in ByTier(set.bonuses))
             {
                 if (bonus == null || string.IsNullOrEmpty(bonus.description)) continue;
 
@@ -394,5 +400,14 @@ public static class ItemTooltip
         }
 
         return rows.Count == 0 ? Colour("No stats from gear yet.", GreyHex) : string.Join("   ", rows);
+    }
+
+    /// <summary>Set bonuses in ladder order, whatever order the file lists them in.</summary>
+    private static System.Collections.Generic.IEnumerable<ItemSetBonus> ByTier(ItemSetBonus[] bonuses)
+    {
+        if (bonuses == null) yield break;
+
+        foreach (var bonus in System.Linq.Enumerable.OrderBy(bonuses, b => b?.piecesRequired ?? 0))
+            yield return bonus;
     }
 }

@@ -47,6 +47,14 @@ namespace IdleExplorers.Backend
 
         Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId);
 
+        /// <summary>
+        /// Tells the server this character has taken a class.
+        ///
+        /// Without it the class exists only on the client, its talent tree draws, and
+        /// spending a point in it answers "no such talent".
+        /// </summary>
+        Awaitable AddClassAsync(string characterId, string classId);
+
         /// <summary>Saves the look. Stored as given -- the server has no opinion about hair.</summary>
         Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance);
 

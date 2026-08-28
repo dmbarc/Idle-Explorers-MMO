@@ -147,6 +147,22 @@ public class AFKSummaryScreen : UIScreen
         if (summary.xpGained.Count > 0)
         {
             SectionHeader(content, theme, "EXPERIENCE");
+
+            // ══ THE CHARACTER LEVEL, ALONGSIDE THE SKILL ONES ════════════════════
+            //
+            // Because the two tracks look wrong together without it. A skill at 106
+            // beside a character at 59 reads as a bug, and it is the design: character
+            // xp is a QUARTER of skill xp (CharacterXpDivisor) on a shallower curve
+            // (83 against 100), so the skill number is always the bigger one.
+            //
+            // Showing both makes the relationship visible rather than something a
+            // player has to be told.
+            int characterLevel = CharacterManager.Current?.level ?? 1;
+
+            RewardRow(content, theme,
+                      $"{CharacterManager.Current?.characterName ?? "Character"}  (now level {characterLevel})",
+                      "character", null);
+
             foreach (var entry in summary.xpGained)
             {
                 string skillName = GameManager.Content?.GetSkill(entry.itemId)?.DisplayName ?? entry.itemId;

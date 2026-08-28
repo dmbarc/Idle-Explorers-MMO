@@ -92,14 +92,22 @@ public static class ServerActions
     {
         try
         {
-            CharacterSnapshot snapshot = await call(GameBackend.Current);
+            await call(GameBackend.Current);
 
-            if (snapshot == null) return;
-
-            ServerState.Apply(snapshot);
-
-            GameEvents.OnEquipmentChanged?.Invoke();
-            GameEvents.FireInventoryChanged();
+            // ══ THE ANSWER IS NOT A CHARACTER, SO IT IS NOT USED ═════════════════
+            //
+            // This used to apply the response as a CharacterSnapshot. The equipment
+            // endpoints do not return one -- they answer { slotId, itemId, displaced }
+            // -- so JsonUtility produced a snapshot with a null id, Apply refused it on
+            // the id check, and the client learned nothing at all.
+            //
+            // Silently. The equip HAD happened on the server; the screen simply did not
+            // know until the next full pull twenty or thirty seconds later, which is
+            // exactly "nothing happens, and then sometimes it equips".
+            //
+            // Pulling is one extra round trip at the rate a human clicks, and it cannot
+            // be wrong about a shape: the character read is the character read.
+            await ServerState.PullCharacterAsync(CharacterId);
         }
         catch (BackendException e)
         {

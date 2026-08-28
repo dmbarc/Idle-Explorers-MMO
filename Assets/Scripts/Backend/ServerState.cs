@@ -212,6 +212,19 @@ namespace IdleExplorers.Backend
             ApplyInventory(character, snapshot.inventory);
             ApplyEquipment(character, snapshot.equipment);
             ApplyKills(character, snapshot.kills);
+
+            // ══ AND TELL THE SCREEN ═════════════════════════════════════════════
+            //
+            // Writing the equipment list is not showing it. CharacterAppearance
+            // redraws the rig on OnEquipmentChanged and StatsManager recomputes the
+            // stat block on it -- and nothing here had ever raised it.
+            //
+            // So a pull that correctly equipped a tin helm updated the equipment PANEL,
+            // which reads the list directly, and left the character sprite bare-headed
+            // and the stats stale. Two different answers to "what am I wearing",
+            // visible side by side.
+            GameEvents.OnEquipmentChanged?.Invoke();
+            GameEvents.FireInventoryChanged();
         }
 
         private static void ApplySkills(CharacterData character, SkillSnapshot[] skills)
@@ -401,6 +414,28 @@ namespace IdleExplorers.Backend
                 Debug.LogWarning($"[ServerState] Settle failed: {e.Message}");
 
                 return SettlementSnapshot.Nothing;
+            }
+        }
+
+        /// <summary>
+        /// Tells the server this character has taken a class.
+        ///
+        /// Without it the class exists only on the client and its talent tree is a tree
+        /// the server has never heard of.
+        /// </summary>
+        public static async Awaitable AddClassAsync(string classId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(classId))
+                return;
+
+            try
+            {
+                await GameBackend.Current.AddClassAsync(CharacterId, classId);
+            }
+            catch (BackendException e)
+            {
+                NoteIfDisplaced(e);
+                Debug.LogWarning($"[ServerState] Could not record the class: {e.Message}");
             }
         }
 
@@ -637,22 +672,19 @@ namespace IdleExplorers.Backend
             if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(mapId))
                 return;
 
-            // Read from the rig rather than passed in, so every caller reports where
-            // the character actually IS rather than where it meant to put them.
-            var rig = UnityEngine.GameObject.Find("PlayerCharacter");
-
-            float x = rig != null ? rig.transform.position.x : 0f;
-            float z = rig != null ? rig.transform.position.z : 0f;
-
-            if (CharacterManager.Current != null)
-            {
-                CharacterManager.Current.lastX = x;
-                CharacterManager.Current.lastZ = z;
-            }
-
+            // ══ THE MAP, NOT THE POSITION ═════════════════════════════════════
+            //
+            // This used to read the rig and send its coordinates. It is called the
+            // instant a map finishes loading, when the rig is standing on the spawn
+            // point -- so it wrote the spawn point over wherever the character had
+            // actually been, and the restore immediately afterwards put them there.
+            //
+            // Presence reports the position every two seconds from a rig that has
+            // finished arriving. That is the only caller that knows the answer, so it
+            // is the only one that writes it.
             try
             {
-                await GameBackend.Current.SaveLocationAsync(CharacterId, mapId, x, z);
+                await GameBackend.Current.SaveLocationAsync(CharacterId, mapId, 0f, 0f);
             }
             catch (BackendException e)
             {

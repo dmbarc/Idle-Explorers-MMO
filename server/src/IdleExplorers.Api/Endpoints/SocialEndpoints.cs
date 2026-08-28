@@ -118,6 +118,23 @@ public static class SocialEndpoints
                     null, characterId, mapId, said, now);
             }
 
+            // ══ PRESENCE IS WHAT REMEMBERS WHERE YOU WERE ══════════════════════
+            //
+            // The character's last position is written HERE, from the poll that
+            // already knows it, rather than by the map-entry code.
+            //
+            // Entry cannot do it. It runs the instant a scene finishes loading, when
+            // the rig is standing on the spawn point -- so saving there wrote the
+            // spawn point over the real position and then "restored" it. That bug
+            // survived two attempts because both of them were in the wrong place.
+            //
+            // Here it is a side effect of something that happens every two seconds
+            // for as long as somebody is standing there, so the last write before
+            // they leave is where they actually were.
+            await connection.ExecuteAsync(
+                "update character set last_map_id = $2, last_x = $3, last_z = $4 where id = $1;",
+                null, characterId, mapId, x, z);
+
             var others = new List<object>();
 
             // Everybody else on this map whose row is recent enough to believe. The

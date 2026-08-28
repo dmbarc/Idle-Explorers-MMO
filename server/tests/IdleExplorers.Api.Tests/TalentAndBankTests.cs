@@ -249,6 +249,86 @@ public class TalentAndBankTests(ApiFixture api)
         return null;
     }
 
+    /// <summary>
+    /// A SECOND class's talents can be spent in.
+    ///
+    /// ══ THE BUG THIS EXISTS FOR ════════════════════════════════════════
+    ///
+    /// Multi-classing lived entirely on the client. CharacterData carried a list of
+    /// class ids; the server had one class_id column and built the talent trees from
+    /// it alone.
+    ///
+    /// So unlocking a second class worked, its tree drew, and putting a point in it
+    /// answered "no such talent" -- which was the server telling the truth about a
+    /// class nobody had ever told it about.
+    /// </summary>
+    [SkippableFact]
+    public async Task ASecondClassesTalentsCanBeSpent()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Versatile");
+
+        // A node from a class this character does NOT start as.
+        (string classId, string nodeId) = await ForeignNodeAsync(character);
+
+        Skip.If(nodeId == null, "Fewer than two classes with talent trees are authored.");
+
+        await GiveLevels(character, 20);
+
+        // Before taking the class, the server has never heard of that tree.
+        var refused = await OwnershipTests.Post(player, $"/talent/{character}", new { nodeId });
+
+        Assert.Equal(HttpStatusCode.NotFound, refused.StatusCode);
+
+        // Take it.
+        (await OwnershipTests.Post(player, $"/character/{character}/class", new { classId }))
+            .EnsureSuccessStatusCode();
+
+        // And now it is a tree this character has.
+        var allowed = await OwnershipTests.Post(player, $"/talent/{character}", new { nodeId });
+
+        Assert.Equal(HttpStatusCode.OK, allowed.StatusCode);
+    }
+
+    /// <summary>
+    /// A tier-0 node belonging to a class this character is NOT.
+    ///
+    /// Paired with the refusal above: without the "not" this would pass on the
+    /// character's own tree and prove nothing about multi-classing.
+    /// </summary>
+    private async Task<(string ClassId, string NodeId)> ForeignNodeAsync(Guid character)
+    {
+        string mine = await PrimaryClassAsync(character);
+
+        foreach (var entry in api.Content.Catalogue.Classes.Values)
+        {
+            if (entry?.talentTree == null || entry.id == mine) continue;
+
+            foreach (var node in entry.talentTree)
+            {
+                if (node == null || node.tier != 0) continue;
+                if (string.IsNullOrEmpty(node.id))  continue;
+
+                return (entry.id, node.id);
+            }
+        }
+
+        return (null, null);
+    }
+
+    private async Task<string> PrimaryClassAsync(Guid character)
+    {
+        await using var db = await api.OpenDatabaseAsync();
+        await using var command = db.CreateCommand();
+
+        command.CommandText = "select coalesce(class_id, '') from character where id = $1;";
+        command.Parameters.AddWithValue(character);
+
+        return (string)(await command.ExecuteScalarAsync() ?? "");
+    }
+
     // ══ THE BANK ══════════════════════════════════════════════════════════════
 
     [SkippableFact]

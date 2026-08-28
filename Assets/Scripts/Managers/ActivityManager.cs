@@ -196,7 +196,20 @@ public class ActivityManager : MonoBehaviour
     /// the early return, wandering between goblins would restart the AFK clock several
     /// times a minute and toast "Now: Combat" each time.
     /// </summary>
-    public void SetDefaultCombatActivity(string mapId)
+    /// <param name="startFighting">
+    /// Whether to actually start swinging, as opposed to merely recording that combat
+    /// is what this character is doing.
+    ///
+    /// ══ WHY THE DISTINCTION EXISTS ══════════════════════════════════════
+    ///
+    /// Combat is the fallback activity, so it is set in two very different situations:
+    /// arriving on a map with nothing else to do, and STOPPING something else. The
+    /// second one is a player walking away from the anvil, and turning auto-attack on
+    /// for them sent their character sprinting at the nearest goblin.
+    ///
+    /// Arriving means fight. Stopping means stop.
+    /// </param>
+    public void SetDefaultCombatActivity(string mapId, bool startFighting = false)
     {
         var map = GameManager.Content?.GetMap(mapId);
         if (map == null) return;
@@ -243,8 +256,9 @@ public class ActivityManager : MonoBehaviour
         // what made it look like combat was working.
         //
         // The local fight is theatre for what the server is settling, so the theatre
-        // starts when the settlement does.
-        FindPlayer()?.SetAutoAttack(true);
+        // starts when the settlement does -- but only when combat was CHOSEN. See the
+        // note on startFighting.
+        if (startFighting) FindPlayer()?.SetAutoAttack(true);
     }
 
     /// <summary>
