@@ -133,8 +133,15 @@ public class BossController : MonoBehaviour
         // Its own bar is the floating one every monster has; the big one at the top
         // of the screen is separate and owned by the HUD.
         float head = SpumRig.MeasureCharacterHeight(transform);
-        _bar = WorldStatusBar.Attach(gameObject, (head > 0.1f ? head : 3f) + 0.5f,
-                                     UIManager.Theme.hpFill);
+        // ══ THE KING HAS NO BAR OVER HIS HEAD ══════════════════════════════
+        //
+        // He had one, exactly like a goblin: a small strip and a floating number stuck
+        // to a sprite the player is trying to read telegraphs off.
+        //
+        // BossHealthBar draws the real one across the top of the screen, with the name,
+        // the phase and the enrage clock -- all of which are what a boss fight is
+        // actually about. It existed the whole time and nothing had ever created it;
+        // GameHUD does now.
 
         if (_bar != null) _bar.AutoHide = false;
 

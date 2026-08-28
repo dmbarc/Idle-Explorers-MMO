@@ -33,6 +33,16 @@ public class GameHUD : UIScreen
 
     public override void Build()
     {
+        // ══ THE BOSS BAR LIVES HERE ═══════════════════════════════════════════
+        //
+        // BossHealthBar subscribes to the boss events itself and builds on engage, so
+        // it only ever needed to EXIST. Nothing had created it, so the King wore an
+        // ordinary monster bar over his head and the overlay never appeared.
+        //
+        // On the HUD rather than in the map scene, because it must survive the arena
+        // loading and unloading around it.
+        if (GetComponent<BossHealthBar>() == null) gameObject.AddComponent<BossHealthBar>();
+
         // Transparent, non-blocking root. Everything inside anchors itself.
         UIFactory.Panel(transform, "HUDBg", Color.clear, true, raycastTarget: false);
 

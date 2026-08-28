@@ -196,6 +196,22 @@ public class MonsterSpawner : MonoBehaviour
         var map = GameManager.Zone?.CurrentMap;
         if (map == null || string.IsNullOrEmpty(map.defaultMonsterId)) return false;
 
+        // ══ A SPAWNER NEVER SPAWNS A BOSS ══════════════════════════════════
+        //
+        // The throne map's defaultMonsterId is goblin_king, because that is what a
+        // player fights there -- and this pooled, respawning, population-capped
+        // spawner read it as an instruction and produced Goblin Kings without end.
+        //
+        // GoblinThroneSetup.PlaceTheKing already puts exactly one in the scene, and
+        // its own comment explains why a spawner is wrong for a boss: it must be one,
+        // it must not come back mid-fight, and it must not share a population budget
+        // with goblins.
+        //
+        // Enforced here rather than by authoring the map without a default, because
+        // the default is also what the ACTIVITY system reads to know what you are
+        // fighting. Both need it; only one should act on it.
+        if (GameManager.Content?.GetMonster(map.defaultMonsterId) is { isBoss: true }) return false;
+
         if (map.defaultMonsterId != _cachedMonsterId)
         {
             _cachedMonsterId = map.defaultMonsterId;

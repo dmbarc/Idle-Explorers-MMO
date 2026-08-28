@@ -72,6 +72,39 @@ public class PlayerController : MonoBehaviour
     public float MaxStamina     => maxStamina;
 
     private MonsterController currentTarget;
+
+    /// <summary>
+    /// The last enemy this character engaged, kept after the target is dropped.
+    ///
+    /// ══ WHY ABILITIES NEED THIS ═════════════════════════════════════════
+    ///
+    /// Moving clears the combat target -- deliberately, so a character told to walk
+    /// somewhere does not turn round and run back. During a boss fight that is exactly
+    /// what a player does constantly: step out of a telegraph, and every hotbar
+    /// ability answers "No target" while the King is standing right there.
+    ///
+    /// So abilities fall back to whoever was last engaged, for as long as they are
+    /// still alive and still in the scene. Nothing else reads this: auto-attack must
+    /// keep using currentTarget, or clearing the target would stop meaning anything.
+    /// </summary>
+    private MonsterController _lastEngaged;
+
+    /// <summary>
+    /// Who a hotbar ability should hit: the current target, or the last one engaged.
+    ///
+    /// Null once they are dead or destroyed, which is when "No target" is the honest
+    /// answer rather than a nuisance.
+    /// </summary>
+    private MonsterController AbilityTarget
+    {
+        get
+        {
+            if (currentTarget != null && currentTarget.IsAlive()) return currentTarget;
+            if (_lastEngaged  != null && _lastEngaged.IsAlive())  return _lastEngaged;
+
+            return null;
+        }
+    }
     private SpriteFacing      _facing;
     private NamePlate         _namePlate;
     private DropPickup currentItemTarget;
@@ -566,6 +599,7 @@ public class PlayerController : MonoBehaviour
         if (currentTarget != newTarget)
         {
             currentTarget = newTarget;
+            _lastEngaged  = newTarget;
 
             // ══ LOOK AT WHAT YOU ARE FIGHTING ══════════════════════════════
             //
@@ -1173,6 +1207,30 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     public void Respawn()
     {
+        // ══ DYING TO A BOSS PUTS YOU OUTSIDE ITS DOOR ════════════════════════
+        //
+        // Reviving in place inside the arena means standing back up next to a King who
+        // is still swinging, at full aggro, with a fight the server has already ended.
+        // There is no way out of that except dying again.
+        //
+        // A boss map is a room you were let into. Losing puts you back where you came
+        // from, which is also where the portal is if you want another attempt.
+        var here = GameManager.Zone?.CurrentMap;
+
+        if (here != null && here.portalOnly)
+        {
+            alive               = true;
+            currentHealthPoints = maxHealthPoints;
+
+            SpumAnim.Revive(anim);
+
+            GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
+            GameEvents.FireToast("You wake up outside the throne.", ChatTone.Warning);
+
+            GameManager.Zone?.EnterMap(GameManager.StartingMapId);
+            return;
+        }
+
         alive               = true;
         currentHealthPoints = maxHealthPoints;
         attackTimer         = 0f;
@@ -1555,8 +1613,11 @@ public class PlayerController : MonoBehaviour
     /// <summary>Single-target effects play on the victim; everything else on the caster.</summary>
     private Vector3 AbilityOrigin(AbilityData ability)
     {
-        bool onTarget = ability.effect == "damage" && currentTarget != null;
-        return onTarget ? currentTarget.transform.position : transform.position;
+        var victim = AbilityTarget;
+
+        bool onTarget = ability.effect == "damage" && victim != null;
+
+        return onTarget ? victim.transform.position : transform.position;
     }
 
     /// <summary>Returns false when the ability could not be used (e.g. no target).</summary>
@@ -1580,11 +1641,18 @@ public class PlayerController : MonoBehaviour
         {
             case "damage":
             {
-                if (currentTarget == null || !currentTarget.IsAlive())
+                // The last enemy engaged, when nothing is selected -- see AbilityTarget.
+                MonsterController victim = AbilityTarget;
+
+                if (victim == null)
                 {
                     Explain("No target.");
                     return false;
                 }
+
+                // Re-selected, so the swing that follows and the facing both agree with
+                // the ability about who is being hit.
+                currentTarget = victim;
 
                 // Rapid Shot says "three quick shots" and used to land exactly one.
                 int    strikes = Mathf.Max(1, ability.hits);
