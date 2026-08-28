@@ -130,39 +130,94 @@ public static class EncounterEndpoints
                 // fight is re-derivable from two columns months later.
                 long seed = HashCode.Combine(characterId, now.UtcTicks);
 
+                Guid? partyId = await connection.ScalarAsync<Guid?>(
+                    "select party_id from party_member where character_id = $1;", tx, characterId);
+
                 Guid encounterId;
+                bool joinedExisting = false;
+
+                // ══ WALKING INTO A FIGHT ALREADY IN PROGRESS ═══════════════════════
+                //
+                // A group has ONE fight. Whoever engages first starts it; everybody
+                // else joins the same boss and the same health pool.
+                //
+                // Their snapshot is frozen NOW, not when the fight began, and their
+                // clock starts NOW -- so arriving late brings the gear you are wearing
+                // and earns you the seconds you were present for, never the ones
+                // before that.
+                Guid? running = partyId is null ? null : await connection.ScalarAsync<Guid?>(
+                    """
+                    select id from encounter
+                    where party_id = $1 and ended_at is null and monster_id = $2;
+                    """,
+                    tx, partyId.Value, monsterId);
+
+                if (running is not null)
+                {
+                    encounterId    = running.Value;
+                    joinedExisting = true;
+                }
+                else
+                {
+                    try
+                    {
+                        encounterId = await connection.ScalarAsync<Guid>(
+                            """
+                            insert into encounter (character_id, monster_id, frozen_dps,
+                                                   frozen_attack_seconds, seed, boss_max_hp,
+                                                   started_at, enrage_at, party_id)
+                            values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                            returning id;
+                            """,
+                            tx, characterId, monsterId, frozen.Dps, frozen.AttackSeconds,
+                            seed, MaxHpOf(boss), now, now.AddSeconds(enrageSeconds), partyId);
+                    }
+                    catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
+                    {
+                        // Either partial unique index. Two engages racing would
+                        // otherwise both start a fight, be fed by one set of actions,
+                        // and loot twice.
+                        return Results.Problem(
+                            title:      "already fighting",
+                            detail:     "You are already in an encounter. Resolve it first.",
+                            statusCode: StatusCodes.Status409Conflict);
+                    }
+                }
 
                 try
                 {
-                    encounterId = await connection.ScalarAsync<Guid>(
+                    await connection.ExecuteAsync(
                         """
-                        insert into encounter (character_id, monster_id, frozen_dps,
-                                               frozen_attack_seconds, seed, boss_max_hp,
-                                               started_at, enrage_at)
-                        values ($1, $2, $3, $4, $5, $6, $7, $8)
-                        returning id;
+                        insert into encounter_participant
+                            (encounter_id, character_id, frozen_dps, frozen_attack_seconds, joined_at)
+                        values ($1, $2, $3, $4, $5);
                         """,
-                        tx, characterId, monsterId, frozen.Dps, frozen.AttackSeconds,
-                        seed, MaxHpOf(boss), now, now.AddSeconds(enrageSeconds));
+                        tx, encounterId, characterId, frozen.Dps, frozen.AttackSeconds, now);
                 }
                 catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
                 {
-                    // The partial unique index. Two engages racing would otherwise both
-                    // start a fight, be fed by one set of actions, and loot twice.
-                    return Results.Problem(
-                        title:      "already fighting",
-                        detail:     "You are already in an encounter. Resolve it first.",
-                        statusCode: StatusCodes.Status409Conflict);
+                    // Already swinging at this one. Not an error worth refusing -- the
+                    // describe below is exactly what they asked for.
+                    joinedExisting = true;
                 }
 
                 await TelemetryEndpoints.RecordAsync(
                     connection, tx, accountId.Value, characterId,
                     TelemetryEvents.BossEngaged, now,
                     ("monster", monsterId),
-                    ("dps",     frozen.Dps.ToString("F1")));
+                    ("dps",     frozen.Dps.ToString("F1")),
+                    ("joined",  joinedExisting ? "existing" : "new"),
+                    ("party",   partyId?.ToString() ?? ""));
+
+                // The pool as it stands, which is NOT zero for somebody walking into a
+                // fight already under way -- telling them the King is at full health
+                // would put every client's health bar out by however much the group
+                // had already done.
+                long pool = await connection.ScalarAsync<long>(
+                    "select damage_dealt from encounter where id = $1;", tx, encounterId);
 
                 return Results.Ok(Describe(encounterId, boss, frozen, seed, enrageSeconds,
-                                           damageDealt: 0L, elapsed: 0d));
+                                           damageDealt: pool, elapsed: 0d));
             }, http.RequestAborted);
         });
 
@@ -203,15 +258,32 @@ public static class EncounterEndpoints
                 MonsterData? boss = content.Catalogue.GetMonster(live.MonsterId);
                 if (boss is null) return NoFight();
 
+                // ══ TWO CLOCKS ══════════════════════════════════════════════════════
+                //
+                // elapsed is the FIGHT's age, and it is what ability cooldowns and the
+                // boss timeline are measured against -- those are properties of the
+                // encounter and are the same for everybody in it.
+                //
+                // mine is how long THIS fighter has been in the room, and it is what
+                // the damage ceiling is measured against. Somebody who joined a minute
+                // late must not inherit a minute of allowance they were not present
+                // for; using elapsed for both would hand it to them.
                 double elapsed = (now - live.StartedAt).TotalSeconds;
+                double mine    = (now - live.JoinedAt).TotalSeconds;
 
-                long   damage    = live.DamageDealt;
+                long   damage    = live.MyDamage;
                 long   sequence  = live.LastSequence;
                 int    accepted  = 0, rejected = 0;
 
                 var cooldowns = Cooldowns(live.AbilityUsed);
 
-                double ceiling = BossEncounter.DamageCeiling(live.FrozenDps, elapsed);
+                // ══ PER FIGHTER, NEVER ON THE POOL ═══════════════════════════════════
+                //
+                // The ceiling bounds what THIS character can have contributed. Applied
+                // to the shared total instead, four people would pool their allowances
+                // and any one of them could spend the lot -- which is a group fight as
+                // a damage multiplier for a single cheating client.
+                double ceiling = BossEncounter.DamageCeiling(live.FrozenDps, mine);
 
                 // Seeded once and indexed by the action's own sequence, so the roll for
                 // action 47 is the same number whichever request carried it -- a retry
@@ -279,6 +351,7 @@ public static class EncounterEndpoints
                 {
                     damage = allowed;
 
+
                     // Recorded, not refused. Honest clients hit this at the very start
                     // of a fight when the tolerance is the whole budget, so refusing
                     // would break the opening swing for everybody to catch nobody.
@@ -288,15 +361,26 @@ public static class EncounterEndpoints
                         now, http.RequestAborted);
                 }
 
-                if (damage < live.DamageDealt) damage = live.DamageDealt;
+                if (damage < live.MyDamage) damage = live.MyDamage;
+
+                // What this batch actually added, after the clamp. The pool moves by
+                // the DELTA rather than being assigned, because three other people may
+                // have hit the King between this fighter's last request and this one.
+                long contributed = damage - live.MyDamage;
 
                 await connection.ExecuteAsync(
                     """
-                    update encounter
-                       set damage_dealt = $2, last_sequence = $3, ability_used = $4::jsonb
-                     where id = $1;
+                    update encounter_participant
+                    set damage_dealt = $3, last_sequence = $4, ability_used = $5::jsonb
+                    where encounter_id = $1 and character_id = $2;
                     """,
-                    tx, live.Id, damage, sequence, JsonSerializer.Serialize(cooldowns));
+                    tx, live.Id, characterId, damage, sequence, JsonSerializer.Serialize(cooldowns));
+
+                await connection.ExecuteAsync(
+                    """
+                    update encounter set damage_dealt = damage_dealt + $2 where id = $1;
+                    """,
+                    tx, live.Id, contributed);
 
                 long remaining = Math.Max(0L, live.BossMaxHp - damage);
 
@@ -370,34 +454,70 @@ public static class EncounterEndpoints
                 {
                     xp = Math.Max(0L, boss.xpReward);
 
-                    // Seeded from the encounter, offset past the action indices so a
-                    // loot roll can never collide with a damage roll from the same
-                    // fight -- which would make the drop a function of how many times
-                    // the player swung.
-                    var rng = new CounterRandom(live.Seed, LootSeedOffset);
+                    // ══ EVERYBODY WHO FOUGHT IT ══════════════════════════════════════
+                    //
+                    // Not just whoever pressed resolve. A group that killed the King
+                    // together and handed the drops to one of them is a group nobody
+                    // joins twice.
+                    //
+                    // Read from encounter_participant rather than from the party,
+                    // because the party is what it is NOW and the fight is what it
+                    // was: somebody who left the group mid-fight still swung, and
+                    // somebody who joined the group afterwards did not.
+                    var fighters = new List<Guid>();
 
-                    foreach (var entry in boss.lootTable ?? [])
+                    await using (var command = connection.Sql(
+                        "select character_id from encounter_participant where encounter_id = $1 order by joined_at;",
+                        tx, live.Id))
                     {
-                        if (entry is null) continue;
+                        await using var reader = await command.ExecuteReaderAsync(http.RequestAborted);
 
-                        long quantity = RollDrop(entry, rng);
-                        if (quantity <= 0L) continue;
-
-                        drops.Add((entry.itemId, quantity));
-
-                        await connection.ExecuteAsync(
-                            """
-                            insert into pending_loot (character_id, encounter_id, item_id, quantity)
-                            values ($1, $2, $3, $4);
-                            """,
-                            tx, characterId, live.Id, entry.itemId, quantity);
+                        while (await reader.ReadAsync(http.RequestAborted))
+                            fighters.Add(reader.GetGuid(0));
                     }
 
-                    if (xp > 0L)
+                    if (fighters.Count == 0) fighters.Add(characterId);
+
+                    // ══ ONE ROLL EACH, NOT ONE ROLL SHARED ═════════════════════════════
+                    //
+                    // The seed is offset by the fighter's position so four people do
+                    // not all receive identical drops from one shared roll -- which
+                    // would make a group of four either four spears or none, and turn
+                    // the drop table into a coin flip for the whole raid.
+                    //
+                    // Still deterministic: (seed, index) reproduces any of them months
+                    // later from two columns.
+                    for (int i = 0; i < fighters.Count; i++)
                     {
-                        await connection.ExecuteAsync(
-                            "update character set xp = xp + $2 where id = $1;",
-                            tx, characterId, xp);
+                        Guid fighter = fighters[i];
+
+                        var rng = new CounterRandom(live.Seed, LootSeedOffset + (ulong)(i * 64));
+
+                        foreach (var entry in boss.lootTable ?? [])
+                        {
+                            if (entry is null) continue;
+
+                            long quantity = RollDrop(entry, rng);
+                            if (quantity <= 0L) continue;
+
+                            // Only the caller's own drops are reported back; the rest
+                            // are waiting in their own pending_loot.
+                            if (fighter == characterId) drops.Add((entry.itemId, quantity));
+
+                            await connection.ExecuteAsync(
+                                """
+                                insert into pending_loot (character_id, encounter_id, item_id, quantity)
+                                values ($1, $2, $3, $4);
+                                """,
+                                tx, fighter, live.Id, entry.itemId, quantity);
+                        }
+
+                        if (xp > 0L)
+                        {
+                            await connection.ExecuteAsync(
+                                "update character set xp = xp + $2 where id = $1;",
+                                tx, fighter, xp);
+                        }
                     }
                 }
 
@@ -542,19 +662,38 @@ public static class EncounterEndpoints
     /// </summary>
     private const ulong LootSeedOffset = 1_000_000UL;
 
+    /// <summary>
+    /// One fight, as one of its fighters sees it.
+    ///
+    /// ══ TWO HALVES, DELIBERATELY NAMED APART ══════════════════════════════
+    ///
+    /// BossMaxHp, DamageDealt, Seed and the deadlines belong to the ENCOUNTER and are
+    /// the same for everybody in it. FrozenDps, FrozenAttackSeconds, LastSequence,
+    /// AbilityUsed, MyDamage and JoinedAt belong to THIS FIGHTER and nobody else.
+    ///
+    /// Keeping the distinction visible is what stops the damage ceiling being applied
+    /// to the shared pool -- which would let four people pool their allowances and one
+    /// of them spend the lot.
+    /// </summary>
     private sealed record Live(Guid Id, string MonsterId, double FrozenDps, double FrozenAttackSeconds,
                                long Seed, long BossMaxHp, long DamageDealt, long LastSequence,
-                               string AbilityUsed, DateTimeOffset StartedAt, DateTimeOffset EnrageAt);
+                               string AbilityUsed, DateTimeOffset StartedAt, DateTimeOffset EnrageAt,
+                               long MyDamage, DateTimeOffset JoinedAt, Guid? PartyId);
 
     private static async Task<Live?> ReadLiveAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                    Guid characterId, DateTimeOffset now)
     {
+        // Joined on the PARTICIPANT, not on encounter.character_id. A fight is found
+        // by whether this character is fighting it, which is the same question for the
+        // person who engaged and for everybody who walked in afterwards.
         await using var command = connection.Sql(
             """
-            select id, monster_id, frozen_dps, frozen_attack_seconds, seed, boss_max_hp,
-                   damage_dealt, last_sequence, ability_used::text, started_at, enrage_at
-              from encounter
-             where character_id = $1 and ended_at is null;
+            select e.id, e.monster_id, p.frozen_dps, p.frozen_attack_seconds, e.seed,
+                   e.boss_max_hp, e.damage_dealt, p.last_sequence, p.ability_used::text,
+                   e.started_at, e.enrage_at, p.damage_dealt, p.joined_at, e.party_id
+            from encounter_participant p
+            join encounter e on e.id = p.encounter_id
+            where p.character_id = $1 and e.ended_at is null;
             """,
             tx, characterId);
 
@@ -566,7 +705,9 @@ public static class EncounterEndpoints
             reader.GetGuid(0), reader.GetString(1), reader.GetDouble(2), reader.GetDouble(3),
             reader.GetInt64(4), reader.GetInt64(5), reader.GetInt64(6), reader.GetInt64(7),
             reader.GetString(8),
-            reader.GetFieldValue<DateTimeOffset>(9), reader.GetFieldValue<DateTimeOffset>(10));
+            reader.GetFieldValue<DateTimeOffset>(9), reader.GetFieldValue<DateTimeOffset>(10),
+            reader.GetInt64(11), reader.GetFieldValue<DateTimeOffset>(12),
+            reader.IsDBNull(13) ? (Guid?)null : reader.GetGuid(13));
     }
 
     /// <summary>
@@ -582,8 +723,9 @@ public static class EncounterEndpoints
         await connection.ExecuteAsync(
             """
             update encounter
-               set ended_at = $2, won = false
-             where character_id = $1 and ended_at is null and enrage_at <= $2;
+            set ended_at = $2, won = false
+            where ended_at is null and enrage_at <= $2
+              and id in (select encounter_id from encounter_participant where character_id = $1);
             """,
             tx, characterId, now);
     }
