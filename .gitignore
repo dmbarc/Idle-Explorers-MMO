@@ -130,3 +130,6 @@ InitTestScene*.unity*
 
 # WebGL and standalone build output. An artefact, not source.
 Build/
+
+# Batch build log. Regenerated on every build.
+webgl-build.log
