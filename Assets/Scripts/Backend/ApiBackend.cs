@@ -70,6 +70,23 @@ namespace IdleExplorers.Backend
             await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/appearance",
                                            new AppearanceBody { appearance = appearance });
 
+        public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
+                                                               float x, float z) =>
+            PostAsync<PresenceSnapshot>($"/presence/{characterId}",
+                                        new PresenceBody { mapId = mapId, x = x, z = z });
+
+        public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
+            GetAsync<PartySnapshot>($"/party/{characterId}");
+
+        public Awaitable<PartySnapshot> FormPartyAsync(string characterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}", null);
+
+        public Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}/join/{leaderCharacterId}", null);
+
+        public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
+            SendAsync<PartySnapshot>("DELETE", $"/party/{characterId}", null);
+
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             PostAsync<UseItemResult>($"/activity/{characterId}/use", new ItemBody { itemId = itemId });
 
@@ -318,6 +335,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class MapBody             { public string mapId; }
         [Serializable] private class PackBody            { public string packId; }
         [Serializable] private class ItemBody            { public string itemId; }
+        [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

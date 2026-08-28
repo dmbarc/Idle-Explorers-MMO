@@ -86,6 +86,29 @@ namespace IdleExplorers.Backend
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             Completed<UseItemResult>(null);
 
+        // ══ NOBODY ELSE IS HERE ═════════════════════════════════════════════
+        //
+        // Offline is one player by definition. Empty answers rather than nulls, so the
+        // callers draw an empty world and an empty group instead of branching on a
+        // mode they should not have to know about.
+        public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
+                                                               float x, float z) =>
+            Completed(new PresenceSnapshot { mapId = mapId, others = System.Array.Empty<RemotePlayer>() });
+
+        public Awaitable<PartySnapshot> GetPartyAsync(string characterId)   => Completed(Alone());
+        public Awaitable<PartySnapshot> FormPartyAsync(string characterId)  => Completed(Alone());
+        public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) => Completed(Alone());
+
+        public Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId) =>
+            Completed(Alone());
+
+        private static PartySnapshot Alone() => new()
+        {
+            partyId    = "",
+            members    = System.Array.Empty<PartyMember>(),
+            maxMembers = IdleExplorers.Rules.Party.MaxMembers,
+        };
+
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
         {
             var character = Find(characterId);

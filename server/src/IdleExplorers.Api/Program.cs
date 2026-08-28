@@ -164,6 +164,7 @@ public class Program
         EncounterEndpoints.Map(app);
         TalentEndpoints.Map(app);
         ShopEndpoints.Map(app);
+        SocialEndpoints.Map(app);
         BankEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
         TelemetryEndpoints.Map(app);

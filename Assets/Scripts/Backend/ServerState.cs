@@ -430,6 +430,51 @@ namespace IdleExplorers.Backend
             }
         }
 
+        // ══ GROUPS ═════════════════════════════════════════════════════════
+        //
+        // Thin wrappers, deliberately. The party lives on the server and every one of
+        // these returns the whole group as the server sees it, so no screen has to
+        // keep its own idea of who is in it and none of them can disagree.
+
+        /// <summary>The group this character is in, or an empty one.</summary>
+        public static async Awaitable<PartySnapshot> GetPartyAsync() => await PartyCallAsync(
+            backend => backend.GetPartyAsync(CharacterId));
+
+        /// <summary>Starts a group, or returns the one already joined.</summary>
+        public static async Awaitable<PartySnapshot> FormPartyAsync() => await PartyCallAsync(
+            backend => backend.FormPartyAsync(CharacterId));
+
+        /// <summary>Joins the group that character leads.</summary>
+        public static async Awaitable<PartySnapshot> JoinPartyAsync(string leaderCharacterId) =>
+            await PartyCallAsync(backend => backend.JoinPartyAsync(CharacterId, leaderCharacterId));
+
+        /// <summary>Leaves whatever group this character is in.</summary>
+        public static async Awaitable<PartySnapshot> LeavePartyAsync() => await PartyCallAsync(
+            backend => backend.LeavePartyAsync(CharacterId));
+
+        /// <summary>
+        /// One shape for all four, so the refusal handling is written once.
+        ///
+        /// Returns null on a refusal, having already said why. "Group is full" and
+        /// "leave your current group first" are written for a player to read, and a
+        /// generic failure would leave somebody guessing which rule they hit.
+        /// </summary>
+        private static async Awaitable<PartySnapshot> PartyCallAsync(
+            System.Func<IGameBackend, Awaitable<PartySnapshot>> call)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId)) return null;
+
+            try
+            {
+                return await call(GameBackend.Current);
+            }
+            catch (BackendException e)
+            {
+                GameEvents.FireToast(e.Title, ChatTone.Bad);
+                return null;
+            }
+        }
+
         /// <summary>
         /// Remembers where the character is standing, so they load in there next time.
         /// </summary>
@@ -508,7 +553,15 @@ namespace IdleExplorers.Backend
 
         // ── Machinery ─────────────────────────────────────────────────────────
 
-        private static string CharacterId => CharacterManager.Current?.characterId ?? "";
+        /// <summary>
+        /// The active character's SERVER id.
+        ///
+        /// Internal rather than private: PresenceSync reports against the same id and
+        /// must not compute its own idea of it. A second definition here would be the
+        /// character-creation bug all over again, where two places disagreed about
+        /// which character was being played.
+        /// </summary>
+        internal static string CharacterId => CharacterManager.Current?.characterId ?? "";
 
         /// <summary>
         /// Tells the player what a window paid.

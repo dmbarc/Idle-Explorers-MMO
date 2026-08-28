@@ -809,7 +809,35 @@ public class PlayerController : MonoBehaviour
 
         // The precise ray decides where the ground is, and gets first refusal on what
         // was clicked. Nothing below can override a direct hit.
-        if (!Physics.Raycast(ray, out RaycastHit hit)) return;
+        // Triggers too, or another player is invisible to the ray: their colliders are
+        // triggers so they cannot be shoved around, and the default query ignores those.
+        if (!Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity,
+                             Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide))
+            return;
+
+        // ══ ANOTHER PLAYER GETS FIRST REFUSAL ═══════════════════════════════
+        //
+        // Before monsters and nodes: somebody standing on a rock is still a person,
+        // and clicking them should tell you who they are rather than start mining
+        // through them.
+        var person = hit.collider.GetComponentInParent<RemotePlayerView>();
+
+        if (person != null)
+        {
+            InspectPlayerModal.Show(person);
+            return;
+        }
+
+        // The portal, which until now had no caller at all: TryEnterAsync existed and
+        // nothing in the project invoked it, so the throne was unreachable by any
+        // route once it came off the travel list.
+        var portal = hit.collider.GetComponentInParent<BossPortalController>();
+
+        if (portal != null)
+        {
+            PortalGroupModal.Show(portal);
+            return;
+        }
 
         var monster = hit.collider.GetComponentInParent<MonsterController>();
         var node    = hit.collider.GetComponentInParent<SkillNodeController>();

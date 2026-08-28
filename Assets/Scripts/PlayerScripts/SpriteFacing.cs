@@ -71,9 +71,23 @@ public class SpriteFacing : MonoBehaviour
     /// </summary>
     public Transform LookTarget { get; set; }
 
+    /// <summary>
+    /// Says which way this rig is travelling, for one that is positioned rather than
+    /// steered. See the note in SidewaysComponent.
+    /// </summary>
+    public void ReportVelocity(Vector3 velocity) => _reported = velocity;
+
     private NavMeshAgent _agent;
     private Camera       _camera;
     private float        _sign = DefaultFacing;
+
+    /// <summary>
+    /// Movement handed in from outside, for a rig with no agent of its own.
+    ///
+    /// Zero means "I have nothing to say", which is what every locally steered
+    /// character leaves it at.
+    /// </summary>
+    private Vector3      _reported;
     private float        _lastFlipAt = float.NegativeInfinity;
 
     /// <summary>
@@ -144,6 +158,18 @@ public class SpriteFacing : MonoBehaviour
     private float SidewaysComponent()
     {
         Vector3 right = _camera.transform.right;
+
+        // ══ A RIG THAT STEERS ITSELF, AND ONE THAT IS TOLD ═════════════════
+        //
+        // Local characters and monsters have a NavMeshAgent whose velocity says which
+        // way they are going. A REMOTE player has none -- their position comes from
+        // the server and the agent is stripped, precisely so they do not wander off
+        // on their own opinion -- so their view reports the direction instead.
+        //
+        // Checked first: a rig that is being told where it is going has no agent to
+        // disagree with, and one that has an agent never sets this.
+        if (_reported.sqrMagnitude > 0.0001f)
+            return Vector3.Dot(_reported, right);
 
         if (_agent != null && _agent.isActiveAndEnabled && _agent.velocity.sqrMagnitude > 0.0001f)
             return Vector3.Dot(_agent.velocity, right);

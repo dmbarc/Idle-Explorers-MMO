@@ -54,6 +54,28 @@ namespace IdleExplorers.Backend
         Awaitable SaveLocationAsync(string characterId, string mapId);
 
         /// <summary>
+        /// Says where this character is, and asks who else is on the same map.
+        ///
+        /// One call for both, because they happen at the same rate about the same
+        /// map -- and because a client that did one and not the other would be
+        /// invisible to everybody or blind to everybody.
+        /// </summary>
+        Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
+                                                        float x, float z);
+
+        /// <summary>The group this character is in, or an empty one.</summary>
+        Awaitable<PartySnapshot> GetPartyAsync(string characterId);
+
+        /// <summary>Starts a group, or returns the one already joined.</summary>
+        Awaitable<PartySnapshot> FormPartyAsync(string characterId);
+
+        /// <summary>Joins the group that character leads.</summary>
+        Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId);
+
+        /// <summary>Leaves whatever group this character is in.</summary>
+        Awaitable<PartySnapshot> LeavePartyAsync(string characterId);
+
+        /// <summary>
         /// Consumes an item whose effect the SERVER owns, and applies it.
         ///
         /// Only mystic gems today. The seconds come from the server's own catalogue,
@@ -301,6 +323,57 @@ namespace IdleExplorers.Backend
     }
 
     [Serializable] public class FeatureFlagRow { public string flag; public bool enabled; }
+
+    /// <summary>Everybody else standing on this map, as of a moment ago.</summary>
+    [Serializable]
+    public class PresenceSnapshot
+    {
+        public string        mapId;
+        public RemotePlayer[] others;
+    }
+
+    /// <summary>
+    /// Another player, as the server describes them.
+    ///
+    /// Name, level and class come from the DATABASE rather than from whatever that
+    /// player's client reported -- only the coordinates are theirs to claim, and only
+    /// because nothing in this game turns on where somebody stands.
+    /// </summary>
+    [Serializable]
+    public class RemotePlayer
+    {
+        public string       characterId;
+        public string       name;
+        public string       classId;
+        public int          level;
+        public float        x;
+        public float        z;
+        public SpumSaveData appearance;
+
+        /// <summary>Empty when they are not grouped.</summary>
+        public string       partyId;
+    }
+
+    [Serializable]
+    public class PartySnapshot
+    {
+        public string        partyId;
+        public string        leaderCharacterId;
+        public PartyMember[] members;
+        public int           maxMembers;
+
+        public bool Exists => !string.IsNullOrEmpty(partyId);
+        public int  Count  => members?.Length ?? 0;
+    }
+
+    [Serializable]
+    public class PartyMember
+    {
+        public string characterId;
+        public string name;
+        public string classId;
+        public int    level;
+    }
 
     /// <summary>What using a server-owned item produced.</summary>
     [Serializable]

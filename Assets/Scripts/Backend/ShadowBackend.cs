@@ -77,6 +77,25 @@ namespace IdleExplorers.Backend
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             _remote.UseItemAsync(characterId, itemId);
 
+        /// <summary>
+        /// Straight through to the server. There is no local twin of other people.
+        /// </summary>
+        public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
+                                                               float x, float z) =>
+            _remote.ReportPresenceAsync(characterId, mapId, x, z);
+
+        public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
+            _remote.GetPartyAsync(characterId);
+
+        public Awaitable<PartySnapshot> FormPartyAsync(string characterId) =>
+            _remote.FormPartyAsync(characterId);
+
+        public Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId) =>
+            _remote.JoinPartyAsync(characterId, leaderCharacterId);
+
+        public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
+            _remote.LeavePartyAsync(characterId);
+
         public async Awaitable SaveLocationAsync(string characterId, string mapId)
         {
             await _local.SaveLocationAsync(characterId, mapId);

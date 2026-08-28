@@ -42,6 +42,10 @@ public class CharacterManager : MonoBehaviour
         // The loop that keeps it honest from here. Attached to this manager's own
         // object so it lives exactly as long as the managers do.
         IdleExplorers.Backend.ServerSync.Attach(gameObject);
+
+        // Other people. Same host and the same reasoning: a component on a map object
+        // would stop reporting the moment somebody travelled.
+        IdleExplorers.Backend.PresenceSync.Attach(gameObject);
     }
 
     /// <summary>
