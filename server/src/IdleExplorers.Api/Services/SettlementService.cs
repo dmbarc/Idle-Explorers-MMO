@@ -947,7 +947,7 @@ public sealed class SettlementService(Db db, ContentCache content)
             (object?)characterId ?? DBNull.Value);
     }
 
-    private static async Task WriteItemLedgerAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+    internal static async Task WriteItemLedgerAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                    Guid accountId, Guid characterId, string itemId,
                                                    long delta, string reason,
                                                    CancellationToken cancellation)
@@ -962,7 +962,8 @@ public sealed class SettlementService(Db db, ContentCache content)
             tx, accountId, characterId, itemId, delta, reason);
     }
 
-    private static async Task<List<InventoryEntry>> ReadInventoryAsync(
+    /// <summary>Internal so the item-use endpoint reads a bag the same way a settle does.</summary>
+    internal static async Task<List<InventoryEntry>> ReadInventoryAsync(
         NpgsqlConnection connection, NpgsqlTransaction tx, Guid characterId,
         CancellationToken cancellation)
     {
@@ -996,7 +997,7 @@ public sealed class SettlementService(Db db, ContentCache content)
     /// thing is inside a transaction that already holds the character lock, and a diff
     /// is a second model of what changed that can disagree with the first.
     /// </summary>
-    private static async Task WriteInventoryAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+    internal static async Task WriteInventoryAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                   Guid characterId, List<InventoryEntry> bag,
                                                   CancellationToken cancellation)
     {

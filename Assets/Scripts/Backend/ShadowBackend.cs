@@ -73,6 +73,10 @@ namespace IdleExplorers.Backend
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             _remote.GrantTestPackAsync(packId);
 
+        /// <summary>Only the server holds the credited-seconds balance.</summary>
+        public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
+            _remote.UseItemAsync(characterId, itemId);
+
         public async Awaitable SaveLocationAsync(string characterId, string mapId)
         {
             await _local.SaveLocationAsync(characterId, mapId);

@@ -109,7 +109,13 @@ public class CharCreateConfirmScreen : UIScreen
         createRt.sizeDelta = new Vector2(320f, UIManager.Theme.buttonHeight);
     }
 
-    private void CreateCharacter()
+    /// <summary>
+    /// Builds the character, waits for the server to own it, then enters the world.
+    ///
+    /// async void because it is a button handler; the awaits inside are what make the
+    /// character real before anything is done with it.
+    /// </summary>
+    private async void CreateCharacter()
     {
         if (string.IsNullOrEmpty(CharCreateState.PendingClassId))
         {
@@ -127,6 +133,8 @@ public class CharCreateConfirmScreen : UIScreen
 
         var newChar = new CharacterData
         {
+            // A DRAFT id. Offline it is the real one; connected, the server replaces it
+            // and CreateCharacter returns the entry that carries the replacement.
             characterId        = System.Guid.NewGuid().ToString(),
             characterName      = CharCreateState.PendingName,
             classId            = CharCreateState.PendingClassId,
@@ -140,15 +148,36 @@ public class CharCreateConfirmScreen : UIScreen
             spumConfig         = CharCreateState.PendingSpum ?? SpumAppearance.Default(),
         };
 
-        GameManager.Character?.CreateCharacter(newChar);
+        // ══ AWAITED, AND THE ANSWER IS WHAT GETS PLAYED ══════════════════════
+        //
+        // Under an authoritative server the id above is a DRAFT. The server mints the
+        // real one, and CreateCharacter hands back the roster entry carrying it.
+        //
+        // This used to fire and forget, then select newChar on the next line -- so the
+        // character being played wore a Guid the server had never heard of and every
+        // call about it 404ed. Silently: the activity never changed, so somebody who
+        // set their character fishing was still fighting goblins as far as the server
+        // was concerned; nothing saved; and a mystic gem answered "no such character".
+        CharacterData created = GameManager.Character != null
+            ? await GameManager.Character.CreateCharacter(newChar)
+            : newChar;
+
+        if (created == null)
+        {
+            // CreateCharacter has already said why. Staying here beats dropping
+            // somebody into a world with no character.
+            return;
+        }
 
         // Creating does not make it the active character — without this,
         // CharacterManager.Current stays null and the world spawns with no player
         // stats, no inventory target and no save.
-        GameManager.Character?.SelectCharacter(newChar);
+        if (GameManager.Character != null)
+            await GameManager.Character.SelectCharacterAsync(created);
+
         GameManager.Save?.Save();
 
-        GameEvents.FireToast($"Welcome, {newChar.characterName}!");
+        GameEvents.FireToast($"Welcome, {created.characterName}!");
 
         // Clear creation state
         CharCreateState.PendingName    = null;

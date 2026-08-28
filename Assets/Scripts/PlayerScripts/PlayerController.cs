@@ -92,7 +92,7 @@ public class PlayerController : MonoBehaviour
             gameObject,
             CharacterManager.Current?.characterName ?? "You",
             NamePlate.Role.Self,
-            heightAbove: (head > 0.1f ? head : 2f) + 0.95f);
+            heightAbove: (head > 0.1f ? head : 2f) + NamePlate.ClearOfHead);
 
         ApplyClassStats();
 

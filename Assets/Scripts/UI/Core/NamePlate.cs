@@ -54,6 +54,16 @@ public class NamePlate : MonoBehaviour
     public const float DefaultHeight = 3.15f;
 
     /// <summary>
+    /// How far above a MEASURED head the plate sits.
+    ///
+    /// SpumRig.MeasureCharacterHeight returns the art's height, and a SPUM head is
+    /// mostly hair -- so a small clearance put the name inside it. This is tuned to
+    /// clear the tallest hairstyle rather than the average one, because a name over
+    /// empty space still reads and a name over hair does not.
+    /// </summary>
+    public const float ClearOfHead = 1.9f;
+
+    /// <summary>
     /// How thick the black outline is, as a fraction of the glyph.
     ///
     /// A name is drawn over grass, stone, water and whatever colour a monster happens

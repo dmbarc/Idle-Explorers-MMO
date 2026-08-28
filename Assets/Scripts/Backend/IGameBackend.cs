@@ -54,6 +54,14 @@ namespace IdleExplorers.Backend
         Awaitable SaveLocationAsync(string characterId, string mapId);
 
         /// <summary>
+        /// Consumes an item whose effect the SERVER owns, and applies it.
+        ///
+        /// Only mystic gems today. The seconds come from the server's own catalogue,
+        /// never from the request, or a gem is worth whatever the caller claims.
+        /// </summary>
+        Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId);
+
+        /// <summary>
         /// Grants a coin pack WITHOUT a payment, for testing.
         ///
         /// Refused unless the server has the flag explicitly on. Nothing about this is
@@ -293,6 +301,16 @@ namespace IdleExplorers.Backend
     }
 
     [Serializable] public class FeatureFlagRow { public string flag; public bool enabled; }
+
+    /// <summary>What using a server-owned item produced.</summary>
+    [Serializable]
+    public class UseItemResult
+    {
+        public string characterId;
+        public string itemId;
+        public long   grantedSeconds;
+        public long   creditedSeconds;
+    }
 
     /// <summary>What an unpaid shop grant produced. See ShopEndpoints.</summary>
     [Serializable]

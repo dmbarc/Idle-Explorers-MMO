@@ -49,7 +49,7 @@ public static class ItemEffectResolver
                 return ApplyDamageSelf(effect, item);
 
             case "grantAfkTime":
-                return ApplyGrantAfkTime(effect);
+                return ApplyGrantAfkTime(effect, item);
 
             case "changeClass":
                 return ApplyChangeClass();
@@ -192,7 +192,7 @@ public static class ItemEffectResolver
     /// truncation and the same summary the game uses after an actual logout, instead
     /// of testing a debug branch that could quietly drift from the real one.
     /// </summary>
-    private static bool ApplyGrantAfkTime(ItemEffect effect)
+    private static bool ApplyGrantAfkTime(ItemEffect effect, ItemData item)
     {
         var character = CharacterManager.Current;
         var activity  = GameManager.Activity;
@@ -203,6 +203,23 @@ public static class ItemEffectResolver
         {
             GameEvents.FireToast("Pick an activity before using this.", ChatTone.Bad);
             return false;
+        }
+
+        // ══ THE SERVER OWNS THE TIME WHEN THERE IS ONE ═════════════════════════
+        //
+        // Everything below rewinds lastLogoutUnixTime and runs the local accrual --
+        // which returns null outright under an authoritative server, so a gem toasted
+        // "Nothing accrued" and, once the message changed, silently did nothing at
+        // all. Worse, rewinding a timestamp is the one thing the server must never be
+        // taught to accept.
+        //
+        // Server-side it is a credited-seconds balance the settle drains. Handled
+        // there, this returns true so the item is consumed exactly once -- by the
+        // endpoint, which is also what removed it from the bag.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = UseOnServerAsync(item);
+            return true;
         }
 
         long seconds = (long)Mathf.Max(1f, effect.magnitude);
@@ -225,6 +242,26 @@ public static class ItemEffectResolver
 
         GameManager.UI?.Push<AFKSummaryScreen>();
         return true;
+    }
+
+    /// <summary>
+    /// Hands the gem to the server and shows what it bought.
+    ///
+    /// The item id rather than the magnitude: the server reads the seconds from its
+    /// own catalogue, so a client cannot describe a one-hour gem as seventy-two.
+    /// </summary>
+    private static async Awaitable UseOnServerAsync(ItemData item)
+    {
+        string itemId = item?.id;
+
+        if (string.IsNullOrEmpty(itemId))
+        {
+            GameEvents.FireToast("Nothing to use.", ChatTone.Bad);
+            return;
+        }
+
+        if (await IdleExplorers.Backend.ServerState.UseItemAsync(itemId))
+            GameManager.UI?.Push<AFKSummaryScreen>();
     }
 
     /// <summary>

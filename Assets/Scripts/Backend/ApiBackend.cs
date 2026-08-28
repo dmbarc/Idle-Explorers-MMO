@@ -70,6 +70,9 @@ namespace IdleExplorers.Backend
             await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/appearance",
                                            new AppearanceBody { appearance = appearance });
 
+        public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
+            PostAsync<UseItemResult>($"/activity/{characterId}/use", new ItemBody { itemId = itemId });
+
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             PostAsync<TestGrantResult>("/shop/test-grant", new PackBody { packId = packId });
 
@@ -314,6 +317,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class AppearanceBody      { public SpumSaveData appearance; }
         [Serializable] private class MapBody             { public string mapId; }
         [Serializable] private class PackBody            { public string packId; }
+        [Serializable] private class ItemBody            { public string itemId; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

@@ -82,6 +82,10 @@ namespace IdleExplorers.Backend
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             Completed<TestGrantResult>(null);
 
+        /// <summary>Offline the item resolver already does this locally, so this says nothing.</summary>
+        public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
+            Completed<UseItemResult>(null);
+
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
         {
             var character = Find(characterId);

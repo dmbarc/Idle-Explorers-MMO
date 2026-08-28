@@ -53,12 +53,44 @@ public class ShopPanel : UIScreen
     /// </summary>
     private void OnBalanceChanged(long _) => _needsRebuild = true;
 
+    /// <summary>
+    /// Where the list was scrolled to before the last rebuild.
+    ///
+    /// ══ WHY IT IS REMEMBERED ═══════════════════════════════════════════════
+    ///
+    /// Buying anything changes the balance, which rebuilds the panel, which builds a
+    /// new ScrollRect starting at the top. So every purchase threw the player back to
+    /// the first row -- and the coin packs are at the BOTTOM, which is exactly where
+    /// somebody buying repeatedly is looking.
+    ///
+    /// 1 is the top: ScrollRect measures from the bottom, and a fresh list is at 1.
+    /// </summary>
+    private float _scrollAt = 1f;
+
     private void LateUpdate()
     {
         if (!_needsRebuild) return;
         _needsRebuild = false;
+
+        if (_scroll != null) _scrollAt = _scroll.verticalNormalizedPosition;
+
         RebuildContents();
+
+        // After the rebuild, because RebuildContents is what creates the new one.
+        // Deferred a frame: the layout group has not run yet, and a position set
+        // against a content rect of height zero is discarded.
+        if (_scroll != null) StartCoroutine(RestoreScroll());
     }
+
+    private System.Collections.IEnumerator RestoreScroll()
+    {
+        yield return null;
+
+        if (_scroll != null) _scroll.verticalNormalizedPosition = _scrollAt;
+    }
+
+    /// <summary>The live list, so its position survives a rebuild.</summary>
+    private ScrollRect _scroll;
 
     // ── Header ────────────────────────────────────────────────────────────────
 
@@ -95,6 +127,8 @@ public class ShopPanel : UIScreen
     private void BuildList(Transform parent, UITheme theme)
     {
         var (scroll, content) = UIFactory.ScrollList(parent, "ShopScroll", theme.spacing);
+
+        _scroll = scroll;
         var scrollRt = scroll.GetComponent<RectTransform>();
         scrollRt.anchorMin = new Vector2(0.03f, 0.10f);
         scrollRt.anchorMax = new Vector2(0.97f, 0.885f);

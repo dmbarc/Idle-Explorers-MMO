@@ -412,6 +412,122 @@ public static class ActivityEndpoints
             return Results.Ok(new { acknowledgedAt = now });
         });
 
+        // ── Buying time ───────────────────────────────────────────────────────
+        //
+        // ══ A BALANCE, NOT A REWOUND CLOCK ═══════════════════════════════════
+        //
+        // The client's mystic gem moved lastLogoutUnixTime backwards and let the
+        // ordinary accrual run over the wider gap. Harmless on a machine where the
+        // save already belongs to the player, and a currency printer the instant a
+        // server believes it: anybody who can push a timestamp back can push it back
+        // as far and as often as they like.
+        //
+        // last_settled_at only moves FORWARD, so purchased time has to be its own
+        // quantity. credited_seconds already existed and settlement already drained
+        // it -- nothing had ever added to it, which is why a gem did nothing at all.
+        group.MapPost("/{characterId:guid}/use", async Task<IResult> (
+            HttpContext http, Caller caller, Db db, ContentCache content,
+            SettlementService settlement, IGameClock clock, Guid characterId,
+            [FromBody] UseItemRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string itemId = (request.ItemId ?? "").Trim();
+
+            ItemData? item = content.Catalogue.GetItem(itemId);
+
+            if (item is null)
+            {
+                return Results.Problem(
+                    title:      "unknown item",
+                    detail:     $"There is no item '{itemId}'.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // Only the effect this endpoint knows how to honour. Everything else is
+            // still resolved on the client, where it changes nothing persistent -- and
+            // an endpoint that silently consumed an item it could not act on would be
+            // the worst of both.
+            long seconds = AfkSecondsOf(item);
+
+            if (seconds <= 0L)
+            {
+                return Results.Problem(
+                    title:      "not usable here",
+                    detail:     $"'{itemId}' does not grant time.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // ══ SETTLE FIRST, THEN CREDIT ════════════════════════════════════════
+            //
+            // So the seconds already earned are paid at the rate that earned them,
+            // and the bought time starts from a clean window. Crediting first would
+            // fold the two together and pay the whole lot at whichever rate the
+            // settle happened to compute.
+            await settlement.SettleAsync(
+                characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync(characterId, async (connection, tx) =>
+            {
+                var bag = await SettlementService.ReadInventoryAsync(
+                    connection, tx, characterId, http.RequestAborted);
+
+                int slot = bag.FindIndex(e => e != null && e.itemId == itemId && e.quantity > 0L);
+
+                if (slot < 0)
+                {
+                    return Results.Problem(
+                        title:      "you do not have that",
+                        detail:     $"No '{itemId}' in your bag.",
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                bag[slot].quantity -= 1L;
+
+                if (bag[slot].quantity <= 0L)
+                {
+                    bag[slot].itemId   = "";
+                    bag[slot].quantity = 0L;
+                }
+
+                await SettlementService.WriteInventoryAsync(
+                    connection, tx, characterId, bag, http.RequestAborted);
+
+                await SettlementService.WriteItemLedgerAsync(
+                    connection, tx, accountId.Value, characterId, itemId, -1L,
+                    // 'consume', because that is what item_ledger's CHECK allows. A
+                    // reason outside the list is a 500 at insert rather than a bad
+                    // row -- which is the constraint doing its job.
+                    "consume", http.RequestAborted);
+
+                long credited = await connection.ScalarAsync<long>(
+                    """
+                    update activity
+                       set credited_seconds = credited_seconds + $2
+                     where character_id = $1
+                    returning credited_seconds;
+                    """,
+                    tx, characterId, seconds);
+
+                await TelemetryEndpoints.RecordAsync(
+                    connection, tx, accountId.Value, characterId,
+                    TelemetryEvents.ItemUsed, await clock.NowAsync(http.RequestAborted),
+                    ("itemId", itemId), ("seconds", seconds.ToString()));
+
+                return Results.Ok(new
+                {
+                    characterId,
+                    itemId,
+                    grantedSeconds = seconds,
+                    creditedSeconds = credited,
+                });
+            }, http.RequestAborted);
+        });
+
         // ── What have I earned? ───────────────────────────────────────────────
         group.MapPost("/{characterId:guid}/settle", async (HttpContext http, Caller caller,
                                                            IGameClock clock, SettlementService settlement,
@@ -563,4 +679,26 @@ public static class ActivityEndpoints
     /// lie in.
     /// </summary>
     public sealed record MinigameReport(string[]? Grades);
+
+    /// <summary>
+    /// How many seconds of activity an item buys, or zero.
+    ///
+    /// Read from the CONTENT the server loaded, never from the request. The client
+    /// sends an item id and nothing else; the magnitude is the server's to know, or a
+    /// gem is worth whatever the caller says it is.
+    /// </summary>
+    private static long AfkSecondsOf(ItemData item)
+    {
+        if (item.effects == null) return 0L;
+
+        long total = 0L;
+
+        foreach (ItemEffect effect in item.effects)
+            if (effect != null && effect.action == "grantAfkTime")
+                total += (long)Math.Max(0f, effect.magnitude);
+
+        return total;
+    }
+
+    public sealed record UseItemRequest(string? ItemId);
 }

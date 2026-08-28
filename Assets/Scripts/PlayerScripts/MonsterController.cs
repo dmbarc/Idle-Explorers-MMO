@@ -95,7 +95,7 @@ public class MonsterController : MonoBehaviour
         _namePlate = NamePlate.Attach(gameObject,
                                       _data != null ? _data.DisplayName : name,
                                       NamePlate.Role.Hostile,
-                                      heightAbove: (head > 0.1f ? head : 2f) + 0.95f);
+                                      heightAbove: (head > 0.1f ? head : 2f) + NamePlate.ClearOfHead);
     }
 
     void Update()

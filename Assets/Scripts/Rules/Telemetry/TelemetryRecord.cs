@@ -145,6 +145,9 @@ namespace IdleExplorers.Rules
         public const string BossEnded        = "boss_end";
         public const string MinigameGraded   = "minigame_graded";
 
+        /// <summary>A player spent an item whose effect the server owns -- a mystic gem.</summary>
+        public const string ItemUsed         = "item_used";
+
         /// <summary>
         /// The funnel, in order.
         ///

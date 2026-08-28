@@ -396,6 +396,41 @@ namespace IdleExplorers.Backend
         }
 
         /// <summary>
+        /// Uses an item whose effect the server owns, then settles what it bought.
+        ///
+        /// ══ WHY THE SETTLE IS HERE AND NOT ON THE SERVER ════════════════════════
+        ///
+        /// The endpoint credits the seconds; it deliberately does not spend them, so
+        /// the credit is one small transaction rather than a purchase wrapped around
+        /// a full payout. Settling immediately afterwards is what turns a gem into
+        /// items the player can see, and it goes through the ordinary settle -- so the
+        /// AFK summary that appears is the same one a real absence produces.
+        /// </summary>
+        public static async Awaitable<bool> UseItemAsync(string itemId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(itemId))
+                return false;
+
+            try
+            {
+                UseItemResult used = await GameBackend.Current.UseItemAsync(CharacterId, itemId);
+
+                if (used == null) return false;
+
+                SettlementSnapshot settled = await SettleAsync();
+
+                GameManager.Activity?.AdoptServerSettlement(settled, CharacterManager.Current);
+
+                return true;
+            }
+            catch (BackendException e)
+            {
+                GameEvents.FireToast(e.Title, ChatTone.Bad);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Remembers where the character is standing, so they load in there next time.
         /// </summary>
         /// <summary>

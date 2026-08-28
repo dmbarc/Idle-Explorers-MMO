@@ -268,9 +268,31 @@ public class CharacterManager : MonoBehaviour
         return true;
     }
 
-    public void CreateCharacter(CharacterData character)
+    /// <summary>
+    /// Creates a character and returns the one that should actually be played.
+    ///
+    /// ══ WHY IT RETURNS A CHARACTER INSTEAD OF NOTHING ═══════════════════════
+    ///
+    /// Because the object handed in is a DRAFT, and under an authoritative server it
+    /// is not the character that ends up existing. The server mints the id, and the
+    /// roster is then re-pulled -- which builds a different CharacterData carrying
+    /// that id.
+    ///
+    /// The caller used to create the draft, fire this and forget it, and immediately
+    /// select the DRAFT. So the active character wore a Guid the server had never
+    /// heard of, and everything about it answered 404: the activity never changed,
+    /// so a character left fishing kept fighting goblins on the server; nothing
+    /// saved; a mystic gem reported "no such character"; and the roster showed
+    /// "never played" because the entry the server knew about was a different object
+    /// entirely. Logging out and back in fixed it, because that selects from the
+    /// roster.
+    ///
+    /// Returning the real one, and awaiting it, is what makes the first session look
+    /// like every session after it.
+    /// </summary>
+    public async Awaitable<CharacterData> CreateCharacter(CharacterData character)
     {
-        if (AccountManager.Current == null) return;
+        if (AccountManager.Current == null) return null;
 
         // ══ THE SERVER MINTS THE ID WHEN THERE IS ONE ═════════════════════════
         //
@@ -279,10 +301,7 @@ public class CharacterManager : MonoBehaviour
         // character that plainly exists on screen. The server also enforces the
         // per-account limit and the name uniqueness, neither of which this can.
         if (IdleExplorers.Backend.ServerState.IsAuthoritative)
-        {
-            _ = CreateOnServerAsync(character);
-            return;
-        }
+            return await CreateOnServerAsync(character);
 
         character.characterId = Guid.NewGuid().ToString();
         character.level = 1;
@@ -291,6 +310,8 @@ public class CharacterManager : MonoBehaviour
         GameEvents.OnCharacterCreated?.Invoke(character);
         GameEvents.OnCharacterRosterChanged?.Invoke();
         Debug.Log($"[CharacterManager] Created: {character.characterName}");
+
+        return character;
     }
 
     /// <summary>
@@ -300,7 +321,7 @@ public class CharacterManager : MonoBehaviour
     /// locally: the server decides what the account holds, and a local append would be
     /// this client's opinion of a list it does not own.
     /// </summary>
-    private async Awaitable CreateOnServerAsync(CharacterData character)
+    private async Awaitable<CharacterData> CreateOnServerAsync(CharacterData character)
     {
         try
         {
@@ -310,15 +331,28 @@ public class CharacterManager : MonoBehaviour
             if (created == null || string.IsNullOrEmpty(created.characterId))
             {
                 GameEvents.FireToast("Could not create that character.", ChatTone.Bad);
-                return;
+                return null;
             }
 
             await IdleExplorers.Backend.ServerState.PullAccountAsync();
 
-            GameEvents.OnCharacterCreated?.Invoke(character);
+            // ══ THE ONE THE ROSTER HOLDS, NOT THE DRAFT ════════════════════════
+            //
+            // PullAccountAsync rebuilt the list from the server, so the character that
+            // now exists is in there under the server's id. The draft is a different
+            // object wearing a Guid this client invented, and handing it back would
+            // put exactly that Guid into play -- which is the bug this method's
+            // summary describes.
+            CharacterData real = Find(created.characterId) ?? character;
+
+            real.characterId = created.characterId;
+
+            GameEvents.OnCharacterCreated?.Invoke(real);
             GameEvents.OnCharacterRosterChanged?.Invoke();
 
             Debug.Log($"[CharacterManager] Server created: {created.name} ({created.characterId})");
+
+            return real;
         }
         catch (IdleExplorers.Backend.BackendException e)
         {
@@ -326,8 +360,15 @@ public class CharacterManager : MonoBehaviour
             // messages are written for a player to read. Showing them beats a generic
             // failure that leaves somebody guessing which rule they hit.
             GameEvents.FireToast(e.Title, ChatTone.Bad);
+
+            return null;
         }
     }
+
+    /// <summary>The roster entry with this id, or null.</summary>
+    private static CharacterData Find(string characterId) =>
+        AccountManager.Current?.characters?
+            .Find(c => c != null && c.characterId == characterId);
 
     /// <summary>
     /// Saves current activity snapshot and marks the character offline.
