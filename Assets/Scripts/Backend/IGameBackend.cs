@@ -51,7 +51,7 @@ namespace IdleExplorers.Backend
         Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance);
 
         /// <summary>Remembers where the character is, so they load in there next time.</summary>
-        Awaitable SaveLocationAsync(string characterId, string mapId);
+        Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z);
 
         /// <summary>
         /// Says where this character is, and asks who else is on the same map.
@@ -90,6 +90,12 @@ namespace IdleExplorers.Backend
         /// a purchase; see ShopEndpoints for why it is a server call at all.
         /// </summary>
         Awaitable<TestGrantResult> GrantTestPackAsync(string packId);
+
+        /// <summary>
+        /// Buys a shop product with relic coins. The SERVER takes the money and puts
+        /// the item in the bag, in one transaction.
+        /// </summary>
+        Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId);
 
         Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
                                                           SpumSaveData appearance);
@@ -295,6 +301,10 @@ namespace IdleExplorers.Backend
         /// renders the whole list beats one request per character to render it.
         /// </summary>
         public SpumSaveData appearance;
+
+        /// <summary>Where they were standing. Restored on entering that same map.</summary>
+        public float        lastX;
+        public float        lastZ;
     }
 
     [Serializable]
@@ -316,6 +326,8 @@ namespace IdleExplorers.Backend
         /// </summary>
         public SpumSaveData    appearance;
         public string          lastMapId;
+        public float           lastX;
+        public float           lastZ;
         public SkillSnapshot[] skills;
         public SlotSnapshot[]  inventory;
         public EquipSnapshot[] equipment;
@@ -373,6 +385,16 @@ namespace IdleExplorers.Backend
         public string name;
         public string classId;
         public int    level;
+    }
+
+    /// <summary>What a shop purchase produced.</summary>
+    [Serializable]
+    public class PurchaseResult
+    {
+        public string productId;
+        public string itemId;
+        public long   quantity;
+        public long   balance;
     }
 
     /// <summary>What using a server-owned item produced.</summary>

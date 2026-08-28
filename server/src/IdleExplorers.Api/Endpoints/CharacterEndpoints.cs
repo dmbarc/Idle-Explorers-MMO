@@ -155,6 +155,12 @@ public static class CharacterEndpoints
                 "select last_map_id from character where id = $1;",
                 null, characterId) ?? "";
 
+            float lastX = await connection.ScalarAsync<float>(
+                "select last_x from character where id = $1;", null, characterId);
+
+            float lastZ = await connection.ScalarAsync<float>(
+                "select last_z from character where id = $1;", null, characterId);
+
             var skills = new List<object>();
 
             await using (var command = connection.Sql(
@@ -249,6 +255,8 @@ public static class CharacterEndpoints
                 level = Levelling.CharacterLevel(xp),
                 appearance = AppearanceOf(appearanceJson),
                 lastMapId,
+                lastX,
+                lastZ,
                 skills,
                 inventory,
                 equipment,
@@ -339,11 +347,17 @@ public static class CharacterEndpoints
 
             await using var connection = await db.OpenAsync(http.RequestAborted);
 
-            await connection.ExecuteAsync(
-                "update character set last_map_id = $2 where id = $1;",
-                null, characterId, mapId);
+            // Clamped with the same rule presence uses. Position is presentation and
+            // is not validated -- this is about keeping a broken float out of a column
+            // other people's arithmetic will read, not about cheating.
+            float x = IdleExplorers.Rules.Presence.Clamp(request.X);
+            float z = IdleExplorers.Rules.Presence.Clamp(request.Z);
 
-            return Results.Ok(new { characterId, lastMapId = mapId });
+            await connection.ExecuteAsync(
+                "update character set last_map_id = $2, last_x = $3, last_z = $4 where id = $1;",
+                null, characterId, mapId, x, z);
+
+            return Results.Ok(new { characterId, lastMapId = mapId, lastX = x, lastZ = z });
         });
     }
 
@@ -407,5 +421,5 @@ public static class CharacterEndpoints
     public sealed record AppearanceRequest(SpumSaveData? Appearance);
 
     /// <summary>Where the character is. Written on map change and on leaving the world.</summary>
-    public sealed record LocationRequest(string? MapId);
+    public sealed record LocationRequest(string? MapId, float X, float Z);
 }

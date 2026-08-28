@@ -157,6 +157,21 @@ public class ShopManager : MonoBehaviour
             return false;
         }
 
+        // ══ THE SERVER TAKES THE MONEY WHEN THERE IS ONE ══════════════════════
+        //
+        // Everything below spends relic coins out of the local account and puts the
+        // item in the local bag. Under an authoritative server both are fiction: the
+        // next pull restores the coins and takes the item away again.
+        //
+        // What the player saw was a purchase that appeared to work and an item that
+        // could not then be equipped -- with no error, because nothing had failed.
+        // The client had simply been talking to itself.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = IdleExplorers.Backend.ServerState.BuyProductAsync(productId);
+            return true;
+        }
+
         var inventory = GameManager.Inventory;
         if (inventory == null)
         {

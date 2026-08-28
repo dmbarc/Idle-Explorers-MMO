@@ -93,9 +93,13 @@ namespace IdleExplorers.Backend
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             PostAsync<TestGrantResult>("/shop/test-grant", new PackBody { packId = packId });
 
-        public async Awaitable SaveLocationAsync(string characterId, string mapId) =>
+        public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
+            PostAsync<PurchaseResult>($"/shop/{characterId}/buy",
+                                      new ProductBody { productId = productId });
+
+        public async Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z) =>
             await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/location",
-                                           new MapBody { mapId = mapId });
+                                           new MapBody { mapId = mapId, x = x, z = z });
 
         public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
                                                                  SpumSaveData appearance) =>
@@ -332,8 +336,9 @@ namespace IdleExplorers.Backend
         [Serializable] private class NodeIdBody          { public string nodeId; }
         [Serializable] private class ActionsBody         { public BossActionReport[] actions; }
         [Serializable] private class AppearanceBody      { public SpumSaveData appearance; }
-        [Serializable] private class MapBody             { public string mapId; }
+        [Serializable] private class MapBody             { public string mapId; public float x; public float z; }
         [Serializable] private class PackBody            { public string packId; }
+        [Serializable] private class ProductBody         { public string productId; }
         [Serializable] private class ItemBody            { public string itemId; }
         [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; }
 

@@ -38,7 +38,8 @@ public static class AccountEndpoints
 
             await using (var command = connection.Sql(
                 """
-                select id, name, class_id, xp, last_map_id, created_at, appearance::text
+                select id, name, class_id, xp, last_map_id, created_at, appearance::text,
+                       last_x, last_z
                   from character
                  where account_id = $1 and deleted_at is null
                  order by created_at;
@@ -77,6 +78,11 @@ public static class AccountEndpoints
                         // select screen can draw the face somebody made. Fetching it
                         // per card would be one request per character to render a list.
                         appearance = CharacterEndpoints.AppearanceOf(reader.GetString(6)),
+
+                        // Carried on the roster too, so entering the world can put a
+                        // character back where they left without a second request.
+                        lastX = reader.GetFloat(7),
+                        lastZ = reader.GetFloat(8),
                     });
                 }
             }

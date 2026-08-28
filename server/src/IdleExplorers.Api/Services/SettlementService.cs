@@ -104,15 +104,25 @@ public sealed class SettlementService(Db db, ContentCache content)
         ActivityState activity = row.Activity;
 
         // ── The window ────────────────────────────────────────────────────────
-        double elapsed = (now - row.LastSettledAt).TotalSeconds;
+        double elapsed  = (now - row.LastSettledAt).TotalSeconds;
+        double credited = row.CreditedSeconds;
 
+        // ══ BOUGHT TIME IS NOT ELAPSED TIME ══════════════════════════════════
+        //
         // Never negative. The trigger forbids moving last_settled_at backwards, but a
         // clock read microseconds apart on two connections can still land behind, and
         // a negative window must be nothing rather than a debt.
-        if (elapsed <= 0d) return Outcome.Nothing;
+        //
+        // CREDITED IS CHECKED TOO, and that is not a refinement -- it is the whole
+        // reason mystic gems did nothing. Using one settles first and then credits, so
+        // the settle that follows runs with an elapsed of very nearly zero. Guarded on
+        // elapsed alone this returned Nothing before ever reading the seventy-two
+        // hours sitting in the column, and the gem was consumed for no reward.
+        if (elapsed <= 0d && credited <= 0d) return Outcome.Nothing;
 
-        double credited = row.CreditedSeconds;
-        double payable  = Math.Min(elapsed, MaxWindowSeconds) + credited;
+        // Clamped at zero rather than passed through: a fractionally negative window
+        // must not eat into what was paid for.
+        double payable = Math.Min(Math.Max(0d, elapsed), MaxWindowSeconds) + credited;
 
         double supervised = SupervisedSeconds(row, now);
 
@@ -915,6 +925,55 @@ public sealed class SettlementService(Db db, ContentCache content)
     /// through the same balance-and-ledger pair in one transaction. A second copy of
     /// this would be a second chance to move a balance without a ledger row.
     /// </summary>
+    /// <summary>
+    /// Takes currency, refusing rather than going negative.
+    ///
+    /// ══ THE AFFORDABILITY IS IN THE WHERE CLAUSE ═════════════════════════════
+    ///
+    /// Read-then-write is a race even inside a transaction unless the row is locked,
+    /// and the wallet row is not what these transactions lock. Putting the condition
+    /// in the WHERE makes the database do the comparison and the deduction as one
+    /// thing: no row matched means it could not be afforded, and no balance moved.
+    ///
+    /// RETURNING is what carries that back. A separate read afterwards cannot tell a
+    /// balance that landed on zero apart from an update that never happened -- a
+    /// first version of this did exactly that and would have let a purchase through
+    /// on an empty wallet.
+    ///
+    /// Returns false rather than throwing, because "you cannot afford that" is a
+    /// sentence for a player rather than an exception for a log.
+    /// </summary>
+    internal static async Task<bool> SpendWalletAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                      Guid accountId, Guid? characterId, string currency,
+                                                      long amount, string reason,
+                                                      CancellationToken cancellation)
+    {
+        if (amount <= 0L) return true;
+
+        long? after = await connection.ScalarAsync<long?>(
+            """
+            update wallet set balance = balance - $3
+            where account_id = $1 and currency = $2 and balance >= $3
+            returning balance;
+            """,
+            tx, accountId, currency, amount);
+
+        if (after is null) return false;
+
+        // Same transaction as the balance, always. A balance that moves without a
+        // ledger row is a number nobody can explain, and sum(delta) = balance is the
+        // invariant the scenario tests assert.
+        await connection.ExecuteAsync(
+            """
+            insert into wallet_ledger (account_id, currency, delta, reason, character_id)
+            values ($1, $2, $3, $4, $5);
+            """,
+            tx, accountId, currency, -amount, reason,
+            (object?)characterId ?? DBNull.Value);
+
+        return true;
+    }
+
     internal static async Task CreditWalletAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                 Guid accountId, Guid? characterId, string currency,
                                                 long amount, string reason,

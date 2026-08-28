@@ -184,7 +184,11 @@ namespace IdleExplorers.Backend
                 character.spumConfig = snapshot.appearance;
 
             if (!string.IsNullOrEmpty(snapshot.lastMapId))
+            {
                 character.lastMapId = snapshot.lastMapId;
+                character.lastX     = snapshot.lastX;
+                character.lastZ     = snapshot.lastZ;
+            }
 
             ApplySkills(character, snapshot.skills);
             ApplyInventory(character, snapshot.inventory);
@@ -396,6 +400,38 @@ namespace IdleExplorers.Backend
         }
 
         /// <summary>
+        /// Buys a shop product. The server takes the coins and hands over the item.
+        /// </summary>
+        public static async Awaitable<bool> BuyProductAsync(string productId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(productId))
+                return false;
+
+            try
+            {
+                PurchaseResult bought = await GameBackend.Current.BuyProductAsync(CharacterId, productId);
+
+                if (bought == null) return false;
+
+                // Both, because a purchase moves an account balance AND a character's
+                // bag, and the panels that draw them read different objects.
+                await PullAccountAsync();
+                await PullCharacterAsync(CharacterId);
+
+                GameEvents.FireInventoryChanged();
+
+                return true;
+            }
+            catch (BackendException e)
+            {
+                // "not enough relic coins", "no room in your inventory" -- written for
+                // a player, and the reason they need.
+                GameEvents.FireToast(e.Title, ChatTone.Bad);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Uses an item whose effect the server owns, then settles what it bought.
         ///
         /// ══ WHY THE SETTLE IS HERE AND NOT ON THE SERVER ════════════════════════
@@ -533,9 +569,22 @@ namespace IdleExplorers.Backend
             if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(mapId))
                 return;
 
+            // Read from the rig rather than passed in, so every caller reports where
+            // the character actually IS rather than where it meant to put them.
+            var rig = UnityEngine.GameObject.Find("PlayerCharacter");
+
+            float x = rig != null ? rig.transform.position.x : 0f;
+            float z = rig != null ? rig.transform.position.z : 0f;
+
+            if (CharacterManager.Current != null)
+            {
+                CharacterManager.Current.lastX = x;
+                CharacterManager.Current.lastZ = z;
+            }
+
             try
             {
-                await GameBackend.Current.SaveLocationAsync(CharacterId, mapId);
+                await GameBackend.Current.SaveLocationAsync(CharacterId, mapId, x, z);
             }
             catch (BackendException e)
             {
@@ -620,6 +669,8 @@ namespace IdleExplorers.Backend
                 existing.xp            = summary.xp;
                 existing.level         = summary.level;
                 existing.lastMapId     = summary.lastMapId;
+                existing.lastX         = summary.lastX;
+                existing.lastZ         = summary.lastZ;
 
                 // Same reasoning as Apply: an empty face from the server is silence,
                 // not an instruction.

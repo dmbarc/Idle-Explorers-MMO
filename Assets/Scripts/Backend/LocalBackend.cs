@@ -70,7 +70,7 @@ namespace IdleExplorers.Backend
         public Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
             Completed();
 
-        public Awaitable SaveLocationAsync(string characterId, string mapId) => Completed();
+        public Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z) => Completed();
 
         /// <summary>
         /// Offline the shop grants locally, as it always did, so this says nothing.
@@ -81,6 +81,10 @@ namespace IdleExplorers.Backend
         /// </summary>
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             Completed<TestGrantResult>(null);
+
+        /// <summary>Offline ShopManager spends and grants locally, as it always did.</summary>
+        public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
+            Completed<PurchaseResult>(null);
 
         /// <summary>Offline the item resolver already does this locally, so this says nothing.</summary>
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>

@@ -80,7 +80,63 @@ public class ZoneManager : MonoBehaviour
 
         RestoreOrDefaultActivity(map);
 
+        // ══ THE ONE PLACE EVERY MAP ENTRY PASSES THROUGH ══════════════════════
+        //
+        // The save used to live in GameManager.GoToGame, which is only one of three
+        // ways into a map -- TravelPanel and the boss portal both call EnterMap
+        // directly. So travelling somewhere never recorded that you had, and a
+        // character who logged out in the Hollow woke up in the goblin camp.
+        //
+        // Here it cannot be bypassed, which is the same reasoning as routing every
+        // reward through LocalRewards rather than guarding each grant site.
+        if (CharacterManager.Current != null) CharacterManager.Current.lastMapId = map.id;
+
+        _ = IdleExplorers.Backend.ServerState.SaveLocationAsync(map.id);
+
+        // Put them back where they were standing, if this is the map they left from.
+        RestorePosition(map);
+
         Debug.Log($"[ZoneManager] Entered {map.DisplayName} ({map.id}) in {CurrentZone?.DisplayName ?? map.zoneId}");
+    }
+
+    /// <summary>
+    /// Stands the character where they logged out, when that was here.
+    ///
+    /// ══ WHY THE MAP ALONE WAS NOT ENOUGH ════════════════════════════════
+    ///
+    /// Coming back to the right map and then walking to the ore again is most of the
+    /// annoyance of having been sent to the wrong one. A character parked at a mining
+    /// node should wake up at that node.
+    ///
+    /// Guarded on the map id: a saved position belongs to the map it was saved on, and
+    /// applying the Hollow's coordinates inside the goblin camp would drop somebody
+    /// into a fence.
+    /// </summary>
+    private void RestorePosition(MapData map)
+    {
+        var character = CharacterManager.Current;
+
+        if (character == null || character.lastMapId != map.id) return;
+        if (character.lastX == 0f && character.lastZ == 0f) return;
+
+        var player = GameObject.Find("PlayerCharacter");
+
+        if (player == null) return;
+
+        Vector3 wanted = new(character.lastX, player.transform.position.y, character.lastZ);
+
+        // Snapped onto the NavMesh. A coordinate saved before a map was regenerated
+        // can land off it, and an agent warped off the mesh stops being able to move
+        // at all -- which is a worse outcome than spawning a few metres away.
+        if (UnityEngine.AI.NavMesh.SamplePosition(wanted, out var hit, 8f, UnityEngine.AI.NavMesh.AllAreas))
+            wanted = hit.position;
+
+        var agent = player.GetComponent<UnityEngine.AI.NavMeshAgent>();
+
+        if (agent != null && agent.isActiveAndEnabled) agent.Warp(wanted);
+        else                                           player.transform.position = wanted;
+
+        Debug.Log($"[ZoneManager] Restored {character.characterName} to their last position on {map.id}.");
     }
 
     /// <summary>

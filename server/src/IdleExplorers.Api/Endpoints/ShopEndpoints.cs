@@ -108,7 +108,111 @@ public static class ShopEndpoints
                 paid     = false,
             });
         });
+
+        // ── Spending them ─────────────────────────────────────────────────────
+        //
+        // ══ THIS USED TO HAPPEN ENTIRELY ON THE CLIENT ═══════════════════════
+        //
+        // ShopManager.Purchase deducted relic coins from the local account and put the
+        // item in the local bag. Under an authoritative server both were fiction: the
+        // next pull restored the coins and took the item away again.
+        //
+        // What the player saw was a purchase that appeared to work, and then an item
+        // that could not be equipped and was not there. No error, because nothing had
+        // failed -- the client had simply been talking to itself.
+        group.MapPost("/{characterId:guid}/buy", async Task<IResult> (
+            HttpContext http, Caller caller, Db db, ContentCache content, IGameClock clock,
+            Guid characterId, [FromBody] BuyRequest request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            string productId = (request.ProductId ?? "").Trim();
+
+            ShopProduct? product = content.Catalogue.GetShopProduct(productId);
+
+            if (product is null)
+            {
+                return Results.Problem(
+                    title:      "unknown product",
+                    detail:     $"There is no product '{productId}'.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            // Named in the route rather than inferred. The server has no notion of
+            // "the character you happen to be playing" and inventing one would be a
+            // second answer to a question ownership already settles.
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+            {
+                return Results.Problem(
+                    title:      "no such character",
+                    detail:     "That character does not exist, or does not belong to you.",
+                    statusCode: StatusCodes.Status404NotFound);
+            }
+
+            return await db.InCharacterTransactionAsync(characterId, async (connection, tx) =>
+            {
+                var bag = await SettlementService.ReadInventoryAsync(
+                    connection, tx, characterId, http.RequestAborted);
+
+                long quantity = Math.Max(1L, product.quantity);
+
+                // ══ ROOM BEFORE MONEY ════════════════════════════════════════
+                //
+                // Charging somebody and then discovering there is nowhere to put what
+                // they bought is the one failure a shop must never have.
+                if (!SlotContainer.CanAddItem(bag, product.itemId, quantity))
+                {
+                    return Results.Problem(
+                        title:      "no room",
+                        detail:     "No room in your inventory.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                bool paid = await SettlementService.SpendWalletAsync(
+                    connection, tx, accountId.Value, characterId,
+                    IdleExplorers.Rules.Currency.RelicCoins, product.relicCoinCost,
+                    "shop_purchase", http.RequestAborted);
+
+                if (!paid)
+                {
+                    return Results.Problem(
+                        title:      "not enough relic coins",
+                        detail:     $"{product.DisplayName} costs {product.relicCoinCost}.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                SlotContainer.AddItem(bag, product.itemId, quantity);
+
+                await SettlementService.WriteInventoryAsync(
+                    connection, tx, characterId, bag, http.RequestAborted);
+
+                await SettlementService.WriteItemLedgerAsync(
+                    connection, tx, accountId.Value, characterId, product.itemId,
+                    quantity, "shop_purchase", http.RequestAborted);
+
+                long balance = await connection.ScalarAsync<long>(
+                    "select coalesce(balance, 0) from wallet where account_id = $1 and currency = $2;",
+                    tx, accountId.Value, IdleExplorers.Rules.Currency.RelicCoins);
+
+                await TelemetryEndpoints.RecordAsync(
+                    connection, tx, accountId.Value, characterId,
+                    "shop_purchase", await clock.NowAsync(http.RequestAborted),
+                    ("productId", productId),
+                    ("cost",      product.relicCoinCost.ToString()));
+
+                return Results.Ok(new
+                {
+                    productId,
+                    itemId   = product.itemId,
+                    quantity,
+                    balance,
+                });
+            }, http.RequestAborted);
+        });
     }
 
     public sealed record TestGrantRequest(string? PackId);
+
+    public sealed record BuyRequest(string? ProductId);
 }

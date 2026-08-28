@@ -70,6 +70,15 @@ public class CharacterData
     public long     lastLogoutUnixTime;
     public bool     isOnline;
     public string   lastMapId;
+
+    /// <summary>
+    /// Where on that map they were standing when they left.
+    ///
+    /// Zero-zero means "nowhere in particular" -- a character who has never played, or
+    /// one saved before this existed -- and the map's own spawn point is used instead.
+    /// </summary>
+    public float    lastX;
+    public float    lastZ;
     public bool     allowGhostDisplay;
 
     public SpumSaveData             spumConfig;

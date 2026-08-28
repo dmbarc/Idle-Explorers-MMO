@@ -73,6 +73,10 @@ namespace IdleExplorers.Backend
         public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
             _remote.GrantTestPackAsync(packId);
 
+        /// <summary>Only the server holds the wallet the price comes out of.</summary>
+        public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
+            _remote.BuyProductAsync(characterId, productId);
+
         /// <summary>Only the server holds the credited-seconds balance.</summary>
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             _remote.UseItemAsync(characterId, itemId);
@@ -96,10 +100,10 @@ namespace IdleExplorers.Backend
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
             _remote.LeavePartyAsync(characterId);
 
-        public async Awaitable SaveLocationAsync(string characterId, string mapId)
+        public async Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z)
         {
-            await _local.SaveLocationAsync(characterId, mapId);
-            await _remote.SaveLocationAsync(characterId, mapId);
+            await _local.SaveLocationAsync(characterId, mapId, x, z);
+            await _remote.SaveLocationAsync(characterId, mapId, x, z);
         }
 
         public async Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)

@@ -162,7 +162,72 @@ public class MysticGemTests(ApiFixture api)
         Assert.True(await LastSettledAt(characterId) >= before);
     }
 
+    /// <summary>
+    /// THE GEM ACTUALLY PAYS.
+    ///
+    /// ══ THE TEST THAT WAS MISSING ═══════════════════════════════════════
+    ///
+    /// Everything above proved the seconds were CREDITED, and every one of them
+    /// passed while a gem did nothing whatsoever in the game.
+    ///
+    /// Using one settles first and then credits, so the settle that follows runs with
+    /// an elapsed of very nearly zero -- and the guard read elapsed alone and returned
+    /// Nothing before ever looking at the column. The seventy-two hours went in and
+    /// stayed there.
+    ///
+    /// Crediting is not paying. This asks for the payment.
+    /// </summary>
+    [SkippableFact]
+    public async Task AGemActuallyPaysOut()
+    {
+        RequireDatabase();
+
+        var player      = await api.NewPlayerAsync();
+        Guid characterId = await OwnershipTests.CreateCharacter(player, "Cashout");
+
+        // Something to be paid FOR. An idle character earns nothing however much time
+        // it is handed, which would make this pass for the wrong reason.
+        await SetGathering(player, characterId);
+
+        await GiveItem(characterId, GiganticGem, 1);
+
+        long before = await SkillXp(characterId);
+
+        await Use(player, characterId, GiganticGem);
+
+        // The settle the client runs straight afterwards, with no wall clock between.
+        HttpResponseMessage settled = await OwnershipTests.Post(
+            player, $"/activity/{characterId}/settle", new { });
+
+        settled.EnsureSuccessStatusCode();
+
+        Assert.True(await SkillXp(characterId) > before,
+                    "seventy-two hours were credited and never paid");
+
+        Assert.Equal(0L, await CreditedSeconds(characterId));
+    }
+
     // ── Machinery ─────────────────────────────────────────────────────────────
+
+    /// <summary>Puts the character to work, so there is something for time to buy.</summary>
+    private static async Task SetGathering(Player player, Guid characterId)
+    {
+        (await OwnershipTests.Post(player, $"/activity/{characterId}",
+                                   new { nodeId = "tin_rock_1" })).EnsureSuccessStatusCode();
+    }
+
+    private async Task<long> SkillXp(Guid characterId)
+    {
+        await using var connection = await api.OpenDatabaseAsync();
+        await using var command = connection.CreateCommand();
+
+        command.CommandText =
+            "select coalesce(sum(xp), 0)::bigint from character_skill where character_id = $1;";
+        command.Parameters.AddWithValue(characterId);
+
+        return (long)(await command.ExecuteScalarAsync() ?? 0L);
+    }
+
 
     private static async Task<HttpResponseMessage> Use(Player player, Guid characterId, string itemId)
     {
