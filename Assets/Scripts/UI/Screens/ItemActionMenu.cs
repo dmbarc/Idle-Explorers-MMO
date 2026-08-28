@@ -266,12 +266,22 @@ public class ItemActionMenu : UIScreen
         // pickup trigger does not fire before they have stepped away from it.
         Vector3 at = player.transform.position + player.transform.forward * 1.5f + Vector3.up * 0.5f;
         var dropObj = Instantiate(prefab, at, Quaternion.identity);
-        dropObj.GetComponent<DropPickup>()?.Setup(itemId, quantity);
+        var pickup = dropObj.GetComponent<DropPickup>();
+
+        // ══ MARKED, SO AUTO-MODE LEAVES IT ALONE ══════════════════════════════
+        //
+        // Set BEFORE Setup, which starts the toss and can put the drop inside the
+        // player's own trigger on the first frame. Set after, and the item would be
+        // collected again before the flag that forbids it was ever read.
+        if (pickup != null) pickup.RequiresManualPickup = true;
+
+        pickup?.Setup(itemId, quantity);
 
         GameManager.Inventory?.ClearSlot(slot);
 
         var item = GameManager.Content?.GetItem(itemId);
-        GameEvents.FireToast($"Dropped {NumberFormatter.Format(quantity)} {item?.DisplayName ?? itemId}.");
+        GameEvents.FireToast($"Dropped {NumberFormatter.Format(quantity)} " +
+                             $"{item?.DisplayName ?? itemId}. Click it to pick it back up.");
     }
 
     // ── Double-click ──────────────────────────────────────────────────────────

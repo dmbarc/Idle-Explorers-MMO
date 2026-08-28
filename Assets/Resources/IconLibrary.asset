@@ -132,11 +132,19 @@ MonoBehaviour:
   - id: spectral_veil
     sprite: {fileID: 21300000, guid: 4836c09be31426e49b52ea966be0a3c8, type: 3}
   - id: wanderers_cape
-    sprite: {fileID: 21300000, guid: 3c685e2f10eb04faf852544d1ebe3c7c, type: 3}
+    sprite: {fileID: 21300000, guid: ab44cc5472bea164b8aeb85a8bf88edf, type: 3}
   - id: heralds_tabard
     sprite: {fileID: 21300000, guid: 60dbf6a31ffde4645b0ff2a518c88795, type: 3}
   - id: festival_shirt
     sprite: {fileID: 21300000, guid: ea09d337c28a8bd48bd3a441a4d1974f, type: 3}
+  - id: smiths_apron
+    sprite: {fileID: 21300000, guid: d659f7396cd57754eba78763cf986c51, type: 3}
+  - id: tinplate_tabard
+    sprite: {fileID: 21300000, guid: 68369b918a7c2fd4dbb2dc8b4d1ad8e0, type: 3}
+  - id: chainlink_drape
+    sprite: {fileID: 21300000, guid: 44af07db46aaec446bd82ef9941a8eb8, type: 3}
+  - id: emberforge_aura
+    sprite: {fileID: 21300000, guid: 469029cfa99d4b5458b8248d2cdd1d77, type: 3}
   skillIcons:
   - id: mining
     sprite: {fileID: 21300000, guid: b54b94da5cee5c046bf327246ac181e6, type: 3}

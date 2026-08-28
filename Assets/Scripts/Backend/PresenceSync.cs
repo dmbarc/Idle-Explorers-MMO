@@ -148,6 +148,11 @@ namespace IdleExplorers.Backend
 
                 Reconcile(rig, seen.others);
                 Speak(rig, seen.chat);
+
+                // Only ONE queued line rides each report. Somebody who typed three
+                // in a row would otherwise wait six seconds for the last of them, so
+                // a backlog drains at network speed rather than on the clock.
+                if (_pending.Count > 0) _nextReportAt = 0f;
             }
             catch (BackendException e)
             {
@@ -220,6 +225,20 @@ namespace IdleExplorers.Backend
             if (_pending.Count >= 8) _pending.Dequeue();
 
             _pending.Enqueue(message.Trim());
+
+            // ══ SAID NOW, NOT IN UP TO TWO SECONDS ════════════════════════════
+            //
+            // A position report can wait for its turn; a person cannot. Waiting for
+            // the timer meant your own line appeared in your own log anything up to
+            // two seconds after you pressed Enter, and a second line typed behind it
+            // waited another two -- so a fast exchange arrived in slow motion, out of
+            // step with the fight it was about. That is most of what "the chat log is
+            // not synced to what is actually going on" was.
+            //
+            // Bringing the next report forward rather than sending separately keeps
+            // the one-round-trip design: speech still rides a position report, it just
+            // rides the next one immediately instead of the next one on the clock.
+            if (_instance != null) _instance._nextReportAt = 0f;
         }
 
         /// <summary>

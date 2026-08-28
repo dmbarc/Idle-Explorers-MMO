@@ -115,6 +115,115 @@ namespace IdleExplorersTests
 
             check(Regex.IsMatch(code, @"if\s*\(\s*result[^)]*\.won\s*\)"),
                   "whether the King fell is read off the server's result");
+
+            // ── And beating him opens the way out ─────────────────────────────
+            //
+            // The throne is a one-way door: the only ways out were dying and the
+            // travel menu, neither of which reads as having FINISHED the fight.
+            //
+            // Sliced to Die() rather than searched file-wide, because Enrage() sits
+            // directly beneath it and a file-wide match would pass on losing as
+            // happily as on winning. Four checks in this project have been fooled by
+            // exactly that kind of proximity.
+            string died = Body(code, "private void Die()");
+
+            check(died.Length > 0, "BossController.Die is where it is expected to be");
+            check(died.Contains("ExitPortal.Open"),
+                  "beating the King opens an exit portal -- from Die, not from Enrage");
+
+            string enraged = Body(code, "private void Enrage()");
+
+            check(enraged.Length > 0 && !enraged.Contains("ExitPortal"),
+                  "losing to the King does NOT open one");
+
+            SpawnerRefusesBosses(check, root);
+            ExitPortalIsReachable(check, root);
+        }
+
+        /// <summary>
+        /// One Goblin King, not a field of them.
+        ///
+        /// ══ WHAT WENT WRONG ══════════════════════════════════════════════════
+        ///
+        /// The throne map's defaultMonsterId is goblin_king, because that is what a
+        /// player fights there. MonsterSpawner read it as an instruction and produced
+        /// Kings without end -- pooled, respawning and population-capped, which is
+        /// three things a boss must not be.
+        ///
+        /// The check is not "the file mentions isBoss". It is that the refusal sits
+        /// inside the method the spawn path actually gates on, which is the
+        /// difference between a guard and a comment.
+        /// </summary>
+        private static void SpawnerRefusesBosses(Action<bool, string> check, string root)
+        {
+            string spawner = Strip(Read(root, "Assets/Scripts/PlayerScripts/MonsterSpawner.cs"));
+
+            check(spawner.Length > 0, "MonsterSpawner.cs is where it is expected to be");
+            if (spawner.Length == 0) return;
+
+            string resolve = Body(spawner, "private bool ResolveMonster(");
+
+            check(resolve.Length > 0, "MonsterSpawner.ResolveMonster is where it is expected to be");
+            check(Regex.IsMatch(resolve, @"isBoss[^;]*\breturn false\b"),
+                  "ResolveMonster refuses a boss");
+
+            // And the spawn path really is gated on it. Without this the guard could
+            // be perfect and sit in a method nothing calls.
+            string spawn = Body(spawner, "void SpawnMonster()");
+
+            check(spawn.Length > 0, "MonsterSpawner.SpawnMonster is where it is expected to be");
+            check(Regex.IsMatch(spawn, @"if\s*\(\s*!\s*ResolveMonster\s*\([^)]*\)\s*\)\s*return"),
+                  "SpawnMonster gives up when ResolveMonster refuses");
+        }
+
+        /// <summary>
+        /// Somebody constructs the exit portal, and somebody can walk through it.
+        ///
+        /// The "built and never called" rule, written down: Session.SignedInChanged,
+        /// BossPortalController.TryEnterAsync and BossHealthBar each looked finished
+        /// and were unreachable, and each cost a playtest to discover.
+        /// </summary>
+        private static void ExitPortalIsReachable(Action<bool, string> check, string root)
+        {
+            string portal = Strip(Read(root, "Assets/Scripts/PlayerScripts/ExitPortal.cs"));
+
+            check(portal.Length > 0, "ExitPortal.cs is where it is expected to be");
+            if (portal.Length == 0) return;
+
+            check(portal.Contains("EnterMap"), "walking through an ExitPortal changes map");
+            check(portal.Contains("OnTriggerEnter"), "walking INTO one is enough");
+
+            string player = Strip(Read(root, "Assets/Scripts/PlayerScripts/PlayerController.cs"));
+
+            check(player.Contains("GetComponentInParent<ExitPortal>"),
+                  "clicking one works too -- PlayerController resolves it from the ray");
+        }
+
+        /// <summary>
+        /// The body of one method, by brace matching from its signature.
+        ///
+        /// A fixed-size window around a match is not good enough and this project has
+        /// the scars: a 600-character window once reached into the block above and
+        /// passed on a neighbour's guard.
+        /// </summary>
+        private static string Body(string source, string signature)
+        {
+            int at = source.IndexOf(signature, StringComparison.Ordinal);
+            if (at < 0) return "";
+
+            int open = source.IndexOf('{', at);
+            if (open < 0) return "";
+
+            int depth = 0;
+
+            for (int i = open; i < source.Length; i++)
+            {
+                if (source[i] == '{') depth++;
+                else if (source[i] == '}' && --depth == 0)
+                    return source.Substring(open, i - open + 1);
+            }
+
+            return "";
         }
 
         /// <summary>

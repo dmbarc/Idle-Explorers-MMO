@@ -42,7 +42,6 @@ public static class EquipmentArtValidator
         var ok       = new List<string>();
         var broken   = new List<string>();
         var noArt    = new List<string>();
-        var noLayer  = new List<string>();
 
         foreach (var item in items)
         {
@@ -74,9 +73,34 @@ public static class EquipmentArtValidator
                 continue;
             }
 
+            // ══ TWO SLOTS DRAW WITHOUT A SPUM LAYER, AND THIS SAID OTHERWISE ═══
+            //
+            // An aura is a looping particle effect parented to the rig, resolved by
+            // VFX id rather than by sprite path -- CharacterAppearance.ApplyAura
+            // never touches a renderer. A tabard has no SPUM part either, and
+            // CreateSyntheticLayer fabricates one over the body for exactly that
+            // reason.
+            //
+            // Reporting both as "art cannot show" was wrong, and wrong in the most
+            // expensive direction: it says the thing you just fixed is unfixable, so
+            // the next person reads the report and stops.
+            if (slot.SlotId == "aura")
+            {
+                ok.Add($"{item.id} → {item.equipSpriteAddress} [VFX, parented to the rig]");
+                continue;
+            }
+
             if (!slot.RendersOnCharacter)
             {
-                noLayer.Add($"{item.id}: slot '{slot.SlotId}' has no SPUM layer, so its art cannot show");
+                var synthetic = SpriteLoader.SubSpriteNames(item.equipSpriteAddress);
+
+                if (synthetic.Length == 0)
+                    broken.Add($"{item.id}: equipSpriteAddress '{item.equipSpriteAddress}' resolves to " +
+                               "nothing — check the path is under a Resources folder");
+                else
+                    ok.Add($"{item.id} → {item.equipSpriteAddress} " +
+                           $"[{string.Join("/", synthetic)}, on a synthetic layer]");
+
                 continue;
             }
 
@@ -98,7 +122,7 @@ public static class EquipmentArtValidator
             ok.Add($"{item.id} → {item.equipSpriteAddress} [{string.Join("/", names)}]");
         }
 
-        Report(ok, broken, noArt, noLayer);
+        Report(ok, broken, noArt);
         ValidateSets(items);
         ValidateAppearance();
     }
@@ -222,15 +246,15 @@ public static class EquipmentArtValidator
         return false;
     }
 
-    private static void Report(List<string> ok, List<string> broken,
-                               List<string> noArt, List<string> noLayer)
+    /// <summary>
+    /// Three categories, and there used to be a fourth: "slots the rig cannot draw".
+    /// It no longer exists, because both slots that were in it — aura and tabard —
+    /// do draw, one as a particle effect and one on a synthetic layer.
+    /// </summary>
+    private static void Report(List<string> ok, List<string> broken, List<string> noArt)
     {
         Debug.Log($"[ArtCheck] {ok.Count} equippable item(s) have working worn art:\n  " +
                   string.Join("\n  ", ok));
-
-        if (noLayer.Count > 0)
-            Debug.Log($"[ArtCheck] {noLayer.Count} item(s) in slots the rig cannot draw " +
-                      "(shown as 'art pending' in the paperdoll):\n  " + string.Join("\n  ", noLayer));
 
         if (noArt.Count > 0)
             Debug.LogWarning($"[ArtCheck] {noArt.Count} gap(s) — these work, but look worse than they " +

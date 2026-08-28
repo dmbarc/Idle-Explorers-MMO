@@ -147,9 +147,27 @@ public static class IconLibrarySetup
         // atlases, and this table resolves single sprites by asset name. Two dead ends
         // for the same reason, which is why both are written down.
         { "spectral_veil",       "LightWizard" },          // TODO(art): something ghostly
-        { "wanderers_cape",      "flag" },                 // TODO(art): a real cape
+        // "flag" was the original pick and never bound: every flag.png in the project
+        // is a plain texture, so this drew a placeholder from the day it was written
+        // and nothing said so. CosmeticChecks is what finally noticed.
+        { "wanderers_cape",      "flag_triangle" },        // TODO(art): a real cape
         { "heralds_tabard",      "Scroll" },               // TODO(art): heraldry
         { "festival_shirt",      "Hat 1-1" },              // TODO(art): as linen_shirt, a hat stands in
+
+        // ── The anvil's cosmetics ─────────────────────────────────────────────
+        //
+        // The other half of the same gap. These four are CRAFTED rather than bought,
+        // which made them easy to miss when the shop's six were fixed -- and a player
+        // who spends 1,500 bronze bars on a grey square has been treated worse than
+        // one who spent relic coins on it.
+        //
+        // Same two dead ends apply as above and are not worth rediscovering: the
+        // Cartoon FX aura textures are plain Texture2Ds, and the SPUM cloth sheets
+        // are multi-sprite atlases. Neither binds here.
+        { "smiths_apron",        "armor_icon" },           // a chest piece; closest thing to an apron
+        { "tinplate_tabard",     "banner_hanging" },       // a hanging panel of cloth
+        { "chainlink_drape",     "banner_classic_curtain" },
+        { "emberforge_aura",     "campfire" },             // TODO(art): embers, not a camp fire
     };
 
     /// <summary>skillId → sprite file name. All 13 skills, not just the 8 that had icons.</summary>

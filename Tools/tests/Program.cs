@@ -60,6 +60,8 @@ internal static class Program
 
         IdleExplorersTests.TelemetryChecks.Run(Check);
 
+        IdleExplorersTests.CosmeticChecks.Run(Check, RepoRoot());
+
         AssetChecks.RigMasking(Check, RepoRoot());
         AssetChecks.MapCameras(Check, RepoRoot());
 

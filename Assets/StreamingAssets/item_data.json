@@ -1050,7 +1050,8 @@
     "stackable": false,
     "levelReq": 0,
     "sourceSkill": "",
-    "equipSlot": "tabard"
+    "equipSlot": "tabard",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_7"
   },
   {
     "id": "emberlight_aura",
@@ -1061,7 +1062,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "aura",
-    "equipSpriteAddress": "VFX/aura_ember"
+    "equipSpriteAddress": "aura_ember"
   },
   {
     "id": "ring_of_the_glutton",
@@ -1374,7 +1375,7 @@
     "levelReq": 1,
     "sourceSkill": "smithing",
     "equipSlot": "shirt",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_6"
   },
   {
     "id": "tinplate_tabard",
@@ -1385,7 +1386,7 @@
     "levelReq": 1,
     "sourceSkill": "smithing",
     "equipSlot": "tabard",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_4"
   },
   {
     "id": "chainlink_drape",
@@ -1396,7 +1397,7 @@
     "levelReq": 1,
     "sourceSkill": "smithing",
     "equipSlot": "cape",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_2"
   },
   {
     "id": "emberforge_aura",
@@ -1407,6 +1408,7 @@
     "levelReq": 1,
     "sourceSkill": "smithing",
     "equipSlot": "aura",
+    "equipSpriteAddress": "aura_forge",
     "effects": [
       {
         "trigger": "onEquipPassive",
@@ -1425,6 +1427,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "aura",
+    "equipSpriteAddress": "aura_starlit",
     "effects": [
       {
         "trigger": "onEquipPassive",
@@ -1443,6 +1446,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "aura",
+    "equipSpriteAddress": "aura_gilded",
     "effects": [
       {
         "trigger": "onEquipPassive",
@@ -1461,6 +1465,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "aura",
+    "equipSpriteAddress": "aura_spectral",
     "effects": [
       {
         "trigger": "onEquipPassive",
@@ -1479,7 +1484,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "cape",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_3"
   },
   {
     "id": "heralds_tabard",
@@ -1490,7 +1495,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "tabard",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_6"
   },
   {
     "id": "festival_shirt",
@@ -1501,7 +1506,7 @@
     "levelReq": 0,
     "sourceSkill": "",
     "equipSlot": "shirt",
-    "equipSpriteAddress": ""
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_9"
   },
   {
     "id": "starter_warrior_tunic",

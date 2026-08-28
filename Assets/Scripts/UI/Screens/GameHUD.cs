@@ -50,6 +50,10 @@ public class GameHUD : UIScreen
         BuildBottomBar();
         BuildAutoBanner();
         BuildChatBar();
+
+        // Last, so it draws over everything the HUD just built. A tooltip that appears
+        // behind the ability bar is a tooltip nobody can read.
+        _worldTip = ItemTooltip.CreateCard(transform);
     }
 
     public override void OnShow()
@@ -124,6 +128,8 @@ public class GameHUD : UIScreen
     {
         HandleChatKeys();
         UpdateAbilityCooldowns();
+        UpdateWorldHover();
+        UpdateChatWheel();
     }
 
     // ── Corner ────────────────────────────────────────────────────────────────
@@ -515,6 +521,184 @@ public class GameHUD : UIScreen
     // instead — one place to look, and nothing occupying screen space to be toggled
     // off. See MenuModal.BuildActivityBlock.
 
+    // ── Hovering something in the world ───────────────────────────────────────
+
+    private ItemTooltip.Card _worldTip;
+    private SkillNodeController _hoveredNode;
+    private float _nextHoverProbeAt;
+
+    /// <summary>
+    /// How often the world under the cursor is re-read.
+    ///
+    /// A raycast per frame for a tooltip is a raycast per frame nobody asked for, and
+    /// a tenth of a second is faster than a pointer can settle on something anyway.
+    /// The CARD still follows the mouse every frame — only the question of what is
+    /// under it is throttled.
+    /// </summary>
+    private const float HoverProbeSeconds = 0.1f;
+
+    /// <summary>
+    /// Describes whatever the pointer is resting on out in the world.
+    ///
+    /// ══ WHY THE HUD OWNS THIS ═════════════════════════════════════════════════
+    ///
+    /// The obvious home is a component on each node, which is also how it would end
+    /// up drawing a different tooltip from every other hover in the game. Every
+    /// hover card in the project comes from ItemTooltip so they all look and behave
+    /// the same, and ItemTooltip needs a canvas to live on. The HUD is the canvas
+    /// that is up while the player is in the world.
+    ///
+    /// ══ WHY STATIONS NEEDED IT MOST ═══════════════════════════════════════════
+    ///
+    /// A rock says what it is by looking like a rock. An anvil is a shape in a camp
+    /// that turns out, when you walk to it, to be a menu of eleven recipes — and
+    /// nothing on the way there tells you whether the one you want is on it.
+    /// </summary>
+    private void UpdateWorldHover()
+    {
+        if (_worldTip?.Root == null) return;
+
+        var mouse = Mouse.current;
+
+        // No pointer at all (a gamepad, a touch device): nothing hovers, and the card
+        // must not be left on screen from the last mouse the machine had.
+        if (mouse == null || Camera.main == null)
+        {
+            HideWorldHover();
+            return;
+        }
+
+        Vector2 screenPos = mouse.position.ReadValue();
+
+        // Over a panel, a button or the chat box. The world is not what is being
+        // pointed at, and the UI has its own tooltips.
+        if (EventSystem.current != null &&
+            EventSystem.current.IsPointerOverGameObject(mouse.deviceId))
+        {
+            HideWorldHover();
+            return;
+        }
+
+        if (Time.unscaledTime >= _nextHoverProbeAt)
+        {
+            _nextHoverProbeAt = Time.unscaledTime + HoverProbeSeconds;
+            _hoveredNode      = ProbeForNode(screenPos);
+        }
+
+        if (_hoveredNode == null || _hoveredNode.Entry == null)
+        {
+            HideWorldHover();
+            return;
+        }
+
+        ItemTooltip.ShowText(_worldTip, (RectTransform)transform,
+                             NodeTitle(_hoveredNode), NodeBody(_hoveredNode), screenPos);
+    }
+
+    private void HideWorldHover()
+    {
+        _hoveredNode = null;
+        _worldTip?.Hide();
+    }
+
+    /// <summary>What the cursor is over, or null. Triggers included — a station's
+    /// collider may be one, and the default query would look straight through it.</summary>
+    private static SkillNodeController ProbeForNode(Vector2 screenPos)
+    {
+        Ray ray = Camera.main.ScreenPointToRay(screenPos);
+
+        return Physics.Raycast(ray, out RaycastHit hit, Mathf.Infinity,
+                               Physics.DefaultRaycastLayers, QueryTriggerInteraction.Collide)
+            ? hit.collider.GetComponentInParent<SkillNodeController>()
+            : null;
+    }
+
+    private static string NodeTitle(SkillNodeController node)
+    {
+        var entry = node.Entry;
+
+        if (node.IsStation)
+            return entry.stationType switch
+            {
+                "campfire" => "Campfire",
+                "anvil"    => "Anvil",
+                "forge"    => "Forge",
+                "bank"     => "Bank Chest",
+                _          => "Workstation",
+            };
+
+        var yielded = GameManager.Content?.GetItem(entry.targetItemId);
+        return yielded?.DisplayName ?? entry.nodeId;
+    }
+
+    /// <summary>
+    /// The useful half: what working here actually produces.
+    ///
+    /// A station lists what it can make and marks what the player's level does not
+    /// reach yet, because "come back at Smithing 30" is the single most useful thing
+    /// a crafting station can say. A gathering node states its yield and its rate.
+    /// </summary>
+    private static string NodeBody(SkillNodeController node)
+    {
+        var entry = node.Entry;
+        var lines = new List<string>();
+
+        string skillName = GameManager.Content?.GetSkill(entry.skillId)?.DisplayName ?? entry.skillId;
+
+        if (node.IsStation)
+        {
+            if (entry.stationType == "bank")
+                return "Stores what you are not carrying.";
+
+            int level = GameManager.Skills?.GetSkillLevel(entry.skillId) ?? 1;
+            var recipes = GameManager.Content?.GetRecipesForStation(entry.stationType)
+                          ?? new List<CraftRecipe>();
+
+            lines.Add($"{skillName}  ·  Lv. {level}");
+
+            if (recipes.Count == 0)
+            {
+                lines.Add("Nothing can be made here yet.");
+                return string.Join("\n", lines);
+            }
+
+            lines.Add("");
+
+            // Capped, because the forge offers enough recipes to run a card off the
+            // bottom of the screen. The count that follows is what stops the cap
+            // reading as "this is everything".
+            const int Shown = 6;
+
+            for (int i = 0; i < recipes.Count && i < Shown; i++)
+            {
+                CraftRecipe recipe = recipes[i];
+
+                var output = GameManager.Content?.GetItem(recipe.outputItemId);
+                string name = output?.DisplayName ?? recipe.DisplayName;
+
+                lines.Add(level >= recipe.reqSkillLevel
+                              ? $"· {name}"
+                              : $"· {name}  (needs Lv. {recipe.reqSkillLevel})");
+            }
+
+            if (recipes.Count > Shown) lines.Add($"…and {recipes.Count - Shown} more.");
+
+            return string.Join("\n", lines);
+        }
+
+        var item = GameManager.Content?.GetItem(entry.targetItemId);
+
+        lines.Add($"{skillName}  ·  needs Lv. {Mathf.Max(1, entry.reqSkillLevel)}");
+        lines.Add("");
+        lines.Add($"Yields {item?.DisplayName ?? entry.targetItemId} " +
+                  $"every {node.SecondsPerAction:0.0}s.");
+
+        if (!string.IsNullOrEmpty(entry.specialLabel) && entry.specialChance > 0f)
+            lines.Add($"Sometimes {entry.specialLabel} ({entry.specialChance * 100f:0.#}%).");
+
+        return string.Join("\n", lines);
+    }
+
     // ── Chat ──────────────────────────────────────────────────────────────────
 
     private TMP_InputField _chatField;
@@ -564,6 +748,11 @@ public class GameHUD : UIScreen
         foreach (var image in scroll.GetComponentsInChildren<Image>(true))
             image.raycastTarget = false;
 
+        // AFTER the sweep above, deliberately: the scrollbar is the one part of this
+        // window that MUST take the pointer, and building it first would have its
+        // raycast turned off by the very next line.
+        BuildChatScrollbar(scroll, theme);
+
         // ── The box ───────────────────────────────────────────────────────────
         _chatField = UIFactory.InputField(transform, "Press Enter to chat  (/p /g /w)",
                                            width: 0f, height: 34f);
@@ -583,6 +772,132 @@ public class GameHUD : UIScreen
         // character and the log outlives it, so history is redrawn rather than lost.
         foreach (var line in ChatLog.Lines) AppendLine(line);
         ScrollToBottom();
+    }
+
+    /// <summary>
+    /// The bar down the right-hand edge of the chat window.
+    ///
+    /// ══ WHY THERE WAS NO WAY TO READ BACK ═════════════════════════════════════
+    ///
+    /// The log has always been a ScrollRect, and it has never been scrollable. Two
+    /// reasons, both invisible: there was no scrollbar, and the sweep above turns off
+    /// raycasting on every Image in the window — including the viewport — so the wheel
+    /// had nothing to land on and ScrollRect never heard it either.
+    ///
+    /// That is most of what "the chat log seems out of sync" was. It was not showing
+    /// the wrong lines; it was showing only the newest ones, permanently, with no way
+    /// to look at the rest.
+    ///
+    /// The bar is narrow on purpose. Everything else in this window is deliberately
+    /// click-through so the log does not take a fifth of the screen away from
+    /// click-to-move, and this is the smallest exception that gives the player a
+    /// handle to drag.
+    /// </summary>
+    private void BuildChatScrollbar(ScrollRect scroll, UITheme theme)
+    {
+        var barGo = new GameObject("ChatScrollbar", typeof(RectTransform), typeof(Image));
+        barGo.transform.SetParent(scroll.transform, false);
+
+        var barRt = barGo.GetComponent<RectTransform>();
+
+        // A strip on the inner right edge, full height.
+        barRt.anchorMin        = new Vector2(1f, 0f);
+        barRt.anchorMax        = new Vector2(1f, 1f);
+        barRt.pivot            = new Vector2(1f, 0.5f);
+        barRt.sizeDelta        = new Vector2(ScrollbarWidth, 0f);
+        barRt.anchoredPosition = Vector2.zero;
+
+        var track = barGo.GetComponent<Image>();
+        track.color         = new Color(0f, 0f, 0f, 0.35f);
+        track.raycastTarget = true;
+
+        var handleGo = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+        handleGo.transform.SetParent(barGo.transform, false);
+
+        var handleRt = handleGo.GetComponent<RectTransform>();
+        handleRt.sizeDelta = Vector2.zero;
+
+        var handle = handleGo.GetComponent<Image>();
+        handle.color         = theme.textSecondary;
+        handle.raycastTarget = true;
+
+        var bar = barGo.AddComponent<Scrollbar>();
+        bar.direction     = Scrollbar.Direction.BottomToTop;
+        bar.handleRect    = handleRt;
+        bar.targetGraphic = handle;
+
+        scroll.verticalScrollbar = bar;
+
+        // AutoHide, not Permanent: an empty log with a full-height bar down the side
+        // reads as a broken widget. It appears the moment there is something to
+        // scroll back to.
+        scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+    }
+
+    /// <summary>Narrow enough not to reclaim the window's click-through, wide enough to grab.</summary>
+    private const float ScrollbarWidth = 10f;
+
+    /// <summary>
+    /// The mouse wheel, read directly rather than through the EventSystem.
+    ///
+    /// ScrollRect's own wheel handling needs a raycast target under the pointer, and
+    /// giving the log one would put a click-eating rectangle over a fifth of the
+    /// screen — which is the exact thing the window was built to avoid. Reading the
+    /// device and testing the rectangle costs nothing and blocks nothing.
+    /// </summary>
+    private void UpdateChatWheel()
+    {
+        if (_chatScroll == null) return;
+
+        var mouse = Mouse.current;
+        if (mouse == null) return;
+
+        float wheel = mouse.scroll.ReadValue().y;
+        if (Mathf.Abs(wheel) < 0.01f) return;
+
+        // Screen-space overlay, so the canvas camera is null here.
+        if (!RectTransformUtility.RectangleContainsScreenPoint(
+                (RectTransform)_chatScroll.transform, mouse.position.ReadValue(), null))
+            return;
+
+        float hidden = ContentOverflow();
+        if (hidden <= 1f) return;
+
+        // The raw value is ±120 per notch on Windows and something else everywhere
+        // else, so only its SIGN is used and the step is ours.
+        float step = Mathf.Sign(wheel) * WheelStepPixels / hidden;
+
+        _chatScroll.verticalNormalizedPosition =
+            Mathf.Clamp01(_chatScroll.verticalNormalizedPosition + step);
+    }
+
+    /// <summary>How far one notch of the wheel moves the log, in pixels.</summary>
+    private const float WheelStepPixels = 70f;
+
+    /// <summary>How much taller the content is than the window showing it. Zero when it fits.</summary>
+    private float ContentOverflow()
+    {
+        if (_chatScroll?.content == null || _chatScroll.viewport == null) return 0f;
+
+        return Mathf.Max(0f, _chatScroll.content.rect.height - _chatScroll.viewport.rect.height);
+    }
+
+    /// <summary>
+    /// True when the newest line is on screen.
+    ///
+    /// The other half of "the chat log is out of sync": every new line yanked the view
+    /// back to the bottom, so reading back through a fight was impossible while
+    /// anything was still happening — and something is always still happening.
+    /// </summary>
+    private bool ChatIsAtBottom()
+    {
+        if (_chatScroll == null) return true;
+
+        // Nothing to scroll: the newest line is on screen by definition, and
+        // verticalNormalizedPosition is meaningless (and can be NaN) in that state.
+        if (ContentOverflow() <= 1f) return true;
+
+        return _chatScroll.verticalNormalizedPosition <= 0.02f;
     }
 
     /// <summary>One line in the window, coloured by what kind of line it is.</summary>
@@ -619,8 +934,14 @@ public class GameHUD : UIScreen
             return;
         }
 
+        // Asked BEFORE the line is added, because adding it is what makes the view no
+        // longer be at the bottom. A player who has scrolled back to read something
+        // keeps their place; one who is watching the newest line follows it.
+        bool following = ChatIsAtBottom();
+
         AppendLine(line);
-        ScrollToBottom();
+
+        if (following) ScrollToBottom();
     }
 
     /// <summary>

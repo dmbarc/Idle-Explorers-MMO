@@ -37,10 +37,24 @@ public static class VFXLibrarySetup
         { "lightning_ball", "CFXR3 Hit Electric C (Air)" },
         { "turret",         "CFXR3 LightGlow A (Loop)"   },
 
-        // Cosmetic auras — looping, so they persist while the item is worn
-        { "aura_ember",  "CFXR Fire"                   },
-        { "aura_runic",  "CFXR3 Magic Aura A (Runic)"  },
-        { "aura_glow",   "CFXR3 LightGlow A (Loop)"    },
+        // ── Cosmetic auras ────────────────────────────────────────────────────
+        //
+        // EVERY ONE OF THESE MUST LOOP. An aura is worn for as long as the item is
+        // equipped, and a one-shot effect plays for two seconds and then the player
+        // has paid relic coins for nothing. Checked against the prefab rather than
+        // guessed: a Cartoon FX prefab's particle systems carry `looping: 1`, and
+        // "CFXR4 Sword Trail FIRE (360 Spiral)" was the obvious pick for the forge
+        // aura and is not looping, which is why it is not here.
+        //
+        // One prefab per aura, so five paid cosmetics do not turn out to be the same
+        // effect three times.
+        { "aura_ember",    "CFXR Fire"                   },
+        { "aura_runic",    "CFXR3 Magic Aura A (Runic)"  },
+        { "aura_glow",     "CFXR3 LightGlow A (Loop)"    },
+        { "aura_forge",    "CFXR2 Firewall A"            },
+        { "aura_starlit",  "CFXR4 Falling Stars"         },
+        { "aura_gilded",   "CFXR2 Shiny Item (Loop)"     },
+        { "aura_spectral", "CFXR3 Ambient Glows"         },
     };
 
     [MenuItem("Idle Explorers/Rebuild VFX Library")]

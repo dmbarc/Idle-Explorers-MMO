@@ -464,6 +464,11 @@ public class PlayerController : MonoBehaviour
         foreach (var item in Object.FindObjectsByType<DropPickup>(FindObjectsInactive.Exclude))
         {
             if (item == null || string.IsNullOrEmpty(item.itemId)) continue;
+
+            // Something the player put down on purpose. Auto-mode walking over to
+            // collect it again is what made dropping an item look like it had failed.
+            if (item.RequiresManualPickup) continue;
+
             if (inv != null && !inv.CanAddItem(item.itemId)) continue;
             if (_skipItemUntil.TryGetValue(item, out float until) && Time.time < until) continue;
 
@@ -884,6 +889,31 @@ public class PlayerController : MonoBehaviour
         if (portal != null)
         {
             PortalGroupModal.Show(portal);
+            return;
+        }
+
+        // The way out, which only exists once a boss has been beaten. Walking into it
+        // works too -- this is for the player who can see it across the arena and
+        // would rather click than steer.
+        var exit = hit.collider.GetComponentInParent<ExitPortal>();
+
+        if (exit != null)
+        {
+            exit.Enter();
+            return;
+        }
+
+        // ══ A CLICK IS HOW YOU TAKE BACK SOMETHING YOU PUT DOWN ══════════════
+        //
+        // Auto-pickup ignores player drops on purpose, so without this there would be
+        // no way at all to retrieve one. Clicking any drop works, not just a manual
+        // one -- a player who can see loot and clicks it should get it, and refusing
+        // ordinary loot here would be a rule with no reason behind it.
+        var drop = hit.collider.GetComponentInParent<DropPickup>();
+
+        if (drop != null)
+        {
+            SwitchToItem(drop);
             return;
         }
 

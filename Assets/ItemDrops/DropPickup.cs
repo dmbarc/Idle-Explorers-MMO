@@ -35,6 +35,26 @@ public class DropPickup : MonoBehaviour
     /// </summary>
     [System.NonSerialized] public int RecoveredDurability = -1;
 
+    /// <summary>
+    /// True for something the PLAYER put down, which must be clicked to be taken back.
+    ///
+    /// ══ WHY DROPPING SOMETHING HAD NO EFFECT ══════════════════════════════════
+    ///
+    /// Dropping an item put it on the ground a step in front of the character, and
+    /// then auto-mode saw a piece of loot lying a step away and walked over and picked
+    /// it up. Every deliberate drop was undone within a second or two, which made the
+    /// action look broken rather than instant.
+    ///
+    /// The distinction is intent, so the flag records intent: loot the world produced
+    /// is fair game for auto-pickup, and something a player chose to put down is not
+    /// picked up again until they say so.
+    ///
+    /// NonSerialized deliberately -- this is a fact about how the drop came to exist,
+    /// not a property of the prefab, and a prefab that shipped with it set would make
+    /// every monster drop unpickupable.
+    /// </summary>
+    [System.NonSerialized] public bool RequiresManualPickup;
+
     [Header("Toss")]
     [Tooltip("Seconds the drop takes to arc from where it spawned to where it lands.")]
     public float tossDuration = 0.45f;
@@ -287,6 +307,11 @@ public class DropPickup : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (other == null || !other.CompareTag("Player")) return;
+
+        // Walking over something you deliberately put down is not asking for it back.
+        // Clicking it is — see TryCollect's caller in PlayerController.
+        if (RequiresManualPickup) return;
+
         TryCollect();
     }
 

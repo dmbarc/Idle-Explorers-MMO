@@ -528,7 +528,27 @@ public class BossController : MonoBehaviour
         // what the server granted, and the items arrive through the normal pickup
         // event as though they had been walked over.
         GameEvents.FireToast($"✦ {Data?.DisplayName} falls.", ChatTone.Good);
+
+        // ══ AND THE ROOM STOPS BEING A ONE-WAY DOOR ══════════════════════════
+        //
+        // Opened here rather than by a listener somewhere else, because this is the
+        // only place in the project that knows a boss has actually been beaten -- and
+        // a component subscribed to OnBossDefeated would have to exist in the arena
+        // scene, which is regenerated from a recipe and would lose it.
+        //
+        // Beside the corpse rather than at the entrance: that is where the player is
+        // standing, and an exit they have to go looking for is an exit that reads as
+        // the fight not having finished.
+        ExitPortal.Open(transform.position + ExitOffset,
+                        GameManager.StartingMapId,
+                        "Leave the Throne");
     }
+
+    /// <summary>
+    /// Where the exit opens relative to the corpse. Far enough that it does not stand
+    /// inside the King's own sprite, close enough to be plainly his.
+    /// </summary>
+    private static readonly Vector3 ExitOffset = new(3.5f, 0f, -3.5f);
 
     /// <summary>
     /// The fail condition: a clock, not player death.
