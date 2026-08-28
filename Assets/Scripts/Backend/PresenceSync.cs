@@ -41,6 +41,25 @@ namespace IdleExplorers.Backend
         private bool       _busy;
         private GameObject _localRig;
 
+        /// <summary>
+        /// What we said and have not yet sent.
+        ///
+        /// Queued rather than sent immediately, so a line rides the next presence poll
+        /// -- one round trip for position and speech, at the same rate, about the same
+        /// map. At worst it is two seconds late, which is a conversation rather than a
+        /// problem.
+        /// </summary>
+        private static readonly Queue<string> _pending = new();
+
+        /// <summary>
+        /// The last line drawn, per speaker.
+        ///
+        /// Every poll returns a WINDOW of recent chat, so the same line comes back
+        /// several times. Without this, a bubble would be re-raised on every poll and
+        /// never fade.
+        /// </summary>
+        private readonly Dictionary<string, long> _lastDrawn = new();
+
         /// <summary>Everybody currently drawn. Read by the inspect panel and the group screen.</summary>
         public static IReadOnlyCollection<RemotePlayerView> Others =>
             _instance != null ? _instance._views.Values : System.Array.Empty<RemotePlayerView>();
@@ -120,10 +139,15 @@ namespace IdleExplorers.Backend
 
                 Vector3 here = rig.transform.position;
 
-                PresenceSnapshot seen = await GameBackend.Current.ReportPresenceAsync(
-                    ServerState.CharacterId, mapId, here.x, here.z);
+                string say = _pending.Count > 0 ? _pending.Dequeue() : "";
 
-                if (seen != null) Reconcile(rig, seen.others);
+                PresenceSnapshot seen = await GameBackend.Current.ReportPresenceAsync(
+                    ServerState.CharacterId, mapId, here.x, here.z, say);
+
+                if (seen == null) return;
+
+                Reconcile(rig, seen.others);
+                Speak(rig, seen.chat);
             }
             catch (BackendException e)
             {
@@ -181,6 +205,56 @@ namespace IdleExplorers.Backend
                 if (!present.Contains(pair.Key)) departed.Add(pair.Key);
 
             foreach (string id in departed) Remove(id);
+        }
+
+        /// <summary>
+        /// Queues something to say. It goes out with the next position report.
+        /// </summary>
+        public static void Say(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return;
+
+            // Bounded, so a client that queues faster than it polls cannot grow this
+            // without limit -- and because nobody needs a backlog of their own
+            // shouting delivered a minute later.
+            if (_pending.Count >= 8) _pending.Dequeue();
+
+            _pending.Enqueue(message.Trim());
+        }
+
+        /// <summary>
+        /// Raises a bubble over whoever said something, ourselves included.
+        ///
+        /// ══ WHY OUR OWN LINE COMES BACK FROM THE SERVER ══════════════════════
+        ///
+        /// Rather than being drawn the moment it is typed. One code path draws every
+        /// bubble, so our view of a conversation cannot drift from the view other
+        /// people have of it -- and if a line never reaches the server, we do not see
+        /// it either, which is the honest outcome.
+        /// </summary>
+        private void Speak(GameObject rig, ChatLine[] lines)
+        {
+            if (lines == null) return;
+
+            foreach (ChatLine line in lines)
+            {
+                if (line == null || string.IsNullOrEmpty(line.body)) continue;
+
+                // The window returns the same line on every poll until it ages out.
+                if (_lastDrawn.TryGetValue(line.characterId, out long seen) && seen >= line.id)
+                    continue;
+
+                _lastDrawn[line.characterId] = line.id;
+
+                Transform speaker = line.characterId == ServerState.CharacterId
+                    ? rig.transform
+                    : Find(line.characterId)?.transform;
+
+                if (speaker != null) ChatBubble.Say(speaker, line.body);
+
+                // Into the log as well, so somebody who was looking away can read back.
+                ChatLog.Say($"{line.name}: {line.body}", ChatTone.Local);
+            }
         }
 
         private void Remove(string characterId)

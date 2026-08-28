@@ -90,8 +90,8 @@ namespace IdleExplorers.Backend
         /// Straight through to the server. There is no local twin of other people.
         /// </summary>
         public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
-                                                               float x, float z) =>
-            _remote.ReportPresenceAsync(characterId, mapId, x, z);
+                                                               float x, float z, string say) =>
+            _remote.ReportPresenceAsync(characterId, mapId, x, z, say);
 
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             _remote.GetPartyAsync(characterId);

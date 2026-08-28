@@ -71,9 +71,9 @@ namespace IdleExplorers.Backend
                                            new AppearanceBody { appearance = appearance });
 
         public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
-                                                               float x, float z) =>
+                                                               float x, float z, string say) =>
             PostAsync<PresenceSnapshot>($"/presence/{characterId}",
-                                        new PresenceBody { mapId = mapId, x = x, z = z });
+                                        new PresenceBody { mapId = mapId, x = x, z = z, say = say });
 
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             GetAsync<PartySnapshot>($"/party/{characterId}");
@@ -363,7 +363,7 @@ namespace IdleExplorers.Backend
         [Serializable] private class PackBody            { public string packId; }
         [Serializable] private class ProductBody         { public string productId; }
         [Serializable] private class ItemBody            { public string itemId; }
-        [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; }
+        [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; public string say; }
 
         /// <summary>For calls whose answer nobody reads.</summary>
         private sealed class EmptyResponse { }

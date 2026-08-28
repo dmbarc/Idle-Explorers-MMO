@@ -49,7 +49,7 @@ public static class GoblinCampSetup
         "C...TTTTTTT..............RR1RR.C",
         "C..TTT3TTTT..............RRRRR.C",
         "C...TTTTTT....g.........RR2RR..C",
-        "C....TTT.................RRR..XC",
+        "C....TTT.................RRR...C",
         "C.........ffff..ffff...........C",
         "C.........f........f....~~~~...C",
         "C..g......f...t....f...~~~~~~..C",
@@ -63,7 +63,7 @@ public static class GoblinCampSetup
         "C....ccc........ccc......g.....C",
         "C....ccc........ccc............C",
         "C....ccc........ccc.......B....C",
-        "C......s.........s.............C",
+        "C......s.........s.......X.....C",
         "C..FFF...............MM........C",
         "C.FFFFF..............MMM.......C",
         "C..FFF......S.........M........C",
@@ -91,9 +91,16 @@ public static class GoblinCampSetup
     /// <summary>
     /// The way to the Goblin King, marked 'X'.
     ///
-    /// Placed in the north-east past the rocks rather than beside the spawn, so that
-    /// finding it is a walk. A boss door in the first three seconds of a new game
-    /// reads as content the player has already missed.
+    /// ══ WHERE IT IS, AND WHY IT MOVED ═══════════════════════════════
+    ///
+    /// It used to stand in the north-east corner INSIDE the rock field, on the
+    /// reasoning that finding it should be a walk. Both halves were right and the
+    /// result was wrong: the model is a tall grey stone, and a tall grey stone among
+    /// nine kinds of rock is not findable at all. Players reported the portal missing.
+    ///
+    /// Now on open ground to the south, past the goblin camp -- still a walk from the
+    /// compound, and nothing else nearby to be mistaken for. BossPortalController adds
+    /// a beam and a light at runtime so it reads as a door rather than as scenery.
     /// </summary>
     private static readonly Dictionary<char, GridMapSetup.PortalSpec> Portals = new()
     {

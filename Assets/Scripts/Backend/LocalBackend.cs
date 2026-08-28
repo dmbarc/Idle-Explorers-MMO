@@ -108,8 +108,13 @@ namespace IdleExplorers.Backend
         // callers draw an empty world and an empty group instead of branching on a
         // mode they should not have to know about.
         public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
-                                                               float x, float z) =>
-            Completed(new PresenceSnapshot { mapId = mapId, others = System.Array.Empty<RemotePlayer>() });
+                                                               float x, float z, string say) =>
+            Completed(new PresenceSnapshot
+            {
+                mapId  = mapId,
+                others = System.Array.Empty<RemotePlayer>(),
+                chat   = System.Array.Empty<ChatLine>(),
+            });
 
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId)   => Completed(Alone());
         public Awaitable<PartySnapshot> FormPartyAsync(string characterId)  => Completed(Alone());

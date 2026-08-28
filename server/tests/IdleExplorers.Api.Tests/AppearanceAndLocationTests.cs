@@ -178,6 +178,64 @@ public class AppearanceAndLocationTests(ApiFixture api)
         Assert.Equal(HttpStatusCode.NotFound, where.StatusCode);
     }
 
+    /// <summary>
+    /// A new character is not naked.
+    ///
+    /// ══ WHY THE SERVER DOES THIS ════════════════════════════════════════
+    ///
+    /// A client that granted its own starting gear is a client that can grant itself
+    /// anything, which is the whole thing this architecture removed. It also has to
+    /// happen inside the creation transaction, or a rollback leaves clothes behind for
+    /// a character that does not exist.
+    /// </summary>
+    [SkippableFact]
+    public async Task ANewCharacterStartsDressed()
+    {
+        RequireDatabase();
+
+        var player = await api.NewPlayerAsync();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/character/")
+        {
+            Content = JsonContent.Create(new { name = "Clothed", classId = "warrior" }),
+        };
+
+        request.Headers.Add("Idempotency-Key", Player.NewKey());
+
+        HttpResponseMessage created = await player.Client.SendAsync(request);
+
+        created.EnsureSuccessStatusCode();
+
+        Guid characterId = JsonDocument.Parse(await created.Content.ReadAsStringAsync())
+                                       .RootElement.GetProperty("characterId").GetGuid();
+
+        JsonElement sheet = await Read(player, $"/character/{characterId}");
+
+        int worn = sheet.GetProperty("equipment").GetArrayLength();
+
+        Assert.True(worn >= 3, $"a new warrior is wearing {worn} pieces");
+    }
+
+    /// <summary>A class with no authored set is still creatable, just barer.</summary>
+    [SkippableFact]
+    public async Task AClassWithNoSetIsStillCreatable()
+    {
+        RequireDatabase();
+
+        var player = await api.NewPlayerAsync();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/character/")
+        {
+            Content = JsonContent.Create(new { name = "Bare", classId = "" }),
+        };
+
+        request.Headers.Add("Idempotency-Key", Player.NewKey());
+
+        HttpResponseMessage created = await player.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+    }
+
     private static Task<Guid> Create(Player player, string name) =>
         OwnershipTests.CreateCharacter(player, name);
 

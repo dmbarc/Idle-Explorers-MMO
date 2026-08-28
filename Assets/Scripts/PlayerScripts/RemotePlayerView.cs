@@ -147,11 +147,21 @@ public class RemotePlayerView : MonoBehaviour
             _plate.SetRole(NamePlate.Role.OtherPlayer);
         }
 
-        // The look, if the server had one. An empty appearance means "no opinion" --
-        // a character created before the column existed -- and writing it over the
-        // clone would strip the rig back to nothing.
-        if (data.appearance is { IsEmpty: false })
-            SpumAppearance.Apply(transform, data.appearance);
+        // ══ NEVER LEAVE THEM WEARING YOUR FACE ═════════════════════════════
+        //
+        // This rig is a CLONE of the local player, so skipping the appearance does not
+        // leave it blank -- it leaves it looking exactly like you. Walking up to
+        // somebody and seeing a copy of yourself standing on top of them is precisely
+        // that, and it happens to every character created before the appearance column
+        // existed, because their stored look is empty.
+        //
+        // A default face is not right either, but it is somebody else's, which is the
+        // property that matters. The real repair is the backfill in ServerState, which
+        // gives those characters a stored appearance the first time they play.
+        SpumAppearance.Apply(transform,
+                             data.appearance is { IsEmpty: false }
+                                 ? data.appearance
+                                 : SpumAppearance.Default());
     }
 
     private void Update()

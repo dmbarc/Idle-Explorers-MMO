@@ -44,8 +44,79 @@ public class BossPortalController : MonoBehaviour
     private void Start()
     {
         _label = GetComponentInChildren<TMPro.TMP_Text>();
+
+        AddBeacon();
         Refresh();
     }
+
+    /// <summary>
+    /// Makes the portal look like a door rather than like scenery.
+    ///
+    /// ══ WHY THIS EXISTS ════════════════════════════════════════════════════
+    ///
+    /// The portal is a tall grey stone, and it stood in a field of nine other kinds of
+    /// rock. Players reported it missing from the map -- not hard to find, missing.
+    /// Moving it onto open ground fixed half of that; the other half is that nothing
+    /// about it said "this is the way in".
+    ///
+    /// Built in code for the same reason DamageNumber and NamePlate are: no prefab, no
+    /// scene setup, and it survives the editor regenerating the map -- which it would
+    /// have to, because the map IS regenerated from a recipe.
+    /// </summary>
+    private void AddBeacon()
+    {
+        // ══ A COLUMN OF LIGHT ═════════════════════════════════════════════════
+        //
+        // Unlit and transparent so it glows rather than being shaded like rock, and
+        // tall enough to clear the treeline -- the point is to be visible from across
+        // the map, not to decorate the stone.
+        var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+
+        beam.name = "PortalBeam";
+        beam.transform.SetParent(transform, false);
+        beam.transform.localPosition = Vector3.up * BeaconHeight * 0.5f;
+        beam.transform.localScale    = new Vector3(0.9f, BeaconHeight * 0.5f, 0.9f);
+
+        // No collider: this is something to see, never something to walk into or to
+        // catch a click that belongs to the portal itself.
+        Destroy(beam.GetComponent<Collider>());
+
+        var renderer = beam.GetComponent<Renderer>();
+
+        // Unlit, because a lit transparent cylinder in an overcast scene reads as a
+        // grey pipe. Falls back to whatever the pipeline gives rather than failing:
+        // a beacon that is the wrong colour still marks the spot.
+        Shader unlit = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+
+        if (unlit != null) renderer.material = new Material(unlit);
+
+        renderer.material.color = BeaconColor;
+        renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+        // ══ AND SOMETHING THE EYE CATCHES AT NIGHT ════════════════════════════
+        var glow = new GameObject("PortalGlow");
+
+        glow.transform.SetParent(transform, false);
+        glow.transform.localPosition = Vector3.up * 1.5f;
+
+        var light = glow.AddComponent<Light>();
+
+        light.type      = LightType.Point;
+        light.color     = BeaconColor;
+        light.range     = 14f;
+        light.intensity = 3.5f;
+    }
+
+    /// <summary>How far the beam reaches. Chosen to clear the treeline, not the stone.</summary>
+    private const float BeaconHeight = 14f;
+
+    /// <summary>
+    /// Violet, and deliberately a colour nothing else in the camp uses.
+    ///
+    /// The grass is green, the rocks grey, the fires orange. A beacon that shares a
+    /// hue with any of them is a beacon somebody has to look for.
+    /// </summary>
+    private static readonly Color BeaconColor = new(0.62f, 0.36f, 1f, 0.40f);
 
     private void OnEnable()  => GameEvents.OnKillCountChanged += OnKillsChanged;
     private void OnDisable() => GameEvents.OnKillCountChanged -= OnKillsChanged;

@@ -61,7 +61,7 @@ namespace IdleExplorers.Backend
         /// invisible to everybody or blind to everybody.
         /// </summary>
         Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
-                                                        float x, float z);
+                                                        float x, float z, string say);
 
         /// <summary>The group this character is in, or an empty one.</summary>
         Awaitable<PartySnapshot> GetPartyAsync(string characterId);
@@ -351,8 +351,26 @@ namespace IdleExplorers.Backend
     [Serializable]
     public class PresenceSnapshot
     {
-        public string        mapId;
+        public string         mapId;
         public RemotePlayer[] others;
+
+        /// <summary>
+        /// What has been said on this map recently, including our own lines.
+        ///
+        /// Our own come back too so the bubble over our head is drawn from the same
+        /// answer everybody else's is -- one code path, and no way for our view of a
+        /// conversation to drift from the view other people have of it.
+        /// </summary>
+        public ChatLine[]     chat;
+    }
+
+    [Serializable]
+    public class ChatLine
+    {
+        public long   id;
+        public string characterId;
+        public string name;
+        public string body;
     }
 
     /// <summary>

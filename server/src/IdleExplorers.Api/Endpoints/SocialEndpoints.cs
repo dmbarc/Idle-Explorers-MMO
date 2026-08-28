@@ -31,6 +31,24 @@ namespace IdleExplorers.Api.Endpoints;
 /// </summary>
 public static class SocialEndpoints
 {
+    /// <summary>
+    /// The longest thing anybody can say.
+    ///
+    /// Enforced HERE, not in the input field. A client can put anything in that field
+    /// and it is shown to other people; a cap the client applies protects nobody from
+    /// a client that has removed it.
+    /// </summary>
+    public const int MaxSayLength = 140;
+
+    /// <summary>
+    /// How far back a presence poll looks for chat.
+    ///
+    /// Comfortably longer than the poll interval, so nothing said between two polls is
+    /// missed -- and short enough that somebody arriving does not get a wall of
+    /// backlog. Lines older than this are still in the table; they are simply not new.
+    /// </summary>
+    public const double ChatWindowSeconds = 12d;
+
     public static void Map(WebApplication app)
     {
         MapPresence(app);
@@ -80,6 +98,26 @@ public static class SocialEndpoints
                 """,
                 null, characterId, accountId.Value, mapId, x, z, now);
 
+            // ══ SAYING SOMETHING ═════════════════════════════════════════════
+            //
+            // Trimmed and capped here rather than trusted. A client can put anything
+            // in this field and it is shown to other people, so the length limit is
+            // the server's -- a client-side cap protects nobody from a client that
+            // does not have one.
+            string said = (request.Say ?? "").Trim();
+
+            if (said.Length > MaxSayLength) said = said[..MaxSayLength];
+
+            if (said.Length > 0)
+            {
+                await connection.ExecuteAsync(
+                    """
+                    insert into chat_line (character_id, map_id, body, said_at)
+                    values ($1, $2, $3, $4);
+                    """,
+                    null, characterId, mapId, said, now);
+            }
+
             var others = new List<object>();
 
             // Everybody else on this map whose row is recent enough to believe. The
@@ -126,7 +164,43 @@ public static class SocialEndpoints
                 }
             }
 
-            return Results.Ok(new { mapId, others = others.ToArray() });
+            // ══ WHAT WAS SAID HERE RECENTLY ═══════════════════════════════════
+            //
+            // Everything from the last few seconds, INCLUDING the caller's own line.
+            // Their own bubble is drawn from the same answer everybody else's is, so
+            // there is one code path and no way for their view of a conversation to
+            // drift from the view other people have of it.
+            var chat = new List<object>();
+
+            DateTimeOffset chatSince = now.AddSeconds(-ChatWindowSeconds);
+
+            await using (var command = connection.Sql(
+                """
+                select c.id, c.character_id, ch.name, c.body, c.said_at
+                from chat_line c
+                join character ch on ch.id = c.character_id
+                where c.map_id = $1 and c.said_at >= $2
+                order by c.id
+                limit 64;
+                """,
+                null, mapId, chatSince))
+            {
+                await using var reader = await command.ExecuteReaderAsync(http.RequestAborted);
+
+                while (await reader.ReadAsync(http.RequestAborted))
+                {
+                    chat.Add(new
+                    {
+                        id          = reader.GetInt64(0),
+                        characterId = reader.GetGuid(1),
+                        name        = reader.GetString(2),
+                        body        = reader.GetString(3),
+                        saidAt      = reader.GetFieldValue<DateTimeOffset>(4),
+                    });
+                }
+            }
+
+            return Results.Ok(new { mapId, others = others.ToArray(), chat = chat.ToArray() });
         });
     }
 
@@ -374,5 +448,12 @@ public static class SocialEndpoints
             detail:     "That character does not exist, or does not belong to you.",
             statusCode: StatusCodes.Status404NotFound);
 
-    public sealed record PresenceRequest(string? MapId, float X, float Z);
+    /// <summary>
+    /// Where I am, and optionally what I just said.
+    ///
+    /// Say rides along with the position because they happen at the same rate about
+    /// the same map -- a separate endpoint would double the traffic to deliver a
+    /// sentence a moment later, and would let a client report one without the other.
+    /// </summary>
+    public sealed record PresenceRequest(string? MapId, float X, float Z, string? Say);
 }

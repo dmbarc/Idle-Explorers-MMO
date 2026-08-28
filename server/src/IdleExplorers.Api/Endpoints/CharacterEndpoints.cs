@@ -108,6 +108,9 @@ public static class CharacterEndpoints
                 // The funnel starts here, and only the server can say it started. In
                 // the same transaction as the insert, so a rolled-back creation cannot
                 // leave a character in the funnel that no table has ever heard of.
+                await DressAsync(connection, tx, accountId.Value, characterId, classId,
+                                 content, http.RequestAborted);
+
                 await TelemetryEndpoints.RecordAsync(
                     connection, tx, accountId.Value, characterId,
                     TelemetryEvents.CharacterCreated, await clock.NowAsync(http.RequestAborted),
@@ -360,6 +363,69 @@ public static class CharacterEndpoints
             return Results.Ok(new { characterId, lastMapId = mapId, lastX = x, lastZ = z });
         });
     }
+
+    /// <summary>
+    /// Puts a new character in something.
+    ///
+    /// ══ WHY ANYBODY CARES ══════════════════════════════════════════════════
+    ///
+    /// Every character started completely naked. That is a first impression the game
+    /// cannot take back, and it made the equipment screen look broken rather than
+    /// empty.
+    ///
+    /// The set is deliberately drab -- a dented tunic, patched trews -- because its
+    /// job is to not be nothing. Anything good enough to want would make the first
+    /// hour of smithing pointless.
+    ///
+    /// ══ GRANTED HERE, INSIDE THE CREATION TRANSACTION ════════════════════
+    ///
+    /// Not by the client after the fact. A client that granted its own starting gear
+    /// is a client that can grant itself anything, and the whole architecture exists
+    /// to remove exactly that. It also means a creation that rolls back takes the
+    /// clothes with it rather than leaving them for a character that does not exist.
+    ///
+    /// Missing content is skipped rather than fatal: a class whose set has not been
+    /// authored yet gets fewer pieces, which is strictly better than a class nobody
+    /// can create.
+    /// </summary>
+    private static async Task DressAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                         Guid accountId, Guid characterId, string classId,
+                                         ContentCache content, CancellationToken cancellation)
+    {
+        if (string.IsNullOrEmpty(classId)) return;
+
+        foreach (string suffix in StarterPieces)
+        {
+            string itemId = $"starter_{classId}_{suffix}";
+
+            ItemData? item = content.Catalogue.GetItem(itemId);
+
+            if (item is null || string.IsNullOrEmpty(item.equipSlot)) continue;
+
+            // Straight onto the body rather than into the bag. A starting set in the
+            // inventory is a starting set most players never put on, and the point was
+            // to stop them looking naked.
+            await connection.ExecuteAsync(
+                """
+                insert into equipment (character_id, slot_id, item_id, durability)
+                values ($1, $2, $3, $4)
+                on conflict (character_id, slot_id) do nothing;
+                """,
+                tx, characterId, item.equipSlot, itemId, Math.Max(1, item.maxDurability));
+
+            await IdleExplorers.Api.Services.SettlementService.WriteItemLedgerAsync(
+                connection, tx, accountId, characterId, itemId, 1L, "admin", cancellation);
+        }
+    }
+
+    /// <summary>
+    /// The three pieces every class starts in.
+    ///
+    /// Three rather than a full set: chest, legs and feet are what read as "dressed"
+    /// at a glance, and authoring eleven slots of deliberately ugly gear for five
+    /// classes is a lot of JSON for a silhouette nobody looks at twice.
+    /// </summary>
+    private static readonly string[] StarterPieces = { "tunic", "trews", "shoes" };
 
     /// <summary>
     /// Appearance as an object rather than a string of JSON.

@@ -185,7 +185,21 @@ namespace IdleExplorers.Backend
             // every pull, exactly the bug this column was added to fix -- so an empty
             // answer means "no opinion", not "make them bald".
             if (snapshot.appearance is { IsEmpty: false })
+            {
                 character.spumConfig = snapshot.appearance;
+            }
+            else if (character.spumConfig is { IsEmpty: false })
+            {
+                // ══ BACKFILL ═════════════════════════════════════════════════
+                //
+                // The server has no look for this character and the client does --
+                // which is every character made before the appearance column existed.
+                // Left alone they stay faceless to everybody else for ever, and other
+                // players' clients draw them as a copy of whoever is looking.
+                //
+                // Sent once, here, because this is the moment both halves are in hand.
+                _ = SaveAppearanceAsync(character.characterId, character.spumConfig);
+            }
 
             if (!string.IsNullOrEmpty(snapshot.lastMapId))
             {

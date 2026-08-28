@@ -645,11 +645,31 @@ public class GameHUD : UIScreen
         var tone = ChatLog.ParseChannel(ref message);
         if (string.IsNullOrWhiteSpace(message)) { _chatField.text = ""; return; }
 
-        string speaker = CharacterManager.Current?.characterName ?? "You";
-        ChatLog.Say($"{speaker}: {message}", tone);
+        // ══ LOCAL CHAT GOES THROUGH THE SERVER ═════════════════════════════
+        //
+        // So other players hear it. It used to be drawn straight into this client's
+        // own log and a bubble over this client's own head, which is a conversation
+        // with nobody -- speaking in one browser showed nothing in another.
+        //
+        // The line comes BACK on the next presence poll and is drawn from there, by
+        // the same code that draws everybody else's. One path, and no way for our view
+        // of a conversation to drift from the view other people have of it. At worst
+        // it appears a couple of seconds late, which is a conversation rather than a
+        // problem.
+        if (tone == ChatTone.Local && IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            IdleExplorers.Backend.PresenceSync.Say(message);
+        }
+        else
+        {
+            // Offline, and the channels with no traffic yet, still echo locally --
+            // otherwise typing into them looks broken rather than empty.
+            string speaker = CharacterManager.Current?.characterName ?? "You";
+            ChatLog.Say($"{speaker}: {message}", tone);
 
-        EnsurePlayer();
-        if (_player != null) ChatBubble.Say(_player.transform, message);
+            EnsurePlayer();
+            if (_player != null) ChatBubble.Say(_player.transform, message);
+        }
 
         _chatField.text = "";
 
