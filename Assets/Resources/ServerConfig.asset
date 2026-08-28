@@ -15,4 +15,4 @@ MonoBehaviour:
   apiBaseUrl: https://api-production-c568.up.railway.app
   supabaseUrl: https://tmyjwxoadxtlxpdzyesk.supabase.co
   supabaseAnonKey: sb_publishable_mrA3cHdD0F0J3F7Dzeb88g_NcKqLm4E
-  shadowMode: 1
+  shadowMode: 0
