@@ -216,7 +216,7 @@ public class LoginScreen : UIScreen
 
             if (result.Ok)
             {
-                GameManager.Instance?.GoToCharacterSelect();
+                await LoadAccountAsync();
                 return;
             }
 
@@ -267,7 +267,7 @@ public class LoginScreen : UIScreen
                 PlayerPrefs.SetString(LastEmailKey, email);
                 PlayerPrefs.Save();
 
-                GameManager.Instance?.GoToCharacterSelect();
+                await LoadAccountAsync();
                 return;
             }
 
@@ -279,6 +279,45 @@ public class LoginScreen : UIScreen
         {
             _busy = false;
         }
+    }
+
+    /// <summary>
+    /// Loads the account before showing the roster.
+    ///
+    /// ══ WHY THE SCREEN WAITS ══════════════════════════════════════════════════
+    ///
+    /// Character select reads AccountManager.Current.characters. Going there before
+    /// the account has been pulled shows an EMPTY roster to a player who has
+    /// characters, and the obvious reaction is to create another one -- which is a
+    /// duplicate the server may or may not accept, off the back of a screen that lied.
+    ///
+    /// A second of "Loading your account…" is a far better trade than a roster that
+    /// fills in after somebody has already acted on it.
+    ///
+    /// Offline the pull is a no-op and this is one frame.
+    /// </summary>
+    private async Awaitable LoadAccountAsync()
+    {
+        if (!IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            GameManager.Instance?.GoToCharacterSelect();
+            return;
+        }
+
+        ShowHint("Loading your account…");
+
+        bool loaded = await IdleExplorers.Backend.ServerState.PullAccountAsync();
+
+        if (!loaded)
+        {
+            // Signed in but unable to reach the game server. Deliberately NOT sent
+            // through to a roster the client would then invent locally -- that is how
+            // a player ends up with characters the server has never heard of.
+            ShowHint("Signed in, but the game server did not answer. Try again shortly.");
+            return;
+        }
+
+        GameManager.Instance?.GoToCharacterSelect();
     }
 
     private void ShowHint(string message)

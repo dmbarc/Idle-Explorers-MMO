@@ -12,6 +12,30 @@ public class CharacterManager : MonoBehaviour
 {
     public static CharacterData Current { get; private set; }
 
+    /// <summary>
+    /// Settles the time away and loads what the server says this character has.
+    ///
+    /// Async and not awaited by the caller, because SelectCharacter is called from UI
+    /// click handlers that cannot wait -- the screen changes immediately and the
+    /// numbers land a moment later, which is the same shape every panel already
+    /// handles through ServerState.Changed.
+    ///
+    /// The settle comes FIRST. Pulling before settling would show the state from
+    /// before the player was paid for their night, and then change under them.
+    /// </summary>
+    private async Awaitable PullFromServerAsync(CharacterData character)
+    {
+        await IdleExplorers.Backend.ServerState.SettleAsync();
+
+        // Settle already pulls when it pays. This covers the case where it paid
+        // nothing -- a character logged out idle still needs its inventory.
+        await IdleExplorers.Backend.ServerState.PullCharacterAsync(character.characterId);
+
+        // The loop that keeps it honest from here. Attached to this manager's own
+        // object so it lives exactly as long as the managers do.
+        IdleExplorers.Backend.ServerSync.Attach(gameObject);
+    }
+
     public void SelectCharacter(CharacterData character)
     {
         // Drop the previous character's activity and pending AFK summary before
@@ -24,10 +48,25 @@ public class CharacterManager : MonoBehaviour
         GameEvents.OnCharacterSelected?.Invoke(character);
         Debug.Log($"[CharacterManager] Selected: {character.characterName} ({character.classId})");
 
-        // Grant everything earned while this character was logged out. Must run
-        // after Current is set — the reward path writes into the active character.
-        if (character.lastLogoutUnixTime > 0)
+        // ══ WHO PAYS FOR THE TIME AWAY ════════════════════════════════════════
+        //
+        // Under an authoritative server, nobody here does. Pulling the character is
+        // what settles it: the server integrates the whole gap from its own
+        // last_settled_at and the answer arrives as state, already applied.
+        //
+        // ProcessAFKRewards returns null in that mode anyway, so this is belt and
+        // braces -- but the pull has to happen, and it has to happen HERE, because
+        // everything downstream reads Current expecting it to be populated.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = PullFromServerAsync(character);
+        }
+        else if (character.lastLogoutUnixTime > 0)
+        {
+            // Grant everything earned while this character was logged out. Must run
+            // after Current is set — the reward path writes into the active character.
             GameManager.Activity?.ProcessAFKRewards(character);
+        }
 
         // After AFK accrual, so a top-up cannot occupy the last slot the rewards
         // needed. Inert outside the Editor and development builds.
@@ -201,6 +240,19 @@ public class CharacterManager : MonoBehaviour
     public void CreateCharacter(CharacterData character)
     {
         if (AccountManager.Current == null) return;
+
+        // ══ THE SERVER MINTS THE ID WHEN THERE IS ONE ═════════════════════════
+        //
+        // A locally-generated Guid would name a character the server has never heard
+        // of, and every call about it -- settle, equip, engage -- would 404 on a
+        // character that plainly exists on screen. The server also enforces the
+        // per-account limit and the name uniqueness, neither of which this can.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = CreateOnServerAsync(character);
+            return;
+        }
+
         character.characterId = Guid.NewGuid().ToString();
         character.level = 1;
         character.xp = 0;
@@ -208,6 +260,42 @@ public class CharacterManager : MonoBehaviour
         GameEvents.OnCharacterCreated?.Invoke(character);
         GameEvents.OnCharacterRosterChanged?.Invoke();
         Debug.Log($"[CharacterManager] Created: {character.characterName}");
+    }
+
+    /// <summary>
+    /// Asks the server for a character, and takes the id it gives back.
+    ///
+    /// The roster is then re-pulled rather than having the new character appended
+    /// locally: the server decides what the account holds, and a local append would be
+    /// this client's opinion of a list it does not own.
+    /// </summary>
+    private async Awaitable CreateOnServerAsync(CharacterData character)
+    {
+        try
+        {
+            var created = await IdleExplorers.Backend.GameBackend.Current
+                .CreateCharacterAsync(character.characterName, character.classId);
+
+            if (created == null || string.IsNullOrEmpty(created.characterId))
+            {
+                GameEvents.FireToast("Could not create that character.", ChatTone.Bad);
+                return;
+            }
+
+            await IdleExplorers.Backend.ServerState.PullAccountAsync();
+
+            GameEvents.OnCharacterCreated?.Invoke(character);
+            GameEvents.OnCharacterRosterChanged?.Invoke();
+
+            Debug.Log($"[CharacterManager] Server created: {created.name} ({created.characterId})");
+        }
+        catch (IdleExplorers.Backend.BackendException e)
+        {
+            // The server refuses a duplicate name and a twelfth character, and both
+            // messages are written for a player to read. Showing them beats a generic
+            // failure that leaves somebody guessing which rule they hit.
+            GameEvents.FireToast(e.Title, ChatTone.Bad);
+        }
     }
 
     /// <summary>

@@ -213,6 +213,11 @@ public class ActivityManager : MonoBehaviour
         int combatLevel = CharacterManager.Current?.level ?? 1;
         float afkRate = GameManager.Skills?.GetAFKRateMultiplier("combat", combatLevel) ?? 0.6f;
 
+        // Combat, by monster id. Here rather than inside SetActivity for the same
+        // reason as the gathering hook: this is where the server-side id is known.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+            _ = IdleExplorers.Backend.ServerState.SetFightingAsync(map.defaultMonsterId);
+
         SetActivity(
             skillId:       "combat",
             targetId:      map.defaultMonsterId,
@@ -360,6 +365,21 @@ public class ActivityManager : MonoBehaviour
     /// </param>
     public AFKRewardSummary ProcessAFKRewards(CharacterData character, long capSeconds = MaxAFKSeconds)
     {
+        // ══ THE SERVER OWNS THIS WHEN THERE IS ONE ════════════════════════════
+        //
+        // This method is the 665-line offline payout the whole re-architecture set out
+        // to replace: it reads a timestamp the player's own machine wrote, integrates
+        // it against rates the player's own machine holds, and grants the result. That
+        // is the exploit, not a step towards fixing it.
+        //
+        // Under an authoritative server the same integral runs in SettlementService,
+        // from the DATABASE clock, and arrives through ServerState. Running both would
+        // pay twice -- and the local half would be the half a cheat could edit.
+        //
+        // Left intact rather than deleted because offline play is still a supported
+        // mode and this is the whole of it. It goes when LocalBackend does, at cutover.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative) return null;
+
         if (character?.currentActivity == null) return null;
         var activity = character.currentActivity;
         if (activity.activityStartUnixTime <= 0) return null;

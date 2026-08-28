@@ -165,6 +165,22 @@ public class SkillNodeController : MonoBehaviour
         var item     = GameManager.Content?.GetItem(_entry.targetItemId);
         string label = item?.DisplayName ?? _entry.targetItemId;
 
+        // ══ TELLING THE SERVER WHAT IS BEING WORKED ═══════════════════════════
+        //
+        // Intent, not a reward. The server settles the previous window inside the same
+        // lock that changes the activity, so the seconds already earned are paid at the
+        // OLD rate rather than the new one -- which is why this is one call and not a
+        // stop followed by a start.
+        //
+        // Hooked here rather than inside SetActivity because the node's id is only
+        // known here: SetActivity is handed targetItemId, which is what the node
+        // PRODUCES rather than what it is.
+        //
+        // Fire and forget. The local activity is set either way, so the bar animates
+        // immediately and a slow round trip does not stall the click.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+            _ = IdleExplorers.Backend.ServerState.SetGatheringAsync(_entry.nodeId);
+
         // Registering the activity is what makes this node survive logout: the
         // snapshot is what AFK accrual reads on next login.
         GameManager.Activity?.SetActivity(
@@ -214,6 +230,10 @@ public class SkillNodeController : MonoBehaviour
 
         float secondsPerCraft = recipe.SecondsPerCraft(level);
         float craftsPerHour   = ActivityManager.ActionsPerHour(secondsPerCraft, _entry.activeRateMulti);
+
+        // The recipe, by id. See the note on the gathering path above.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+            _ = IdleExplorers.Backend.ServerState.SetCraftingAsync(recipe.id);
 
         GameManager.Activity?.SetActivity(
             skillId:          recipe.skillId,
@@ -273,12 +293,8 @@ public class SkillNodeController : MonoBehaviour
             return false;
         }
 
-        // All-or-nothing: verifies again and only then spends, so nothing is consumed
-        // unless every input is affordable.
-        if (!CraftingSupply.ConsumeFor(_recipe, 1)) return false;
-
-        GameManager.Inventory.AddItem(_recipe.outputItemId, produced);
-        GameManager.Skills?.AddSkillXP(_recipe.skillId, (long)_recipe.xpPerCraft);
+        // Spend, produce and pay as one, or not at all -- see LocalRewards.TryCraft.
+        if (!LocalRewards.TryCraft(_recipe, produced)) return false;
 
         GameManager.Audio?.Play(GatherSound(_recipe.skillId));
         ItemEffectResolver.Fire("onCraft", _recipe.skillId);
@@ -427,9 +443,11 @@ public class SkillNodeController : MonoBehaviour
                     GameEvents.FireToast($"✦ {_entry.specialLabel}!", ChatTone.Good);
             }
 
-            if (GameManager.Inventory?.CanAddItem(_entry.targetItemId, qty) == true)
+            // Through LocalRewards, which decides whether the client pays at all. The
+            // pickup event fires either way, so the swing has the same feedback it
+            // always had -- only the arithmetic moved.
+            if (LocalRewards.TryGiveItem(_entry.targetItemId, qty))
             {
-                GameManager.Inventory.AddItem(_entry.targetItemId, qty);
                 GameEvents.FireItemPickedUp(_entry.targetItemId, qty);
             }
             else
@@ -440,7 +458,7 @@ public class SkillNodeController : MonoBehaviour
             }
         }
 
-        GameManager.Skills?.AddSkillXP(_entry.skillId, (long)_entry.xpPerAction);
+        LocalRewards.GiveSkillXp(_entry.skillId, (long)_entry.xpPerAction);
         GameManager.Audio?.Play(GatherSound(_entry.skillId));
         ItemEffectResolver.Fire("onGather", _entry.skillId);
     }
