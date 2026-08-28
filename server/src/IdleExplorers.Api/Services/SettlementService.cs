@@ -635,7 +635,57 @@ public sealed class SettlementService(Db db, ContentCache content)
             block.attackSpeedMultiplier += Talents.Bonus(ranks, nodes, "attackSpeedPercent");
         }
 
+        // ══ AND WHATEVER THEY DRANK ═══════════════════════════════════════════
+        //
+        // Last, for the same reason talents come after gear: a buff is a percentage OF
+        // the assembled block, so everything it multiplies has to already be in it.
+        //
+        // Here rather than at the point of drinking, because this is the one function
+        // that answers "how hard does this character hit" -- and the boss's frozen
+        // snapshot, the farm integral and the character sheet all come through it. A
+        // buff applied anywhere else would help one of those and not the others, which
+        // is the drift that made the shared rules tree worth building.
+        Buffs.Apply(block, await ReadBuffsAsync(connection, tx, characterId, cancellation));
+
         return block;
+    }
+
+    /// <summary>
+    /// The buffs still in force, by the database's own clock.
+    ///
+    /// Filtered on now() in SQL rather than compared in C#: the expiry is an absolute
+    /// instant precisely so that nothing has to be trusted to count down, and reading
+    /// expired rows in order to discard them would put that decision back in code.
+    /// </summary>
+    private static async Task<List<Buffs.Active>> ReadBuffsAsync(
+        NpgsqlConnection connection, NpgsqlTransaction tx,
+        Guid characterId, CancellationToken cancellation)
+    {
+        var live = new List<Buffs.Active>();
+
+        await using var command = connection.Sql(
+            """
+            select stat_id, magnitude, label,
+                   extract(epoch from (expires_at - now()))
+              from character_buff
+             where character_id = $1 and expires_at > now();
+            """,
+            tx, characterId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+        while (await reader.ReadAsync(cancellation))
+        {
+            live.Add(new Buffs.Active
+            {
+                statId           = reader.GetString(0),
+                magnitude        = reader.GetFloat(1),
+                label            = reader.GetString(2),
+                secondsRemaining = (double)reader.GetDecimal(3),
+            });
+        }
+
+        return live;
     }
 
     /// <summary>

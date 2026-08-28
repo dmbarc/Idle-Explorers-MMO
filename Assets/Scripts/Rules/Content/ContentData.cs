@@ -51,6 +51,19 @@ public class ItemEffect
     public string param;            // action-specific: skillId, stat id, vfx id
 
     /// <summary>
+    /// How long the effect lasts, for the actions that last.
+    ///
+    /// Only "buff" reads it today. Zero everywhere else, which is what an effect that
+    /// happens once and is over should say — and is why it is a separate field rather
+    /// than an overloaded magnitude.
+    ///
+    /// Clamped by Buffs.ClampSeconds before anything acts on it: content is data, and
+    /// a decimal point in the wrong place should be a shorter potion rather than a
+    /// permanent one.
+    /// </summary>
+    public double durationSeconds;
+
+    /// <summary>
     /// A second item this effect consumes, for actions that need two.
     ///
     /// fuseInto is the reason: the Goblin Slasher and Smasher each carry a Use that
@@ -136,6 +149,25 @@ public class ItemData
 
     /// <summary>Occupies both hands: equipping it takes the off hand off.</summary>
     public bool   twoHanded;
+
+    /// <summary>
+    /// The class this may be worn by, or empty for anything.
+    ///
+    /// ══ WHY A SINGLE ID AND NOT A LIST ════════════════════════════════════════
+    ///
+    /// Because the thing being expressed is "this is the WARRIOR's weapon", not "these
+    /// four classes may use it". A list would be the general case of a rule nobody has
+    /// asked for, and JsonUtility handles a bare string without ceremony where an
+    /// array of them invites the empty-versus-null distinction that has bitten this
+    /// file before.
+    ///
+    /// ══ WHY IT IS CHECKED AGAINST EVERY CLASS THE CHARACTER HAS ═══════════════
+    ///
+    /// Not just the primary one. A warrior who multiclasses into ranger has earned the
+    /// ranger's bow, and telling them otherwise would make the second class strictly
+    /// worse than the first for reasons no screen explains.
+    /// </summary>
+    public string classReq;
 
     public ItemEffect[] effects;
 
@@ -364,6 +396,39 @@ public class SkillNodeEntry
     public string   specialLabel;       // name of the special drop
 }
 
+/// <summary>
+/// Somebody standing in a map who is not a monster.
+///
+/// Deliberately thin. An NPC is a position, a look and one thing it does — anything
+/// richer belongs in the panel it opens, not in the person who opens it.
+/// </summary>
+[Serializable]
+public class MapNpc
+{
+    public string id;
+    public string name;
+
+    /// <summary>
+    /// What talking to them does. "shop" is the only one so far.
+    ///
+    /// A string rather than an enum for the same reason ability effects are: a new
+    /// kind of NPC should be a content change wherever it can be.
+    /// </summary>
+    public string kind;
+
+    /// <summary>Resources path to the SPUM prefab they wear.</summary>
+    public string prefabAddress;
+
+    /// <summary>Where they stand. Y is the ground; a SPUM rig's origin is at its feet.</summary>
+    public float  x;
+    public float  z;
+
+    /// <summary>Which way they face at rest: -1 left, 1 right.</summary>
+    public float  facing = 1f;
+
+    public string DisplayName => string.IsNullOrEmpty(name) ? id : name;
+}
+
 [Serializable]
 public class MapData
 {
@@ -377,6 +442,22 @@ public class MapData
     public int              reqAnyCharLevel;
     public string           sceneAddress;
     public SkillNodeEntry[] skillNodes;
+
+    /// <summary>
+    /// People standing about in this map, spawned at runtime rather than placed.
+    ///
+    /// ══ WHY THEY ARE DATA AND NOT SCENERY ═════════════════════════════════════
+    ///
+    /// Both map scenes are GENERATED from a recipe, and regenerating one deletes
+    /// anything hand-placed in it. So an NPC in the scene file is an NPC that survives
+    /// exactly until the next time somebody rebuilds the map — and rebuilding is
+    /// routine here, because the layout is a string array somebody edits.
+    ///
+    /// Declaring them here means the shopkeeper is four numbers in a JSON file, the
+    /// scene diff is nothing at all, and the NavMesh does not have to be rebaked to
+    /// move him two tiles left.
+    /// </summary>
+    public MapNpc[]         npcs;
 
     /// <summary>
     /// True when this map is reached through something in the world, not the travel list.
@@ -795,6 +876,31 @@ public class ShopProduct
     public string itemId;
     public long   quantity = 1;
     public long   relicCoinCost;
+
+    /// <summary>
+    /// Price in ordinary gold, for the things a shopkeeper sells.
+    ///
+    /// ══ WHY THE SAME TYPE CARRIES BOTH ════════════════════════════════════════
+    ///
+    /// Because the machinery is identical: check there is room, take the money, grant
+    /// the item, write the ledger, all in one transaction. The only thing that differs
+    /// is which wallet column the money comes out of, and SpendWalletAsync already
+    /// takes that as a parameter.
+    ///
+    /// A second product type would mean a second buy endpoint, and the buy endpoint is
+    /// the one place in the game where a mistake gives something away.
+    ///
+    /// EXACTLY ONE of the two costs is set — see ShopCatalog's validation. A product
+    /// with both would be a product whose price depends on which field the code read.
+    /// </summary>
+    public long   goldCost;
+
+    /// <summary>Which wallet this is bought from. Gold when a gold price is set.</summary>
+    public string Currency => goldCost > 0L ? IdleExplorers.Rules.Currency.Coins
+                                            : IdleExplorers.Rules.Currency.RelicCoins;
+
+    /// <summary>What it costs, in whatever currency it is sold for.</summary>
+    public long Price => goldCost > 0L ? goldCost : relicCoinCost;
 
     public string DisplayName => string.IsNullOrEmpty(name) ? id : name;
 }

@@ -51,6 +51,9 @@ public static class ItemEffectResolver
             case "grantAfkTime":
                 return ApplyGrantAfkTime(effect, item);
 
+            case "buff":
+                return ApplyBuff(effect, item);
+
             case "changeClass":
                 return ApplyChangeClass();
 
@@ -242,6 +245,73 @@ public static class ItemEffectResolver
 
         GameManager.UI?.Push<AFKSummaryScreen>();
         return true;
+    }
+
+    /// <summary>
+    /// Drinks a potion.
+    ///
+    /// ══ WHY THE SERVER IS ASKED EVEN THOUGH THE EFFECT IS "VISUAL" ════════════
+    ///
+    /// It is not visual. A buff multiplies damage, damage decides the farm rate, and
+    /// the farm rate is the economy — so a buff the client granted itself would be a
+    /// client setting its own income. It is the mystic gem's shape exactly, and the
+    /// gem is the one that taught this lesson: crediting locally looked like it worked
+    /// and was overwritten by the next pull.
+    ///
+    /// The magnitude and duration come BACK from the server rather than being read out
+    /// of the item here, because the server clamps both. A client that applied the raw
+    /// content numbers would draw an unclamped bar over a clamped effect.
+    /// </summary>
+    private static bool ApplyBuff(ItemEffect effect, ItemData item)
+    {
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = DrinkOnServerAsync(item);
+            return true;
+        }
+
+        // Offline and in the editor. Through the same shared reader the server uses,
+        // so the two cannot disagree about what the item says.
+        var potion = IdleExplorers.Rules.Buffs.Read(item);
+
+        if (potion == null)
+        {
+            Debug.LogWarning($"[ItemEffect] '{item.id}' has a buff effect the rules do not " +
+                             $"recognise (stat '{effect.param}').");
+            return false;
+        }
+
+        BuffManager.Adopt(potion.statId, potion.magnitude, potion.secondsRemaining, potion.label);
+
+        GameEvents.FireToast($"{item.DisplayName} takes hold.", ChatTone.Good);
+        return true;
+    }
+
+    /// <summary>
+    /// Hands the potion to the server and mirrors whatever it granted.
+    ///
+    /// The item id rather than the effect, for the same reason the gem sends an id:
+    /// the server reads what the potion does from its own catalogue, so a client
+    /// cannot describe a 25% draught as 400%.
+    /// </summary>
+    private static async Awaitable DrinkOnServerAsync(ItemData item)
+    {
+        string itemId = item?.id;
+
+        if (string.IsNullOrEmpty(itemId))
+        {
+            GameEvents.FireToast("Nothing to drink.", ChatTone.Bad);
+            return;
+        }
+
+        var granted = await IdleExplorers.Backend.ServerState.DrinkAsync(itemId);
+
+        if (granted == null) return;
+
+        BuffManager.Adopt(granted.buffStatId, granted.buffMagnitude,
+                          granted.buffSeconds, granted.buffLabel);
+
+        GameEvents.FireToast($"{item.DisplayName} takes hold.", ChatTone.Good);
     }
 
     /// <summary>

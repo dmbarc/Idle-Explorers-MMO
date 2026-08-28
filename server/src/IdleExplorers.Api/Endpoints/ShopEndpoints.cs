@@ -169,16 +169,26 @@ public static class ShopEndpoints
                         statusCode: StatusCodes.Status409Conflict);
                 }
 
+                // ══ WHICH WALLET ══════════════════════════════════════════════
+                //
+                // Decided by the product, in the shared rules, so the client's shop
+                // panel and this endpoint cannot disagree about what something costs
+                // or what it costs it in. A gold product and a relic-coin product go
+                // down exactly the same path from here.
+                string currency = product.Currency;
+                long   price    = product.Price;
+
                 bool paid = await SettlementService.SpendWalletAsync(
                     connection, tx, accountId.Value, characterId,
-                    IdleExplorers.Rules.Currency.RelicCoins, product.relicCoinCost,
-                    "shop_purchase", http.RequestAborted);
+                    currency, price, "shop_purchase", http.RequestAborted);
 
                 if (!paid)
                 {
                     return Results.Problem(
-                        title:      "not enough relic coins",
-                        detail:     $"{product.DisplayName} costs {product.relicCoinCost}.",
+                        title:      currency == IdleExplorers.Rules.Currency.Coins
+                                        ? "not enough gold"
+                                        : "not enough relic coins",
+                        detail:     $"{product.DisplayName} costs {price}.",
                         statusCode: StatusCodes.Status409Conflict);
                 }
 
@@ -191,15 +201,19 @@ public static class ShopEndpoints
                     connection, tx, accountId.Value, characterId, product.itemId,
                     quantity, "shop_purchase", http.RequestAborted);
 
+                // The balance of the wallet that was actually charged. Returning the
+                // relic-coin balance after a gold purchase would tell the client that
+                // nothing had been spent.
                 long balance = await connection.ScalarAsync<long>(
                     "select coalesce(balance, 0) from wallet where account_id = $1 and currency = $2;",
-                    tx, accountId.Value, IdleExplorers.Rules.Currency.RelicCoins);
+                    tx, accountId.Value, currency);
 
                 await TelemetryEndpoints.RecordAsync(
                     connection, tx, accountId.Value, characterId,
                     "shop_purchase", await clock.NowAsync(http.RequestAborted),
                     ("productId", productId),
-                    ("cost",      product.relicCoinCost.ToString()));
+                    ("currency",  currency),
+                    ("cost",      price.ToString()));
 
                 return Results.Ok(new
                 {
@@ -207,6 +221,10 @@ public static class ShopEndpoints
                     itemId   = product.itemId,
                     quantity,
                     balance,
+
+                    // Named, so the client knows which counter to move. Without it a
+                    // gold purchase would arrive looking like a relic-coin balance.
+                    currency,
                 });
             }, http.RequestAborted);
         });

@@ -82,6 +82,27 @@ public static class IconLibrarySetup
         { "iron_sword",    "sword_iron" },
         { "magic_staff",   "weapon_staff" },
 
+        // ── The class weapons ─────────────────────────────────────────────────
+        //
+        // One per class, forged at the anvil and wearable only by the class it
+        // belongs to. They are the first weapons in the game that draw on the rig,
+        // so the icon and the worn art are two different pictures of the same thing
+        // and both have to be right.
+        { "bulwark_cleaver", "weapon_longsword" },
+        { "windcut_bow",     "weapon_bow_arrow" },
+        { "emberward_rod",   "Hand Scepter 1-0" },
+        { "piston_maul",     "weapon_hammer" },
+        { "grave_pike",      "weapon_spear" },
+
+        // ── The shopkeeper's potions ──────────────────────────────────────────
+        //
+        // Bought with gold rather than relic coins, which makes them the first thing
+        // in the game a player can spend their farming on.
+        { "draught_of_fury",      "Potion" },
+        { "draught_of_swiftness", "flask_half" },
+        { "draught_of_vigour",    "flask_full" },
+        { "kingsbane_tonic",      "bottle_standard_blue" },
+
         // Arcane
         { "chaos_rune",    "runeBlack_slab_012" },
         { "death_rune",    "runeBlack_slab_026" },

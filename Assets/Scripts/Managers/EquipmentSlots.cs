@@ -48,6 +48,26 @@ public static class EquipmentSlots
 
         public bool RendersOnCharacter => SpumParts != null && SpumParts.Length > 0;
 
+        /// <summary>
+        /// True when what is in this slot changes how the character LOOKS.
+        ///
+        /// ══ WHY THIS IS NOT THE SAME QUESTION AS IsCosmetic ═══════════════════
+        ///
+        /// IsCosmetic divides the paperdoll: armour on one side, the rings and
+        /// trinkets and the companion on the other. It is a LAYOUT fact, and the
+        /// hands sit on the functional side of it because a weapon is not armour.
+        ///
+        /// CharacterAppearance was reading IsCosmetic to decide what to draw, which
+        /// meant the two slots the rig has dedicated layers for -- P_Weapon and
+        /// P_Shield, one per arm -- were the two it never redrew. Every weapon in
+        /// the game would have equipped, applied its damage, granted its ability, and
+        /// left the character empty-handed.
+        ///
+        /// Caught before the first weapon with art shipped, which is the only reason
+        /// it is not a fourth entry in the "built and never called" list.
+        /// </summary>
+        public bool AffectsAppearance => IsCosmetic || RendersOnCharacter;
+
         /// <summary>The ancestor qualifier for SpumParts[index], or null for any.</summary>
         public string AncestorFor(int index) =>
             SpumAncestors != null && index < SpumAncestors.Length ? SpumAncestors[index] : null;
@@ -178,6 +198,17 @@ public static class EquipmentSlots
     public static IEnumerable<Slot> Cosmetic()
     {
         foreach (var s in All) if (s.IsCosmetic) yield return s;
+    }
+
+    /// <summary>
+    /// Every slot CharacterAppearance has to redraw — the cosmetics and both hands.
+    ///
+    /// Separate from Cosmetic() because that one is the paperdoll's left-hand column
+    /// and this one is "what the rig shows". See Slot.AffectsAppearance.
+    /// </summary>
+    public static IEnumerable<Slot> Drawn()
+    {
+        foreach (var s in All) if (s.AffectsAppearance) yield return s;
     }
 
     public static IEnumerable<Slot> Functional()

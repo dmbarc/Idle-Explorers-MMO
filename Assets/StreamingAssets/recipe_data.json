@@ -691,5 +691,110 @@
     "outputQuantity": 1,
     "xpPerCraft": 600,
     "baseSecondsPerCraft": 60.0
+  },
+  {
+    "id": "smith_bulwark_cleaver",
+    "name": "Bulwark Cleaver",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 28,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 3000
+      },
+      {
+        "itemId": "normal_logs",
+        "quantity": 400
+      }
+    ],
+    "outputItemId": "bulwark_cleaver",
+    "outputQuantity": 1,
+    "xpPerCraft": 2000,
+    "baseSecondsPerCraft": 45
+  },
+  {
+    "id": "smith_windcut_bow",
+    "name": "Windcut Bow",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 28,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 2400
+      },
+      {
+        "itemId": "willow_logs",
+        "quantity": 900
+      }
+    ],
+    "outputItemId": "windcut_bow",
+    "outputQuantity": 1,
+    "xpPerCraft": 1950,
+    "baseSecondsPerCraft": 45
+  },
+  {
+    "id": "smith_emberward_rod",
+    "name": "Emberward Rod",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 28,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 2600
+      },
+      {
+        "itemId": "faint_residue",
+        "quantity": 150
+      }
+    ],
+    "outputItemId": "emberward_rod",
+    "outputQuantity": 1,
+    "xpPerCraft": 1600,
+    "baseSecondsPerCraft": 45
+  },
+  {
+    "id": "smith_piston_maul",
+    "name": "Piston Maul",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 28,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 2800
+      },
+      {
+        "itemId": "iron_bar",
+        "quantity": 600
+      }
+    ],
+    "outputItemId": "piston_maul",
+    "outputQuantity": 1,
+    "xpPerCraft": 2000,
+    "baseSecondsPerCraft": 45
+  },
+  {
+    "id": "smith_grave_pike",
+    "name": "Grave Pike",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 28,
+    "inputs": [
+      {
+        "itemId": "bronze_bar",
+        "quantity": 2500
+      },
+      {
+        "itemId": "bones",
+        "quantity": 1200
+      }
+    ],
+    "outputItemId": "grave_pike",
+    "outputQuantity": 1,
+    "xpPerCraft": 2150,
+    "baseSecondsPerCraft": 45
   }
 ]

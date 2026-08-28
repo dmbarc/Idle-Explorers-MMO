@@ -16,6 +16,17 @@
         "reqAnyCharLevel": 0,
         "defaultMonsterId": "goblin",
         "sceneAddress": "Map_GoblinCamp",
+        "npcs": [
+          {
+            "id": "camp_shopkeeper",
+            "name": "Merrin the Provisioner",
+            "kind": "shop",
+            "prefabAddress": "Addons/BasicPack/2_Prefab/Human/SPUM_20240911215638474",
+            "x": 2.0,
+            "z": -6.0,
+            "facing": -1.0
+          }
+        ],
         "skillNodes": [
           {
             "nodeId": "tin_rock_1",

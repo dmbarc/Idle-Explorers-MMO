@@ -96,6 +96,30 @@ public static class EquipmentEndpoints
                     }
                 }
 
+                // ══ THE CLASS GATE ═══════════════════════════════════════════
+                //
+                // Checked here for the same reason the level gate is: the client
+                // greys the button out, and a greyed-out button is a suggestion.
+                // A class weapon carries an ability, and an ability is damage, and
+                // damage is the rate at which the whole economy is earned -- so
+                // "only a warrior may hold this" has to be a fact the server knows.
+                //
+                // Against EVERY class the character has, not the primary one. That
+                // distinction is exactly what the multiclass bug was.
+                if (!string.IsNullOrEmpty(item.classReq))
+                {
+                    List<string> classes = await ClassesOfAsync(
+                        connection, tx, characterId, http.RequestAborted);
+
+                    if (!ClassLock.Allows(item, classes))
+                    {
+                        return Results.Problem(
+                            title:      "wrong class",
+                            detail:     ClassLock.Refusal(item, classes, null),
+                            statusCode: StatusCodes.Status409Conflict);
+                    }
+                }
+
                 var worn = await ReadEquipmentAsync(connection, tx, characterId, http.RequestAborted);
 
                 string? slotId = ChooseSlot(item, request.SlotId, worn);
@@ -311,6 +335,49 @@ public static class EquipmentEndpoints
             tx, characterId, item.id);
 
         return stored ?? item.maxDurability;
+    }
+
+    /// <summary>
+    /// Every class the character may act as, primary first.
+    ///
+    /// ══ WHY BOTH SOURCES ══════════════════════════════════════════════════════
+    ///
+    /// character.class_id is the PRIMARY class — the name, the rig, what the roster
+    /// shows. character_class is every class they hold. They agree for a character
+    /// created after the multiclass migration and they do not have to: the primary is
+    /// included unconditionally so a row that predates the backfill is never treated
+    /// as classless, which would refuse a warrior their own sword.
+    ///
+    /// The same shape as TalentEndpoints' tree lookup, deliberately. That code exists
+    /// because reading class_id alone made spending a second class's talent point come
+    /// back "no such talent", and this is the same question asked about equipment.
+    /// </summary>
+    private static async Task<List<string>> ClassesOfAsync(
+        Npgsql.NpgsqlConnection connection, Npgsql.NpgsqlTransaction tx,
+        Guid characterId, CancellationToken cancellation)
+    {
+        var classes = new List<string>();
+        var seen    = new HashSet<string>(StringComparer.Ordinal);
+
+        string? primary = await connection.ScalarAsync<string>(
+            "select class_id from character where id = $1;", tx, characterId);
+
+        if (!string.IsNullOrEmpty(primary) && seen.Add(primary)) classes.Add(primary);
+
+        await using (var command = connection.Sql(
+            "select class_id from character_class where character_id = $1 order by added_at;",
+            tx, characterId))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation))
+            {
+                string owned = reader.GetString(0);
+                if (seen.Add(owned)) classes.Add(owned);
+            }
+        }
+
+        return classes;
     }
 
     private static async Task<Dictionary<string, string>> ReadEquipmentAsync(

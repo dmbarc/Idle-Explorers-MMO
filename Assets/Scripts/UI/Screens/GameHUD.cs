@@ -49,6 +49,7 @@ public class GameHUD : UIScreen
         BuildTopBar();
         BuildBottomBar();
         BuildAutoBanner();
+        BuildBuffStrip();
         BuildChatBar();
 
         // Last, so it draws over everything the HUD just built. A tooltip that appears
@@ -130,6 +131,7 @@ public class GameHUD : UIScreen
         UpdateAbilityCooldowns();
         UpdateWorldHover();
         UpdateChatWheel();
+        UpdateBuffStrip();
     }
 
     // ── Corner ────────────────────────────────────────────────────────────────
@@ -520,6 +522,80 @@ public class GameHUD : UIScreen
     // with a show/hide toggle in the menu. It is now rendered inside MenuModal
     // instead — one place to look, and nothing occupying screen space to be toggled
     // off. See MenuModal.BuildActivityBlock.
+
+    // ── What you drank ────────────────────────────────────────────────────────
+
+    private TMP_Text _buffLabel;
+    private float    _nextBuffRedrawAt;
+
+    /// <summary>
+    /// A line under the coin counter naming every potion still in force.
+    ///
+    /// ══ WHY IT NEEDS TO BE ON SCREEN AT ALL ═══════════════════════════════════
+    ///
+    /// Because the whole point of these potions is to be drunk BEFORE walking into a
+    /// boss fight, and a player who cannot see whether the Kingsbane Tonic is still
+    /// running has no way to make that decision except by drinking another one.
+    ///
+    /// A line of text rather than a row of icons: there are at most three buffs, they
+    /// are distinguished by a name and a countdown rather than by silhouette, and a
+    /// row of icons would need art none of them have.
+    /// </summary>
+    private void BuildBuffStrip()
+    {
+        var theme = UIManager.Theme;
+
+        _buffLabel = UIFactory.Label(transform, "", theme.fontSizeLabel,
+                                      theme.accentGold, TextAlignmentOptions.MidlineRight);
+
+        // Directly beneath the coin corner, which is where a player's eyes already go
+        // for "what do I have".
+        UIFactory.At(_buffLabel, 0.60f, 0.885f, 0.995f, 0.923f);
+
+        _buffLabel.raycastTarget = false;
+
+        RefreshBuffStrip();
+    }
+
+    /// <summary>
+    /// Redraws the strip, once a second.
+    ///
+    /// Not per frame: it is a countdown shown to the second, and rebuilding a
+    /// TextMeshPro mesh sixty times a second to move a digit once is work nobody sees.
+    /// </summary>
+    private void UpdateBuffStrip()
+    {
+        if (_buffLabel == null || Time.unscaledTime < _nextBuffRedrawAt) return;
+
+        _nextBuffRedrawAt = Time.unscaledTime + 1f;
+        RefreshBuffStrip();
+    }
+
+    private void RefreshBuffStrip()
+    {
+        if (_buffLabel == null) return;
+
+        var live = BuffManager.Active();
+
+        if (live.Count == 0)
+        {
+            _buffLabel.text = "";
+            return;
+        }
+
+        var line = new System.Text.StringBuilder();
+
+        foreach (var buff in live)
+        {
+            if (line.Length > 0) line.Append("   ");
+
+            int seconds = Mathf.Max(0, Mathf.CeilToInt((float)buff.secondsRemaining));
+
+            line.Append($"{buff.label} {seconds / 60}:{seconds % 60:00}");
+        }
+
+        _buffLabel.text = line.ToString();
+    }
 
     // ── Hovering something in the world ───────────────────────────────────────
 

@@ -449,6 +449,29 @@ namespace IdleExplorers.Backend
         public string itemId;
         public long   grantedSeconds;
         public long   creditedSeconds;
+
+        // ── When what was used was a potion ───────────────────────────────────
+        //
+        // A gem and a potion come back through the same endpoint because they are the
+        // same act — one item leaves the bag and the server grants something. Which
+        // one happened is read off buffStatId being present rather than from a kind
+        // field, because the fields ARE the distinction and a second one to keep in
+        // step with them would eventually disagree.
+        //
+        // JsonUtility leaves anything the payload does not mention at its default, so
+        // a gem's response simply has no buff in it.
+
+        /// <summary>Which stat the potion moved. Empty when this was not a potion.</summary>
+        public string buffStatId;
+
+        /// <summary>Fraction added, as the SERVER clamped it.</summary>
+        public float  buffMagnitude;
+
+        /// <summary>How long it lasts, from the server's own clock.</summary>
+        public double buffSeconds;
+
+        /// <summary>What to call it on screen.</summary>
+        public string buffLabel;
     }
 
     /// <summary>What an unpaid shop grant produced. See ShopEndpoints.</summary>

@@ -903,6 +903,17 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
+        // Somebody standing behind a counter. Above drops and monsters for the same
+        // reason another player is: a person is a person, and clicking one should
+        // start a conversation rather than swing at the air behind them.
+        var npc = hit.collider.GetComponentInParent<NpcController>();
+
+        if (npc != null)
+        {
+            npc.Talk();
+            return;
+        }
+
         // ══ A CLICK IS HOW YOU TAKE BACK SOMETHING YOU PUT DOWN ══════════════
         //
         // Auto-pickup ignores player drops on purpose, so without this there would be

@@ -454,11 +454,18 @@ public static class ActivityEndpoints
             // the worst of both.
             long seconds = AfkSecondsOf(item);
 
-            if (seconds <= 0L)
+            // ══ THE SECOND THING A CONSUMABLE CAN DO ══════════════════════════
+            //
+            // A buff multiplies damage, which decides the farm rate and whether the
+            // enrage timer is beaten -- so it is server state for exactly the same
+            // reason a gem's credited seconds are.
+            Buffs.Active potion = Buffs.Read(item);
+
+            if (seconds <= 0L && potion is null)
             {
                 return Results.Problem(
                     title:      "not usable here",
-                    detail:     $"'{itemId}' does not grant time.",
+                    detail:     $"'{itemId}' does nothing the server can grant.",
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
@@ -503,6 +510,57 @@ public static class ActivityEndpoints
                     // reason outside the list is a 500 at insert rather than a bad
                     // row -- which is the constraint doing its job.
                     "consume", http.RequestAborted);
+
+                // ══ A POTION ══════════════════════════════════════════════════
+                //
+                // Upserted on (character_id, stat_id), so a second Draught of Fury
+                // REPLACES the first rather than stacking with it. Stacking would make
+                // damage a function of how much gold somebody has, against a boss
+                // whose fail state is a DPS check.
+                //
+                // The expiry is computed by the DATABASE from its own now(). A
+                // duration handed in by the caller, or an instant computed here from a
+                // clock the caller could influence, would both be a way to buy an
+                // hour and keep it for a week.
+                if (potion is not null)
+                {
+                    // ══ DateTime, NOT DateTimeOffset ══════════════════════════
+                    //
+                    // ScalarAsync casts the boxed value, and Npgsql hands back a
+                    // DateTime for timestamptz -- so asking for a DateTimeOffset here
+                    // is an InvalidCastException at runtime and a 500 with nothing in
+                    // the log to say which line. Everywhere else in this codebase a
+                    // timestamptz is read through a reader's GetFieldValue, which
+                    // converts; the scalar helper does not.
+                    DateTime untilUtc = await connection.ScalarAsync<DateTime>(
+                        """
+                        insert into character_buff (character_id, stat_id, magnitude, expires_at, label)
+                        values ($1, $2, $3, now() + make_interval(secs => $4), $5)
+                        on conflict (character_id, stat_id) do update
+                           set magnitude  = excluded.magnitude,
+                               expires_at = excluded.expires_at,
+                               label      = excluded.label
+                        returning expires_at;
+                        """,
+                        tx, characterId, potion.statId, potion.magnitude,
+                        potion.secondsRemaining, potion.label);
+
+                    await TelemetryEndpoints.RecordAsync(
+                        connection, tx, accountId.Value, characterId,
+                        TelemetryEvents.ItemUsed, await clock.NowAsync(http.RequestAborted),
+                        ("itemId", itemId), ("buff", potion.statId));
+
+                    return Results.Ok(new
+                    {
+                        characterId,
+                        itemId,
+                        buffStatId    = potion.statId,
+                        buffMagnitude = potion.magnitude,
+                        buffSeconds   = potion.secondsRemaining,
+                        buffLabel     = potion.label,
+                        expiresAt     = new DateTimeOffset(untilUtc, TimeSpan.Zero),
+                    });
+                }
 
                 long credited = await connection.ScalarAsync<long>(
                     """

@@ -58,7 +58,11 @@ public class CharacterAppearance : MonoBehaviour
         var equipment = GameManager.Equipment;
         if (equipment == null) return;
 
-        foreach (var slot in EquipmentSlots.Cosmetic())
+        // Drawn(), not Cosmetic(). The hands are on the FUNCTIONAL side of the
+        // paperdoll and still have rig layers of their own -- reading IsCosmetic here
+        // meant a weapon equipped, hit for its damage, granted its ability, and left
+        // the character holding nothing.
+        foreach (var slot in EquipmentSlots.Drawn())
         {
             var item = equipment.GetEquippedItem(slot.SlotId);
 

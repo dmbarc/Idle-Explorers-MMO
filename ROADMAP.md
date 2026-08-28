@@ -40,7 +40,7 @@ deployment message — it reports the preview alias, not whether production serv
 ### Test suites
 
 ```bash
-bash Tools/check.sh     # everything: 1079 standalone + 236 rules + 10 content + 84 db + 194 API
+bash Tools/check.sh     # everything: 1290 standalone + 236 rules + 10 content + 84 db + 207 API
 bash Tools/verify/verify.sh   # client compile only, ~40s — use this while iterating
 ```
 
@@ -160,29 +160,52 @@ by construction beats cleanup that can be skipped.
 
 Ordered as I would do it. Each block is roughly one sitting.
 
-### Phase A — the six small ones (do these first)
+### Phase A — the six small ones — DONE (`fd76863e1`)
 
-They are independent, mostly client-side, and the player sees all of them at once.
+Exit portal after the King falls; eleven cosmetics given worn art and the twelfth's
+`VFX/aura_ember` path fixed (the resolver prefixes `VFX/` itself, so the only aura in
+the game had been looking up `VFX/VFX/aura_ember`); the four anvil cosmetics given
+icons; a hover card on every station and gathering node; player drops marked so
+auto-pickup leaves them; a chat scrollbar, wheel scrolling, sticky scroll-back, and
+speech that rides the next poll instead of trickling out one line per two seconds.
 
-1. **Exit portal after the King dies.** `BossController` already fires
-   `GameEvents.OnBossDefeated`. Spawn a portal back to `goblin_camp` on that event.
-   The `portalOnly` death path added this session is the model.
-2. **Cosmetics do not render on the character.** Shop and anvil cosmetics have
-   `equipSlot` set but `equipSpriteAddress` empty, so `CharacterAppearance` has nothing
-   to draw. Needs sprite addresses authored per item — check
-   `SpumAppearance.CreateSyntheticLayer`, which already fabricates renderers for
-   `gloves` and `tabard`.
-3. **Cosmetic anvil item icons** — `smiths_apron`, `tinplate_tabard`, `chainlink_drape`,
-   `emberforge_aura` still draw placeholders. Add to `IconLibrarySetup.ItemIconNames`
-   and run `IconLibrarySetup.Rebuild`. **Only single-sprite assets bind** — particle
-   textures (`textureType` != 8) and multi-sprite atlases silently do not.
-4. **Anvil / cooking hover tooltips** showing the output item.
-5. **Manual pickup for player-dropped items.** Mark the drop so auto-pickup skips it and
-   a click is required. `DropPickup` is the type.
-6. **Chat log scrollbar**, and check the log against what actually happened — the user
-   reports it looking out of sync.
+`CosmeticChecks` is new and four checks were added to `BossClientChecks`. Every one
+was proven by reinstating the bug it describes.
 
-### Phase B — shared world state (the big one)
+`wanderers_cape` turned out to have been drawing a placeholder since the day it was
+written: every `flag.png` in the project is a plain texture, so the mapping never
+bound and nothing said so.
+
+### Phase C — content — DONE
+
+**Craftable class weapons.** One per class, class-locked, each granting an `Equip:`
+ability and each drawing on the rig. `ItemData.classReq` and the shared `ClassLock`
+are new; the gate is enforced in `EquipmentEndpoints` and mirrored in
+`EquipmentManager` so the refusal arrives before the round trip rather than after it.
+
+The trap found on the way: `CharacterAppearance` redrew `EquipmentSlots.Cosmetic()`,
+and the hands sit on the FUNCTIONAL side of that divide — so every weapon in the game
+would have equipped, hit for its damage, granted its ability, and left the character
+holding nothing. `Slot.AffectsAppearance` and `EquipmentSlots.Drawn()` exist for that,
+and a check asserts both.
+
+**Shopkeeper and gold potions.** `ShopProduct.goldCost` makes one buy endpoint serve
+both currencies; `character_buff` holds timed stat bonuses keyed on
+`(character_id, stat_id)`, so a second potion refreshes rather than stacks — a
+stacking buff is a currency, and the King's fail state is a DPS check. `Buffs` is a
+shared rule applied in `ResolveStatsAsync` and mirrored by `BuffManager`, so the
+number on screen is the number the server pays.
+
+NPCs are declared in `zone_data.json` and spawned by `ZoneManager`, **not** placed in
+the scene: both maps are generated from a recipe, and anything hand-placed is deleted
+the next time somebody edits a layout string.
+
+**Potions are a pre-fight decision, deliberately.** The boss freezes a stat snapshot
+at engage — that is what stops mid-fight gear swapping, and it cannot tell a potion
+from a sword. Said in every description and once more in the shop header, because a
+player who discovers it at twenty percent health has been misled by the shop.
+
+### Phase B — shared world state (the big one) — NEXT
 
 Monsters and drops are per-client today: every player spawns their own `MonsterSpawner`
 population as theatre over a server that only counts kills.
@@ -200,22 +223,13 @@ already there — `PresenceSync` is the file a socket would later replace.
 **This is comparable in size to the whole multiplayer piece.** Do not start it in the
 same sitting as anything else.
 
-### Phase C — content
-
-7. **Craftable class weapons** — one per class, class-locked, each with an `Equip:`
-   ability. Depends on the cosmetic rendering work in A2, since a weapon that does not
-   appear on the rig has the same problem.
-8. **Shopkeeper NPC** selling gold-bought buff potions, for the King fight. Needs an
-   NPC surface, potion content, and buff effects. `ShopManager.Purchase` already routes
-   to the server; a gold shop is a second currency on the same path.
-
 ### Standing constraints
 
 - **No real money.** `ShopManager` purchasing is a test grant gated on the
   `shop_test_grants` feature flag, which must be **explicitly** true — unknown flags are
   ON in this system, which is right for gameplay and catastrophic for a currency tap.
   Real purchasing needs store registration and server-side receipt validation first.
-- **Nothing has been pushed.** Seventeen commits sit on `server-authoritative` locally.
+- **Nothing has been pushed.** Nineteen commits sit on `server-authoritative` locally.
   Push has never been authorised.
 - **I do not handle passwords, tokens or payment details.** The owner runs those.
 - **One monster type per zone** — a new map means authoring a new monster.

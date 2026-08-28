@@ -264,6 +264,111 @@ public class EquipmentTests(ApiFixture api)
         Assert.Contains("smithing", body.RootElement.GetProperty("detail").GetString());
     }
 
+    // ── Class locks ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// The Bulwark Cleaver is the warrior's. A sorcerer may not pick it up.
+    ///
+    /// ══ WHY THIS IS WORTH A SERVER CHECK ══════════════════════════════════════
+    ///
+    /// A class weapon grants an ability, and an ability is damage, and damage is the
+    /// rate at which the whole economy is earned. "Warrior only" written in a tooltip
+    /// is a suggestion; this is the rule.
+    /// </summary>
+    [SkippableFact]
+    public async Task AnotherClassesWeaponIsRefused()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Bookish", "sorcerer");
+
+        await Give(character, "bulwark_cleaver", slot: 0);
+        await GrantSkill(character, "smithing", 100_000);
+
+        var response = await Equip(player, character, "bulwark_cleaver");
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("wrong class", body.RootElement.GetProperty("title").GetString());
+
+        await using var db = await api.OpenDatabaseAsync();
+        Assert.Null(await Worn(db, character, "mainhand"));
+    }
+
+    /// <summary>
+    /// And the warrior's own weapon goes on.
+    ///
+    /// The paired acceptance. A gate that refused every class weapon would satisfy the
+    /// test above perfectly, which is the mistake that let an API rejecting EVERY real
+    /// token pass a full suite of authentication tests.
+    /// </summary>
+    [SkippableFact]
+    public async Task YourOwnClassesWeaponIsAllowed()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Bruiser", "warrior");
+
+        await Give(character, "bulwark_cleaver", slot: 0);
+        await GrantSkill(character, "smithing", 100_000);
+
+        (await Equip(player, character, "bulwark_cleaver")).EnsureSuccessStatusCode();
+
+        await using var db = await api.OpenDatabaseAsync();
+        Assert.Equal("bulwark_cleaver", await Worn(db, character, "mainhand"));
+    }
+
+    /// <summary>
+    /// A second class earns its weapon too.
+    ///
+    /// The bug this is written against has already happened once, in the talent tree:
+    /// the server built trees from character.class_id alone, so unlocking a second
+    /// class and spending a point in it came back "no such talent". Equipment asks the
+    /// same question, and a warrior who became a ranger has earned the ranger's bow.
+    /// </summary>
+    [SkippableFact]
+    public async Task AWeaponFromYourSECONDClassIsAllowed()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Versatile", "warrior");
+
+        await AddClassRow(character, "ranger");
+
+        await Give(character, "windcut_bow", slot: 0);
+        await GrantSkill(character, "smithing", 100_000);
+
+        (await Equip(player, character, "windcut_bow")).EnsureSuccessStatusCode();
+
+        await using var db = await api.OpenDatabaseAsync();
+        Assert.Equal("windcut_bow", await Worn(db, character, "mainhand"));
+    }
+
+    /// <summary>
+    /// An unlocked item is unlocked. Almost everything in the game has no classReq at
+    /// all, and a gate that quietly refused those would be far worse than no gate.
+    /// </summary>
+    [SkippableFact]
+    public async Task SomethingWithNoClassLockIsUnaffected()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Ordinary", "sorcerer");
+
+        await Give(character, "tin_helmet", slot: 0);
+        await GrantSkill(character, "smithing", 100_000);
+
+        (await Equip(player, character, "tin_helmet")).EnsureSuccessStatusCode();
+
+        await using var db = await api.OpenDatabaseAsync();
+        Assert.Equal("tin_helmet", await Worn(db, character, "helmet"));
+    }
+
     /// <summary>
     /// A slot that is not in the item's family. Without this, a helmet in the main
     /// hand would inherit a weapon's reach and damage.
@@ -361,6 +466,29 @@ public class EquipmentTests(ApiFixture api)
         command.Parameters.AddWithValue(slot);
         command.Parameters.AddWithValue(itemId);
         command.Parameters.AddWithValue(quantity);
+
+        await command.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
+    /// Gives a character a class WITHOUT making it their primary.
+    ///
+    /// Written against the table rather than through /character/{id}/class so the test
+    /// is about the equipment gate rather than about whatever the unlock endpoint
+    /// happens to require of a character's level.
+    /// </summary>
+    private async Task AddClassRow(Guid character, string classId)
+    {
+        await using var db = await api.OpenDatabaseAsync();
+        await using var command = db.CreateCommand();
+
+        command.CommandText = """
+            insert into character_class (character_id, class_id)
+            values ($1, $2)
+            on conflict do nothing;
+            """;
+        command.Parameters.AddWithValue(character);
+        command.Parameters.AddWithValue(classId);
 
         await command.ExecuteNonQueryAsync();
     }

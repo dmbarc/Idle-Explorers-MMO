@@ -220,6 +220,8 @@ public static class ItemTooltip
 
     private static void AppendRequirement(StringBuilder sb, ItemData item)
     {
+        AppendClassRequirement(sb, item);
+
         if (item.levelReq <= 0 || string.IsNullOrEmpty(item.sourceSkill)) return;
 
         string skill = GameManager.Content?.GetSkill(item.sourceSkill)?.DisplayName ?? item.sourceSkill;
@@ -228,6 +230,24 @@ public static class ItemTooltip
 
         sb.AppendLine(Colour($"Requires {skill} {item.levelReq}" + (met ? "" : $" (you are {have})"),
                              met ? FlavorHex : WarnHex));
+    }
+
+    /// <summary>
+    /// "Warrior only", in red when it is not you.
+    ///
+    /// Shown whether or not the character qualifies, because half the value of a class
+    /// weapon is knowing it exists for the class you did not pick. Shown ABOVE the
+    /// skill line for the same reason a locked door is more interesting than its lock:
+    /// if the answer is "not you", the smithing level does not matter.
+    /// </summary>
+    private static void AppendClassRequirement(StringBuilder sb, ItemData item)
+    {
+        if (string.IsNullOrEmpty(item.classReq)) return;
+
+        string className = GameManager.Content?.GetClass(item.classReq)?.DisplayName ?? item.classReq;
+        bool   mine      = EquipmentManager.ClassAllows(item, out _);
+
+        sb.AppendLine(Colour($"{className} only", mine ? FlavorHex : WarnHex));
     }
 
     private static void AppendDurability(StringBuilder sb, ItemData item, string equippedSlotId)

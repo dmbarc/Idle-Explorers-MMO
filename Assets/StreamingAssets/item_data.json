@@ -1807,5 +1807,204 @@
         "equipText": "Equip: +5 mana."
       }
     ]
+  },
+  {
+    "id": "bulwark_cleaver",
+    "name": "Bulwark Cleaver",
+    "description": "Heavy enough that the swing is a commitment. Warriors describe this as an advantage.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_4",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 2.4,
+    "attackSpeedSeconds": 2.2,
+    "damageMin": 14,
+    "damageMax": 26,
+    "classReq": "warrior",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "shieldbreak",
+        "equipText": "Equip: Shieldbreak — a swing that lands on everything in front of you."
+      }
+    ]
+  },
+  {
+    "id": "windcut_bow",
+    "name": "Windcut Bow",
+    "description": "Strung with something that hums in a breeze. It is not a pleasant sound.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/2_Bow/Bow_1",
+    "maxDurability": 400,
+    "weaponType": "ranged",
+    "attackRange": 12,
+    "attackSpeedSeconds": 1.8,
+    "damageMin": 10,
+    "damageMax": 19,
+    "classReq": "ranger",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "windvolley",
+        "equipText": "Equip: Windvolley — a fan of arrows that finds everything nearby."
+      }
+    ],
+    "projectilesPerShot": 2
+  },
+  {
+    "id": "emberward_rod",
+    "name": "Emberward Rod",
+    "description": "Warm at the grip, and warmer the longer you hold it. Sorcerers consider this normal.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/5_Wand/Ward_1",
+    "maxDurability": 400,
+    "weaponType": "ranged",
+    "attackRange": 10,
+    "attackSpeedSeconds": 1.9,
+    "damageMin": 11,
+    "damageMax": 22,
+    "classReq": "sorcerer",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "emberburst",
+        "equipText": "Equip: Emberburst — everything close to you catches."
+      }
+    ]
+  },
+  {
+    "id": "piston_maul",
+    "name": "Piston Maul",
+    "description": "It hits itself first, and passes the result along. The Tinkerer who built it is very proud.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/6_Hammer/F_SR_Hammer",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 2.6,
+    "attackSpeedSeconds": 2.4,
+    "damageMin": 16,
+    "damageMax": 28,
+    "classReq": "tinkerer",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "overclock",
+        "equipText": "Equip: Overclock — swing far faster than the maul was designed for."
+      }
+    ]
+  },
+  {
+    "id": "grave_pike",
+    "name": "Grave Pike",
+    "description": "Reaches further than it looks, which is the last thing several goblins have thought.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/4_Spear/Spear_1",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 3.2,
+    "attackSpeedSeconds": 2,
+    "damageMin": 12,
+    "damageMax": 24,
+    "classReq": "specter",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "gravetether",
+        "equipText": "Equip: Gravetether — what it takes from them, it gives to you."
+      }
+    ]
+  },
+  {
+    "id": "draught_of_fury",
+    "name": "Draught of Fury",
+    "description": "Hits harder for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackDamagePercent",
+        "magnitude": 0.25,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "draught_of_swiftness",
+    "name": "Draught of Swiftness",
+    "description": "Swings faster for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackSpeedPercent",
+        "magnitude": 0.2,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "draught_of_vigour",
+    "name": "Draught of Vigour",
+    "description": "A great deal more of you, for ten minutes. Useful for surviving the parts of a fight that come before the damage matters.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "maxHpPercent",
+        "magnitude": 0.3,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "kingsbane_tonic",
+    "name": "Kingsbane Tonic",
+    "description": "Five minutes, and a great deal of damage. Brewed for one purpose, and the purpose is sitting on a stump. Drink it BEFORE you go in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackDamagePercent",
+        "magnitude": 0.45,
+        "durationSeconds": 300
+      }
+    ]
   }
 ]

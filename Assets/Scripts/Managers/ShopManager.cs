@@ -185,14 +185,32 @@ public class ShopManager : MonoBehaviour
             return false;
         }
 
-        if (Balance < product.relicCoinCost)
+        // ══ WHICH PURSE, OFFLINE ══════════════════════════════════════════════
+        //
+        // The server picks the wallet from ShopProduct.Currency in the shared rules.
+        // This is the editor and offline path, and it has to pick the same one — a
+        // gold potion that quietly took relic coins here would be a divergence the
+        // player only notices once they have lost some.
+        if (product.goldCost > 0L)
         {
-            long short_ = product.relicCoinCost - Balance;
-            GameEvents.FireToast($"Need {NumberFormatter.Format(short_)} more relic coins.", ChatTone.Bad);
-            return false;
+            if (!inventory.TrySpendCoins(product.goldCost))
+            {
+                long owing = System.Math.Max(0L, product.goldCost - inventory.Coins);
+                GameEvents.FireToast($"Need {NumberFormatter.Format(owing)} more gold.", ChatTone.Bad);
+                return false;
+            }
         }
+        else
+        {
+            if (Balance < product.relicCoinCost)
+            {
+                long short_ = product.relicCoinCost - Balance;
+                GameEvents.FireToast($"Need {NumberFormatter.Format(short_)} more relic coins.", ChatTone.Bad);
+                return false;
+            }
 
-        if (!TrySpend(product.relicCoinCost)) return false;
+            if (!TrySpend(product.relicCoinCost)) return false;
+        }
 
         inventory.AddItem(product.itemId, System.Math.Max(1L, product.quantity));
 

@@ -137,11 +137,24 @@ public class ShopPanel : UIScreen
         var content_ = GameManager.Content;
 
         SectionHeading(content, theme, "SPEND RELIC COINS");
-        if (content_ == null || content_.ShopProducts.Count == 0)
-            Empty(content, theme, "Nothing for sale yet.");
-        else
+
+        // ══ RELIC-COIN PRODUCTS ONLY ══════════════════════════════════════════
+        //
+        // ShopProduct now carries both a relic price and a gold one, and the
+        // shopkeeper's potions are priced in gold. Listing them here would show a
+        // "◆ 0" row with an enabled BUY button, which is a free purchase.
+        int listed = 0;
+
+        if (content_ != null)
             foreach (var product in content_.ShopProducts)
-                if (product != null) BuildProductRow(content, theme, product);
+            {
+                if (product == null || product.relicCoinCost <= 0L) continue;
+
+                BuildProductRow(content, theme, product);
+                listed++;
+            }
+
+        if (listed == 0) Empty(content, theme, "Nothing for sale yet.");
 
         SectionHeading(content, theme, "BUY RELIC COINS");
         if (content_ == null || content_.CoinPacks.Count == 0)

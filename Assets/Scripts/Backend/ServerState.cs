@@ -505,6 +505,46 @@ namespace IdleExplorers.Backend
         /// items the player can see, and it goes through the ordinary settle -- so the
         /// AFK summary that appears is the same one a real absence produces.
         /// </summary>
+        /// <summary>
+        /// Drinks a potion and hands back what the server granted.
+        ///
+        /// ══ WHY IT IS NOT UseItemAsync ════════════════════════════════════════
+        ///
+        /// Same endpoint, different aftermath. A gem's whole point is the settlement
+        /// it triggers, so UseItemAsync settles and shows the summary screen; a potion
+        /// grants nothing to settle, and popping an AFK summary over a player who just
+        /// drank before a boss fight would be noise at the worst moment.
+        ///
+        /// The result is returned rather than adopted here because ServerState mirrors
+        /// the SERVER, and a buff is mirrored by BuffManager. This is the wire.
+        /// </summary>
+        public static async Awaitable<UseItemResult> DrinkAsync(string itemId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(itemId))
+                return null;
+
+            try
+            {
+                UseItemResult used = await GameBackend.Current.UseItemAsync(CharacterId, itemId);
+
+                if (used == null || string.IsNullOrEmpty(used.buffStatId)) return null;
+
+                // The bag lost an item, and the server is the one that took it. Pull
+                // rather than guess: the local slot the potion came from is not
+                // necessarily the one the server consumed.
+                await PullCharacterAsync(CharacterId);
+
+                return used;
+            }
+            catch (BackendException e)
+            {
+                NoteIfDisplaced(e);
+
+                GameEvents.FireToast(e.Title, ChatTone.Bad);
+                return null;
+            }
+        }
+
         public static async Awaitable<bool> UseItemAsync(string itemId)
         {
             if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(itemId))

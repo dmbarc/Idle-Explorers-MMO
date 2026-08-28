@@ -161,6 +161,38 @@
       "itemId": "festival_shirt",
       "quantity": 1,
       "relicCoinCost": 60
+    },
+    {
+      "id": "buy_draught_of_fury",
+      "name": "Draught of Fury",
+      "description": "Hits harder for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+      "itemId": "draught_of_fury",
+      "quantity": 1,
+      "goldCost": 2500
+    },
+    {
+      "id": "buy_draught_of_swiftness",
+      "name": "Draught of Swiftness",
+      "description": "Swings faster for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+      "itemId": "draught_of_swiftness",
+      "quantity": 1,
+      "goldCost": 2500
+    },
+    {
+      "id": "buy_draught_of_vigour",
+      "name": "Draught of Vigour",
+      "description": "A great deal more of you, for ten minutes. Useful for surviving the parts of a fight that come before the damage matters.",
+      "itemId": "draught_of_vigour",
+      "quantity": 1,
+      "goldCost": 2000
+    },
+    {
+      "id": "buy_kingsbane_tonic",
+      "name": "Kingsbane Tonic",
+      "description": "Five minutes, and a great deal of damage. Brewed for one purpose, and the purpose is sitting on a stump. Drink it BEFORE you go in.",
+      "itemId": "kingsbane_tonic",
+      "quantity": 1,
+      "goldCost": 9000
     }
   ]
 }

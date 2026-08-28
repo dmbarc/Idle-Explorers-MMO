@@ -73,6 +73,24 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 7df1f2f736edcc34eb8d0095bfa78920, type: 3}
   - id: magic_staff
     sprite: {fileID: 21300000, guid: 71e4ddfd4c934ef41b11023fb19aa584, type: 3}
+  - id: bulwark_cleaver
+    sprite: {fileID: 21300000, guid: bcc300c5be9671842995d7b2ed871ccf, type: 3}
+  - id: windcut_bow
+    sprite: {fileID: 21300000, guid: 26a992dcc4ca3bc4698de01c5fc22f0a, type: 3}
+  - id: emberward_rod
+    sprite: {fileID: 21300000, guid: 9937a10511c0acd499c9037a93a7f0ea, type: 3}
+  - id: piston_maul
+    sprite: {fileID: 21300000, guid: 5346d4fc5f060cd4092110607b9c4c5c, type: 3}
+  - id: grave_pike
+    sprite: {fileID: 21300000, guid: 37ac2ccecea27ed4f9b1d04fbbebfaa1, type: 3}
+  - id: draught_of_fury
+    sprite: {fileID: 21300000, guid: db005d11213e5da47b9769c2e6c56eee, type: 3}
+  - id: draught_of_swiftness
+    sprite: {fileID: 21300000, guid: 6e4bed2a616a62e468dacdfe27dcb579, type: 3}
+  - id: draught_of_vigour
+    sprite: {fileID: 21300000, guid: 563cee1ccc508dd43b1852807ba99063, type: 3}
+  - id: kingsbane_tonic
+    sprite: {fileID: 21300000, guid: 10876d86c0d0c7948ab7c3f219be6325, type: 3}
   - id: chaos_rune
     sprite: {fileID: 21300000, guid: aa2cbc0697e326144a59d8b719f7c3fe, type: 3}
   - id: death_rune

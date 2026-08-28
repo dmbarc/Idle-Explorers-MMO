@@ -95,6 +95,13 @@ public class ZoneManager : MonoBehaviour
 
         IsLoading = false;
 
+        // ══ THE PEOPLE ════════════════════════════════════════════════════════
+        //
+        // After the scene is loaded and active, so they land IN the map and go with it
+        // when it unloads. Before FireMapEntered, so anything that reacts to arriving
+        // already finds them there.
+        SpawnNpcs(map);
+
         GameEvents.FireMapEntered(map.id);
         GameEvents.OnZoneEntered?.Invoke(map.zoneId);
 
@@ -125,6 +132,38 @@ public class ZoneManager : MonoBehaviour
         _ = IdleExplorers.Backend.ServerState.SaveLocationAsync(map.id);
 
         Debug.Log($"[ZoneManager] Entered {map.DisplayName} ({map.id}) in {CurrentZone?.DisplayName ?? map.zoneId}");
+    }
+
+    /// <summary>
+    /// Puts the map's NPCs where the content says they stand.
+    ///
+    /// ══ WHY THEY ARE NOT IN THE SCENE ═════════════════════════════════════════
+    ///
+    /// Both map scenes are GENERATED from a recipe, and regenerating one deletes
+    /// anything hand-placed in it. The layout is a string array somebody edits, so
+    /// regenerating is routine — an NPC in the scene file survives until the next
+    /// time the camp gains a tree.
+    ///
+    /// Declaring them in zone_data.json instead means moving the shopkeeper is two
+    /// numbers, with no scene diff and no NavMesh rebake.
+    ///
+    /// They go under a holder in the newly loaded scene, which is what makes them
+    /// vanish with it: nothing has to remember to clean them up on the way out.
+    /// </summary>
+    private void SpawnNpcs(MapData map)
+    {
+        if (map?.npcs == null || map.npcs.Length == 0) return;
+
+        var holder = new GameObject("MapNpcs");
+
+        int placed = 0;
+
+        foreach (MapNpc row in map.npcs)
+            if (NpcController.Spawn(row, holder.transform) != null) placed++;
+
+        if (placed < map.npcs.Length)
+            Debug.LogWarning($"[ZoneManager] {map.npcs.Length - placed} of {map.npcs.Length} " +
+                             $"NPC(s) in '{map.id}' could not be built — see the warnings above.");
     }
 
     /// <summary>

@@ -48,6 +48,11 @@ public class StatsManager : MonoBehaviour
         GameEvents.OnTalentsChanged    += MarkDirty;
         GameEvents.OnClassChanged      += OnClassChanged;
         GameEvents.OnCharacterSelected += OnCharacterSelected;
+
+        // A potion starting, being refreshed, or running out all change the block.
+        // Without this a Draught of Fury would apply on the next unrelated
+        // invalidation and expire on the one after -- which is to say, at random.
+        BuffManager.OnChanged          += MarkDirty;
     }
 
     void OnDisable()
@@ -56,10 +61,32 @@ public class StatsManager : MonoBehaviour
         GameEvents.OnTalentsChanged    -= MarkDirty;
         GameEvents.OnClassChanged      -= OnClassChanged;
         GameEvents.OnCharacterSelected -= OnCharacterSelected;
+        BuffManager.OnChanged          -= MarkDirty;
     }
 
     private void OnClassChanged(string _)              => MarkDirty();
     private void OnCharacterSelected(CharacterData _)  => MarkDirty();
+
+    /// <summary>
+    /// Ends buffs whose time is up.
+    ///
+    /// Here rather than in BuffManager, which is a static store with no tick of its
+    /// own, and here rather than in the HUD, because a buff wearing off changes what
+    /// the character HITS FOR — it must happen whether or not anything is drawing a
+    /// timer. Expiry is the one change to a buff no player action causes.
+    ///
+    /// Once a second: the granularity a countdown is displayed at, and a hundredth of
+    /// the work of doing it per frame.
+    /// </summary>
+    private float _nextBuffSweepAt;
+
+    void Update()
+    {
+        if (Time.unscaledTime < _nextBuffSweepAt) return;
+
+        _nextBuffSweepAt = Time.unscaledTime + 1f;
+        BuffManager.PruneExpired();
+    }
 
     /// <summary>
     /// Invalidates the cache. Deliberately does NOT recompute immediately — several of
@@ -106,6 +133,17 @@ public class StatsManager : MonoBehaviour
             GameManager.Equipment?.ContributeTo(block);
             SetBonusResolver.ContributeTo(block);
             AddTalents(block);
+
+            // ══ AND WHATEVER THEY DRANK ═══════════════════════════════════════
+            //
+            // Last, and in the same position the server applies it: a buff is a
+            // percentage OF the assembled block, so everything it multiplies has to
+            // already be in there.
+            //
+            // Through the SHARED Buffs.Apply that SettlementService.ResolveStatsAsync
+            // calls, which is what stops the number on screen and the number the
+            // server pays from drifting apart.
+            BuffManager.Apply(block);
 
             _current = block;
             _dirty   = false;

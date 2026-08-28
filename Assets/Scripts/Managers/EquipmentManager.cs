@@ -99,6 +99,22 @@ public class EquipmentManager : MonoBehaviour
             return false;
         }
 
+        // ══ THE ONE REFUSAL THAT HAPPENS BEFORE THE ROUND TRIP ════════════════
+        //
+        // Above the server call rather than below it with the rest, because a class
+        // lock never changes on the way to the server -- the answer is the same
+        // whoever gives it, and hearing it now beats watching the sword equip and
+        // then unequip itself half a second later.
+        //
+        // It is NOT the enforcement. EquipmentEndpoints checks the same rule through
+        // the same shared function against state a player cannot edit; this is only
+        // the part that is polite about it.
+        if (!ClassAllows(item, out string wrongClass))
+        {
+            GameEvents.FireToast(wrongClass, ChatTone.Bad);
+            return false;
+        }
+
         // ══ THE SERVER DECIDES WHEN THERE IS ONE ══════════════════════════════
         //
         // Everything below this line -- the slot resolution, the two-handed rule, the
@@ -193,6 +209,39 @@ public class EquipmentManager : MonoBehaviour
     ///
     /// An item with no sourceSkill cannot be gated by this and is always allowed.
     /// </summary>
+    /// <summary>
+    /// Whether this character's classes cover the item's class lock.
+    ///
+    /// ══ WHY AN UNKNOWN CHARACTER IS ALLOWED THROUGH ═══════════════════════════
+    ///
+    /// A client that does not yet know what class it is must not refuse a warrior
+    /// their own sword. The mirror can be a moment behind — during a class change,
+    /// on the first frame after a character loads — and the cost of the two answers
+    /// is not symmetric: letting it through means the server refuses it a moment
+    /// later and says why, while refusing it here means an item that can never be
+    /// equipped and no explanation that makes sense.
+    ///
+    /// Through the shared ClassLock either way, so this cannot answer differently
+    /// from the server for any character whose classes are actually known.
+    /// </summary>
+    public static bool ClassAllows(ItemData item, out string reason)
+    {
+        reason = null;
+
+        if (item == null || string.IsNullOrEmpty(item.classReq)) return true;
+
+        var held = CharacterManager.Current?.ClassIds();
+
+        if (held == null || held.Count == 0) return true;
+
+        if (ClassLock.Allows(item, held)) return true;
+
+        string className = GameManager.Content?.GetClass(item.classReq)?.DisplayName;
+
+        reason = ClassLock.Refusal(item, held, className);
+        return false;
+    }
+
     public static bool MeetsRequirement(ItemData item, out string reason)
     {
         reason = null;

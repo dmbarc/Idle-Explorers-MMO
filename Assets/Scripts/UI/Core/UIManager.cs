@@ -63,6 +63,15 @@ public class UIManager : MonoBehaviour
         // to read it in anyway.
         if (state != GameManager.GameState.InGame) ChatLog.Clear();
 
+        // Nor do buffs. They belong to a character, and the mirror is keyed on nothing
+        // but the stat — so carrying one out to the menu would apply the last
+        // character's Draught of Fury to the next one the player picks up.
+        //
+        // The SERVER is unaffected either way: the row is keyed on character_id and
+        // is still there when they come back. This only stops the client showing a
+        // buff on somebody who does not have it.
+        if (state != GameManager.GameState.InGame) BuffManager.Clear();
+
         switch (state)
         {
             case GameManager.GameState.Splash:          Push<SplashScreen>();          break;
