@@ -67,7 +67,26 @@ public class ShopManager : MonoBehaviour
     // ── Buying relic coins with money ─────────────────────────────────────────
 
     /// <summary>True when a purchase can be attempted at all.</summary>
-    public static bool PurchasingAvailable => DevTools.Enabled;
+    /// <summary>The flag the SERVER must have explicitly on. Mirrored here to hide the buttons.</summary>
+    public const string TestGrantsFlag = "shop_test_grants";
+
+    /// <summary>
+    /// Whether the shop can hand out anything at all.
+    ///
+    /// ══ THE SERVER DECIDES, THIS ONLY HIDES BUTTONS ══════════════════════════
+    ///
+    /// Under a real server it is the flag, mirrored into the bootstrap payload, so the
+    /// packs can be switched on for a playtest without a new build -- and switched off
+    /// again in one statement. The client copy is courtesy: the endpoint checks the
+    /// same flag again and refuses, so a player who edits this out gets a 403 rather
+    /// than coins.
+    ///
+    /// Offline it is DevTools, as before, because there is nothing to ask.
+    /// </summary>
+    public static bool PurchasingAvailable =>
+        IdleExplorers.Backend.ServerState.IsAuthoritative
+            ? IdleExplorers.Backend.ServerState.FlagEnabled(TestGrantsFlag)
+            : DevTools.Enabled;
 
     /// <summary>
     /// The single seam where real IAP lands.
@@ -96,9 +115,24 @@ public class ShopManager : MonoBehaviour
             return false;
         }
 
-        Debug.LogWarning($"[Shop] STUB PURCHASE — granting {pack.coins} relic coins for " +
+        Debug.LogWarning($"[Shop] TEST GRANT — {pack.coins} relic coins for " +
                          $"{pack.DisplayPrice} without contacting any store. " +
                          "No money has changed hands.");
+
+        // ══ THE SERVER GRANTS IT, NOT THIS ════════════════════════════════════
+        //
+        // Locally this used to write straight into account.json, which is the file the
+        // player owns -- so the balance was both editable and, in a release build,
+        // unreachable, and the shop simply refused to open.
+        //
+        // Granting server-side means the test coins live where the real ones will: one
+        // balance, one ledger row, one authority. The only difference between this and
+        // a purchase is that nobody paid, and the ledger says so.
+        if (IdleExplorers.Backend.ServerState.IsAuthoritative)
+        {
+            _ = IdleExplorers.Backend.ServerState.GrantTestPackAsync(pack.id);
+            return true;
+        }
 
         Grant(pack.coins, $"stub purchase of '{pack.id}'");
         GameEvents.FireToast($"+{NumberFormatter.Format(pack.coins)} relic coins (test purchase)", ChatTone.Good);

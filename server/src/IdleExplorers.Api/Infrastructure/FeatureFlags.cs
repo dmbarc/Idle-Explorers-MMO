@@ -92,6 +92,31 @@ public sealed class FeatureFlags(Db db)
         return !flags.TryGetValue(flag, out bool enabled) || enabled;
     }
 
+    /// <summary>
+    /// Whether a feature is on AND somebody said so. Unknown flags are OFF here.
+    ///
+    /// ══ THE INVERSE OF THE RULE ABOVE, ON PURPOSE ═════════════════════════════
+    ///
+    /// Default-on is right for gameplay: the failure mode of a missing row is that
+    /// the game keeps working, and a typo in a flag name switches nothing off in the
+    /// middle of a playtest.
+    ///
+    /// It is exactly wrong for anything that GRANTS VALUE. There, the failure mode of
+    /// a missing row would be a currency tap that nobody turned on -- a deleted row, a
+    /// fresh database, a misspelling in the seed -- handing out premium currency with
+    /// no payment and no record of a decision to allow it.
+    ///
+    /// So value-granting paths ask this instead, and the flag must exist and be true.
+    /// Silence means no.
+    /// </summary>
+    public async Task<bool> IsExplicitlyEnabledAsync(string flag,
+                                                     CancellationToken cancellation = default)
+    {
+        Dictionary<string, bool> flags = await CurrentAsync(cancellation);
+
+        return flags.TryGetValue(flag, out bool enabled) && enabled;
+    }
+
     /// <summary>Every known flag and its state, for the bootstrap payload.</summary>
     public async Task<Dictionary<string, bool>> AllAsync(CancellationToken cancellation = default)
     {

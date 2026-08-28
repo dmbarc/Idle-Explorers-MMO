@@ -910,8 +910,13 @@ public sealed class SettlementService(Db db, ContentCache content)
             tx, characterId, characterXp);
     }
 
-    private static async Task CreditWalletAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
-                                                Guid accountId, Guid characterId, string currency,
+    /// <summary>
+    /// Internal rather than private: the shop test-grant path credits the same way,
+    /// through the same balance-and-ledger pair in one transaction. A second copy of
+    /// this would be a second chance to move a balance without a ledger row.
+    /// </summary>
+    internal static async Task CreditWalletAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                Guid accountId, Guid? characterId, string currency,
                                                 long amount, string reason,
                                                 CancellationToken cancellation)
     {
@@ -935,7 +940,11 @@ public sealed class SettlementService(Db db, ContentCache content)
             insert into wallet_ledger (account_id, currency, delta, reason, character_id)
             values ($1, $2, $3, $4, $5);
             """,
-            tx, accountId, currency, amount, reason, characterId);
+            tx, accountId, currency, amount, reason,
+            // NULL rather than a placeholder guid: character_id carries a foreign key,
+            // and an account-level movement -- a coin pack, say -- belongs to no
+            // character. Guid.Empty is not a character and the insert rejects it.
+            (object?)characterId ?? DBNull.Value);
     }
 
     private static async Task WriteItemLedgerAsync(NpgsqlConnection connection, NpgsqlTransaction tx,

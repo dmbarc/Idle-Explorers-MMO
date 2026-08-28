@@ -59,6 +59,7 @@ public class PlayerController : MonoBehaviour
 
     private MonsterController currentTarget;
     private SpriteFacing      _facing;
+    private NamePlate         _namePlate;
     private DropPickup currentItemTarget;
     private SkillNodeController currentNodeTarget;
 
@@ -79,6 +80,19 @@ public class PlayerController : MonoBehaviour
 
         _spawnPoint    = transform.position;
         _spawnPointSet = true;
+
+        // ══ YOUR OWN NAME, IN YOUR OWN COLOUR ═════════════════════════════════
+        //
+        // Role.Self rather than OtherPlayer: the distinction exists so that when other
+        // players are drawn, telling yourself apart from them is instant. Wiring it
+        // now means the day they appear is a spawn call, not a colour scheme.
+        float head = SpumRig.MeasureCharacterHeight(transform);
+
+        _namePlate = NamePlate.Attach(
+            gameObject,
+            CharacterManager.Current?.characterName ?? "You",
+            NamePlate.Role.Self,
+            heightAbove: (head > 0.1f ? head : 2f) + 0.95f);
 
         ApplyClassStats();
 
@@ -538,6 +552,16 @@ public class PlayerController : MonoBehaviour
         if (currentTarget != newTarget)
         {
             currentTarget = newTarget;
+
+            // ══ LOOK AT WHAT YOU ARE FIGHTING ══════════════════════════════
+            //
+            // The rig has carried a SpriteFacing since facing was added, and every
+            // other combatant sets its LookTarget -- monsters, the King, summoned
+            // allies. The PLAYER never did. So enemies turned to face you and you
+            // never turned back, which reads as the one thing being broken rather
+            // than the one thing missing.
+            if (_facing != null) _facing.LookTarget = newTarget.transform;
+
             agent.stoppingDistance = 0f;
             agent.isStopped = false;      // we may have been standing still attacking
             agent.ResetPath();
@@ -652,6 +676,12 @@ public class PlayerController : MonoBehaviour
 
         currentTarget    = null;
         _closestApproach = float.MaxValue;
+
+        // Released with the target. Held, the character would keep staring at a
+        // corpse -- or at where one used to be, since the transform outlives the fight
+        // by however long the death animation runs.
+        if (_facing != null) _facing.LookTarget = null;
+
         if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
     }
 

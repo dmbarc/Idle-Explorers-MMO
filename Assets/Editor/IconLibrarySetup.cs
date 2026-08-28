@@ -115,6 +115,41 @@ public static class IconLibrarySetup
         { "whetstone_trinket",   "Tools_Misc" },
         { "swiftness_trinket",   "Feathers" },
         { "campfire_sprite",     "animal-fox" },           // Kenney Cube Pets preview
+
+        // ── The shop's cosmetics ──────────────────────────────────────────────
+        //
+        // Every one of these drew a generated placeholder, which is the worst thing a
+        // PREMIUM item can look like: the shop was asking for relic coins in exchange
+        // for a grey square.
+        //
+        // ── ONLY SPRITES RESOLVE HERE ─────────────────────────────────────────
+        //
+        // The obvious picks were the Cartoon FX aura graphics, which are the textures
+        // the aura effects themselves use. They do not work: particle textures are
+        // imported as plain Texture2D, and this table can only bind SPRITES. The first
+        // attempt named five of them and Populate reported all five unmatched, which
+        // is exactly the placeholder it was meant to remove.
+        //
+        // So these come from packs already imported as sprites. Worth remembering
+        // before reaching for the visually perfect file again.
+        { "starlit_aura",        "MagicEssence" },
+        { "gilded_aura",         "Gold01" },
+
+        // ── Three approximations, marked as such ──────────────────────────────
+        //
+        // The project owns exactly ONE cape sprite and travelers_cape already has it,
+        // and the invariant this table enforces is that no two ids share an icon --
+        // which is what stopped ore and fish both being a polearm.
+        //
+        // These have better silhouettes than a grey square and are not final art.
+        // Replacing them is a one-line change each.
+        // The SPUM cloth sheets were tried and do not bind either: they are multi-sprite
+        // atlases, and this table resolves single sprites by asset name. Two dead ends
+        // for the same reason, which is why both are written down.
+        { "spectral_veil",       "LightWizard" },          // TODO(art): something ghostly
+        { "wanderers_cape",      "flag" },                 // TODO(art): a real cape
+        { "heralds_tabard",      "Scroll" },               // TODO(art): heraldry
+        { "festival_shirt",      "Hat 1-1" },              // TODO(art): as linen_shirt, a hat stands in
     };
 
     /// <summary>skillId → sprite file name. All 13 skills, not just the 8 that had icons.</summary>

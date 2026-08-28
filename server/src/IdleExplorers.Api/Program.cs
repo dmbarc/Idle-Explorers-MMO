@@ -163,6 +163,7 @@ public class Program
         BossEndpoints.Map(app);
         EncounterEndpoints.Map(app);
         TalentEndpoints.Map(app);
+        ShopEndpoints.Map(app);
         BankEndpoints.Map(app);
         EquipmentEndpoints.Map(app);
         TelemetryEndpoints.Map(app);

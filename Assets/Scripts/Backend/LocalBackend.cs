@@ -72,6 +72,16 @@ namespace IdleExplorers.Backend
 
         public Awaitable SaveLocationAsync(string characterId, string mapId) => Completed();
 
+        /// <summary>
+        /// Offline the shop grants locally, as it always did, so this says nothing.
+        ///
+        /// Returning null rather than a fabricated result: ShopManager only calls this
+        /// when a server is authoritative, and inventing a balance here would let a
+        /// future caller believe an offline grant had been recorded somewhere.
+        /// </summary>
+        public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
+            Completed<TestGrantResult>(null);
+
         public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId)
         {
             var character = Find(characterId);

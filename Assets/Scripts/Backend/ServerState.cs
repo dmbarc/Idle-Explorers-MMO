@@ -383,6 +383,56 @@ namespace IdleExplorers.Backend
         /// <summary>
         /// Remembers where the character is standing, so they load in there next time.
         /// </summary>
+        /// <summary>
+        /// Whether the server says a feature is on.
+        ///
+        /// Defaults TRUE for a flag the server never mentioned, matching the server's
+        /// own rule for ordinary features -- a missing row should not switch the game
+        /// off. Anything that grants value does NOT rely on this: the server checks it
+        /// again with the strict variant and refuses, so the worst a wrong answer here
+        /// can do is show a button that then says no.
+        /// </summary>
+        public static bool FlagEnabled(string flag)
+        {
+            if (Account?.flags == null || string.IsNullOrEmpty(flag)) return true;
+
+            foreach (var row in Account.flags)
+                if (row != null && row.flag == flag) return row.enabled;
+
+            return true;
+        }
+
+        /// <summary>
+        /// Asks the server for a coin pack, unpaid.
+        ///
+        /// The balance that comes back is the server's, and the account is pulled
+        /// afterwards so every panel reading relic coins agrees with it.
+        /// </summary>
+        public static async Awaitable GrantTestPackAsync(string packId)
+        {
+            if (!IsAuthoritative || string.IsNullOrEmpty(packId)) return;
+
+            try
+            {
+                TestGrantResult result = await GameBackend.Current.GrantTestPackAsync(packId);
+
+                if (result == null) return;
+
+                await PullAccountAsync();
+
+                GameEvents.FireToast(
+                    $"+{NumberFormatter.Format(result.granted)} relic coins (test grant — nothing was paid)",
+                    ChatTone.Good);
+            }
+            catch (BackendException e)
+            {
+                // The server's refusal is the honest one: "not available" means the
+                // flag is off, and telling the player that beats a button that does
+                // nothing.
+                GameEvents.FireToast(e.Title, ChatTone.Bad);
+            }
+        }
+
         public static async Awaitable SaveLocationAsync(string mapId)
         {
             if (!IsAuthoritative || string.IsNullOrEmpty(CharacterId) || string.IsNullOrEmpty(mapId))

@@ -26,14 +26,34 @@ public class DamageNumber : MonoBehaviour
     /// A critical hit. Deliberately far from the ordinary damage colour — a crit that
     /// looks like a slightly brighter normal hit is a stat the player cannot see
     /// working, and critical chance is meant to be felt.
+    ///
+    /// GREEN, and bigger. It was orange, which sat close enough to the ordinary
+    /// yellow that a crit read as a slightly better hit rather than as an event.
+    /// Colour alone was doing all the work; size now carries most of it, which also
+    /// means a crit is legible to somebody who cannot separate the two hues.
     /// </summary>
-    public static readonly Color PlayerCrit  = new(1.00f, 0.45f, 0.10f);
+    public static readonly Color PlayerCrit  = new(0.30f, 1.00f, 0.35f);
+
+    /// <summary>How much larger a critical hit draws. See PlayerCrit.</summary>
+    public const float CritScale = 1.85f;
+
+    private const float BaseFontSize = 4f;
 
     /// <summary>
     /// Spawns a number above a point. Amounts below 1 are skipped — a stream of "0"s
     /// over a heavily armoured target is noise, not feedback.
     /// </summary>
     public static void Spawn(Vector3 worldPosition, double amount, Color color, string prefix = "")
+        => Spawn(worldPosition, amount, color, prefix, big: false);
+
+    /// <summary>
+    /// As above, and larger when it mattered.
+    ///
+    /// The size is passed rather than inferred from the colour, because the colour is
+    /// the caller's choice and a future one that happens to be green should not
+    /// silently start drawing double-height numbers.
+    /// </summary>
+    public static void Spawn(Vector3 worldPosition, double amount, Color color, string prefix, bool big)
     {
         if (amount < 1d) return;
 
@@ -46,7 +66,7 @@ public class DamageNumber : MonoBehaviour
 
         var label = go.AddComponent<TextMeshPro>();
         label.text      = prefix + NumberFormatter.Format((long)amount);
-        label.fontSize  = 4f;
+        label.fontSize  = big ? BaseFontSize * CritScale : BaseFontSize;
         label.alignment = TextAlignmentOptions.Center;
         label.color     = color;
         label.GetComponent<RectTransform>().sizeDelta = new Vector2(6f, 1.5f);

@@ -53,6 +53,14 @@ namespace IdleExplorers.Backend
         /// <summary>Remembers where the character is, so they load in there next time.</summary>
         Awaitable SaveLocationAsync(string characterId, string mapId);
 
+        /// <summary>
+        /// Grants a coin pack WITHOUT a payment, for testing.
+        ///
+        /// Refused unless the server has the flag explicitly on. Nothing about this is
+        /// a purchase; see ShopEndpoints for why it is a server call at all.
+        /// </summary>
+        Awaitable<TestGrantResult> GrantTestPackAsync(string packId);
+
         Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
                                                           SpumSaveData appearance);
 
@@ -219,6 +227,16 @@ namespace IdleExplorers.Backend
         /// </summary>
         public string contentVersion;
 
+        /// <summary>
+        /// What is switched on, as the server sees it.
+        ///
+        /// COURTESY, not enforcement. It lets the client hide a disabled feature
+        /// rather than showing it broken; every flag with an effect is checked again
+        /// in the handler that would do the thing, so a client that ignores this gets
+        /// a refusal rather than a reward.
+        /// </summary>
+        public FeatureFlagRow[] flags;
+
         public long BalanceOf(string currency)
         {
             if (wallets == null) return 0L;
@@ -272,6 +290,21 @@ namespace IdleExplorers.Backend
         public SlotSnapshot[]  inventory;
         public EquipSnapshot[] equipment;
         public KillSnapshot[]  kills;
+    }
+
+    [Serializable] public class FeatureFlagRow { public string flag; public bool enabled; }
+
+    /// <summary>What an unpaid shop grant produced. See ShopEndpoints.</summary>
+    [Serializable]
+    public class TestGrantResult
+    {
+        public string packId;
+        public long   granted;
+        public string currency;
+        public long   balance;
+
+        /// <summary>Always false. Said out loud so this cannot be shown as a receipt.</summary>
+        public bool   paid;
     }
 
     [Serializable] public class SkillSnapshot { public string skillId; public long xp; public int level; }

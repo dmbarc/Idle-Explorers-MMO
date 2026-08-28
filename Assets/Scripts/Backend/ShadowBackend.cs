@@ -69,6 +69,10 @@ namespace IdleExplorers.Backend
             await _remote.SaveAppearanceAsync(characterId, appearance);
         }
 
+        /// <summary>Only the real server can grant. The local side has no wallet to move.</summary>
+        public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
+            _remote.GrantTestPackAsync(packId);
+
         public async Awaitable SaveLocationAsync(string characterId, string mapId)
         {
             await _local.SaveLocationAsync(characterId, mapId);

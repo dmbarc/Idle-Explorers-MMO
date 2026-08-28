@@ -35,6 +35,7 @@ public class MonsterController : MonoBehaviour
     /// wiring is removed on purpose and nothing put it back. This one attaches itself.
     /// </summary>
     private WorldStatusBar _healthBar;
+    private NamePlate      _namePlate;
 
     private const float UI_SHOW_TIME = 3f;
 
@@ -87,6 +88,14 @@ public class MonsterController : MonoBehaviour
             _healthBar.HideAfterSeconds = UI_SHOW_TIME;
             _healthBar.SetVisible(false);
         }
+
+        // Above the bar, using the same measured head height, so a bramblekin and the
+        // King both get a plate that clears their own artwork rather than a constant
+        // that suits neither.
+        _namePlate = NamePlate.Attach(gameObject,
+                                      _data != null ? _data.DisplayName : name,
+                                      NamePlate.Role.Hostile,
+                                      heightAbove: (head > 0.1f ? head : 2f) + 0.95f);
     }
 
     void Update()
@@ -110,12 +119,26 @@ public class MonsterController : MonoBehaviour
             {
                 float dist = Vector3.Distance(transform.position, player.position);
 
+                // ══ FACE THE PLAYER FOR AS LONG AS THEY MATTER ════════════════════
+                //
+                // Set once, before the range branches, rather than inside the chase.
+                // It used to be assigned only while CLOSING -- so a monster ran at you
+                // facing you, arrived, and then kept whatever facing it happened to
+                // have while it stood there hitting you. Two sprites side by side,
+                // both looking somewhere else, for the entire fight.
+                //
+                // Cleared when they stop being a target, so a monster that has lost
+                // interest goes back to facing the way it wanders.
+                if (_facing != null)
+                    _facing.LookTarget = dist <= aggroDistance && playerController.IsAlive()
+                                       ? player
+                                       : null;
+
                 if (dist <= aggroDistance && dist > attackDistance && playerController.IsAlive())
                 {
                     // Only re-path when the player has actually moved. SetDestination
                     // recalculates the whole path, and calling it every frame for every
                     // monster in aggro range was most of the cost of a busy camp.
-                    if (_facing != null) _facing.LookTarget = player;
 
                     if ((player.position - _lastChaseDestination).sqrMagnitude > 1f)
                     {
@@ -195,6 +218,11 @@ public class MonsterController : MonoBehaviour
         attackDamage        = Random.Range(data.attackDamageMin, data.attackDamageMax + 1);
 
         name = data.DisplayName;
+
+        // Initialize can run AFTER Start for a spawned monster, so the plate is built
+        // with the placeholder name and corrected here. Without this every goblin is
+        // labelled with its prefab name.
+        if (_namePlate != null) _namePlate.SetText(data.DisplayName);
     }
 
     /// <summary>
@@ -212,7 +240,8 @@ public class MonsterController : MonoBehaviour
     {
         ShowHealthUI();
         DamageNumber.Spawn(transform.position, damageAmount,
-                           wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt);
+                           wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt,
+                           prefix: "", big: wasCrit);
 
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
 

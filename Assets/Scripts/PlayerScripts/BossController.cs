@@ -478,7 +478,8 @@ public class BossController : MonoBehaviour
         double predicted = System.Math.Max(0d, before - Fight.BossHealth);
 
         DamageNumber.Spawn(transform.position, predicted,
-                           wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt);
+                           wasCrit ? DamageNumber.PlayerCrit : DamageNumber.PlayerDealt,
+                           prefix: "", big: wasCrit);
 
         GameEvents.FireBossHealthChanged(HealthFraction);
 
