@@ -28,6 +28,7 @@ namespace IdleExplorersTests
             Verifiers(check);
             Challenges(check);
             Wiring(check, root);
+            WebStorage(check, root);
         }
 
         // ══ THE VERIFIER ══════════════════════════════════════════════════════
@@ -150,6 +151,110 @@ namespace IdleExplorersTests
 
             check(Regex.IsMatch(login, @"if \(Connected\)[\s\S]{0,300}?return;", RegexOptions.None),
                   "the connected branch returns before the offline pre-fill can run");
+        }
+
+        // == THE VERIFIER HAS TO SURVIVE A PAGE NAVIGATION =====================
+
+        /// <summary>
+        /// The bug this exists to prevent, which shipped once.
+        ///
+        /// On WebGL the sign-in stores a PKCE verifier and then immediately sends the
+        /// page to Google. PlayerPrefs cannot carry a value across that: Unity backs it
+        /// with IndexedDB and persists via setTimeout(..., 0) followed by an async
+        /// syncfs, so Save() and the navigation land in ONE JavaScript task and the
+        /// document dies before the write starts.
+        ///
+        /// What made it expensive is that every visible sign of success was present.
+        /// Google accepted the login, Supabase returned a code, the page came home with
+        /// ?code= on the address bar -- and then the flow silently fell back to the
+        /// login screen, because the verifier needed to redeem that code was gone.
+        /// Nothing was logged and nothing was shown.
+        ///
+        /// Checked structurally rather than by proximity: the WebGL arm of Remember is
+        /// extracted and inspected on its own. A file-wide "PlayerPrefs must not appear"
+        /// would be wrong -- desktop uses it correctly, and should.
+        /// </summary>
+        private static void WebStorage(Action<bool, string> check, string root)
+        {
+            string signIn = Strip(Read(root, "Assets/Scripts/Backend/GoogleSignIn.cs"));
+            string bridge = Read(root, "Assets/Plugins/WebGL/IdleOAuth.jslib");
+
+            if (signIn.Length == 0 || bridge.Length == 0)
+            {
+                check(false, "GoogleSignIn.cs and IdleOAuth.jslib both exist");
+                return;
+            }
+
+            string web = WebGLArm(signIn, "Remember");
+
+            check(web.Length > 0, "GoogleSignIn.Remember has a WebGL-specific arm");
+
+            check(!web.Contains("PlayerPrefs"),
+                  "the web verifier is NOT stored through PlayerPrefs -- it is asynchronous " +
+                  "there and loses the race to the navigation on the next line");
+
+            check(web.Contains("IdleOAuthStore"),
+                  "the web verifier goes through the synchronous localStorage bridge");
+
+            // A DllImport naming a function the bridge does not export is a symbol that
+            // resolves to nothing. Cheap to check here; awkward to diagnose in a browser.
+            foreach (Match import in Regex.Matches(
+                         signIn, @"DllImport\(""__Internal""\)\]\s*private static extern \S+ (\w+)"))
+            {
+                string name = import.Groups[1].Value;
+
+                check(bridge.Contains(name + ":"),
+                      $"IdleOAuth.jslib exports {name}, which GoogleSignIn imports");
+            }
+
+            // The desktop arm keeps PlayerPrefs, and should: there is no navigation to
+            // lose to, and it is the store that persists across a restart.
+            check(signIn.Contains("PlayerPrefs.SetString"),
+                  "desktop still remembers the verifier through PlayerPrefs");
+        }
+
+        /// <summary>
+        /// The body of one method's #if UNITY_WEBGL arm, and nothing beyond that method.
+        ///
+        /// The brace counting is the point. A first version searched forward from the
+        /// method name to the next #if UNITY_WEBGL in the file -- which, when the arm
+        /// under test was deleted, happily returned the NEXT method's arm and reported
+        /// two of three assertions passing on code that no longer existed. Verified by
+        /// reinstating the original bug and watching it half-pass.
+        ///
+        /// That is the same mistake this suite has now made in four separate places:
+        /// checking what is nearby instead of what is being asked about. Bounding the
+        /// slice to the method is what makes the answer exact rather than probable.
+        /// </summary>
+        private static string WebGLArm(string source, string method)
+        {
+            Match at = Regex.Match(source, @"\b" + Regex.Escape(method) + @"\s*\([^)]*\)\s*\{");
+
+            if (!at.Success) return "";
+
+            string body = Body(source, source.IndexOf('{', at.Index));
+
+            Match arm = Regex.Match(
+                body, @"#if UNITY_WEBGL && !UNITY_EDITOR([\s\S]*?)#(?:else|endif)");
+
+            return arm.Success ? arm.Groups[1].Value : "";
+        }
+
+        /// <summary>Everything between a brace and its partner.</summary>
+        private static string Body(string source, int open)
+        {
+            if (open < 0) return "";
+
+            int depth = 0;
+
+            for (int at = open; at < source.Length; at++)
+            {
+                if (source[at] == '{') depth++;
+                else if (source[at] == '}' && --depth == 0)
+                    return source.Substring(open + 1, at - open - 1);
+            }
+
+            return "";
         }
 
         private static string Read(string root, string relative)

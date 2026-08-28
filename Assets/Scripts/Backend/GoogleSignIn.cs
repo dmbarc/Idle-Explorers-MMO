@@ -45,7 +45,16 @@ namespace IdleExplorers.Backend
         ///
         /// On WebGL the page NAVIGATES AWAY and the process ends -- so the verifier has
         /// to outlive it, or the code comes back and there is nothing left to redeem it
-        /// with. PlayerPrefs is IndexedDB there, which survives the round trip.
+        /// with.
+        ///
+        /// PLAYERPREFS CANNOT DO THIS ON THE WEB, which cost a debugging round. Unity
+        /// backs it with IndexedDB and persists through setTimeout(..., 0) followed by
+        /// an async syncfs -- so a Save() immediately followed by a navigation is one
+        /// JavaScript task, and the document dies before the timeout fires. The value
+        /// is simply never written. See IdleOAuth.jslib.
+        ///
+        /// So the web uses localStorage, which is synchronous, and every other platform
+        /// keeps PlayerPrefs, where there is no navigation to lose the race to.
         ///
         /// It is deleted the moment it is used. A verifier left behind is a spent key
         /// lying around, and the next sign-in would find a stale one.
@@ -72,8 +81,7 @@ namespace IdleExplorers.Backend
             string verifier  = Pkce.NewVerifier();
             string challenge = Pkce.Challenge(verifier);
 
-            PlayerPrefs.SetString(VerifierKey, verifier);
-            PlayerPrefs.Save();
+            Remember(verifier);
 
 #if UNITY_WEBGL && !UNITY_EDITOR
             // The page goes to Google and this build stops existing. Resume() finishes
@@ -119,12 +127,16 @@ namespace IdleExplorers.Backend
 
             if (string.IsNullOrEmpty(code)) return AuthResult.Failed("");
 
-            string verifier = PlayerPrefs.GetString(VerifierKey, "");
+            string verifier = Recall();
 
             if (string.IsNullOrEmpty(verifier))
             {
                 // A code with no verifier: a bookmarked callback, a refresh, or a
-                // second tab. Not an error worth alarming anybody about.
+                // second tab. Not worth a toast -- but it is logged, because this is
+                // also exactly what a broken store looks like, and last time it looked
+                // like nothing at all.
+                Debug.LogWarning("[GoogleSignIn] Came back with a code but no verifier. " +
+                                 "A stale callback URL, or browser storage is unavailable.");
                 ClearCodeFromUrl();
                 return AuthResult.Failed("");
             }
@@ -158,10 +170,40 @@ namespace IdleExplorers.Backend
             return await Session.Auth.ExchangeCodeAsync(code, verifier);
         }
 
+        /// <summary>
+        /// Puts the verifier somewhere that outlives this page.
+        ///
+        /// Synchronously on the web. Anything deferred loses to the navigation on the
+        /// very next line -- that is not a tuning question, it is the whole reason this
+        /// is not one call to PlayerPrefs.
+        /// </summary>
+        private static void Remember(string verifier)
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            IdleOAuthStore(VerifierKey, verifier);
+#else
+            PlayerPrefs.SetString(VerifierKey, verifier);
+            PlayerPrefs.Save();
+#endif
+        }
+
+        private static string Recall()
+        {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            return IdleOAuthLoad(VerifierKey) ?? "";
+#else
+            return PlayerPrefs.GetString(VerifierKey, "");
+#endif
+        }
+
         private static void Forget()
         {
+#if UNITY_WEBGL && !UNITY_EDITOR
+            IdleOAuthForget(VerifierKey);
+#else
             PlayerPrefs.DeleteKey(VerifierKey);
             PlayerPrefs.Save();
+#endif
         }
 
         /// <summary>
@@ -186,6 +228,9 @@ namespace IdleExplorers.Backend
         [DllImport("__Internal")] private static extern string IdleOAuthQuery(string key);
         [DllImport("__Internal")] private static extern string IdleOAuthPageUrl();
         [DllImport("__Internal")] private static extern void IdleOAuthClearQuery();
+        [DllImport("__Internal")] private static extern void IdleOAuthStore(string key, string value);
+        [DllImport("__Internal")] private static extern string IdleOAuthLoad(string key);
+        [DllImport("__Internal")] private static extern void IdleOAuthForget(string key);
 
         private static void Navigate(string url)   => IdleOAuthNavigate(url);
         private static string QueryParameter(string key) => IdleOAuthQuery(key) ?? "";

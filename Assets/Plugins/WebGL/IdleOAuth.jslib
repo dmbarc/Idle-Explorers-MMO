@@ -73,6 +73,62 @@ mergeInto(LibraryManager.library, {
       // Some embedding contexts forbid history manipulation. The code is spent, so
       // this is tidiness rather than safety, and failing it must not break sign-in.
     }
+  },
+
+  // == WHY THE VERIFIER LIVES HERE AND NOT IN PlayerPrefs =====================
+  //
+  // Because PlayerPrefs cannot survive the navigation this file exists to perform.
+  //
+  // Unity backs PlayerPrefs on WebGL with IndexedDB, and the shipped framework
+  // persists it like this:
+  //
+  //     IDBFS.queuePersist -> setTimeout(startPersist, 0) -> IDBFS.syncfs(..., cb)
+  //
+  // Deferred to a later task, and then asynchronous on top of that. Calling
+  // PlayerPrefs.Save() and then IdleOAuthNavigate in the same C# frame means both
+  // happen in ONE JavaScript task: the document is torn down before the timeout
+  // ever fires, and nothing is written.
+  //
+  // The symptom is a sign-in that looks like it works -- Google accepts you,
+  // Supabase hands back a code, the page comes home with ?code= on it -- and then
+  // silently returns to the login screen, because the verifier needed to redeem
+  // that code no longer exists.
+  //
+  // localStorage is synchronous. The value is committed before the next statement
+  // runs, which is the only property that matters here.
+
+  IdleOAuthStore: function (key, value) {
+    try {
+      window.localStorage.setItem(UTF8ToString(key), UTF8ToString(value));
+    } catch (e) {
+      // Private browsing, or storage disabled. Sign-in will fail on the way back
+      // with a message; breaking the outbound leg as well helps nobody.
+    }
+  },
+
+  IdleOAuthLoad: function (key) {
+    var found = "";
+
+    try {
+      found = window.localStorage.getItem(UTF8ToString(key)) || "";
+    } catch (e) {
+      found = "";
+    }
+
+    var size = lengthBytesUTF8(found) + 1;
+    var buffer = _malloc(size);
+
+    stringToUTF8(found, buffer, size);
+
+    return buffer;
+  },
+
+  IdleOAuthForget: function (key) {
+    try {
+      window.localStorage.removeItem(UTF8ToString(key));
+    } catch (e) {
+      // Nothing to do. A verifier left behind is spent and single-use.
+    }
   }
 
 });

@@ -122,7 +122,17 @@ namespace IdleExplorers.Backend
                     Debug.Log("[Session] Completed a Google sign-in.");
                     SignedInChanged?.Invoke(true);
                 }
-                else if (_auth is { HasStoredSession: true })
+                else if (!string.IsNullOrEmpty(resumed.Message))
+                {
+                    // A resume that FAILED with something to say. The empty-message case
+                    // is the ordinary page load with no code on it, which is almost every
+                    // page load and must stay quiet -- but a real refusal from the token
+                    // endpoint used to be discarded here, and a sign-in that dropped the
+                    // player back on the login screen left nothing behind to look at.
+                    Debug.LogError($"[Session] Google sign-in did not complete: {resumed.Message}");
+                }
+
+                if (!resumed.Ok && _auth is { HasStoredSession: true })
                 {
                     AuthResult restored = await _auth.RestoreAsync();
 
