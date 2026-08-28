@@ -80,7 +80,13 @@ public class MonsterController : MonoBehaviour
         // the same height, and a bar floating inside the taller one is worse than none.
         float head = SpumRig.MeasureCharacterHeight(transform);
         _healthBar = WorldStatusBar.Attach(gameObject,
-                                           heightAbove: (head > 0.1f ? head : 2f) + 0.35f,
+                                           // ══ CLEAR OF THE SPRITE ════════════════════════════
+                                           //
+                                           // 0.35 put the bar inside the head. A measured
+                                           // height is the ART height and a SPUM head is
+                                           // mostly hair -- high enough to clear it, low
+                                           // enough to stay under the name.
+                                           heightAbove: (head > 0.1f ? head : 2f) + 1.05f,
                                            fill: UIManager.Theme.hpFill);
 
         if (_healthBar != null)

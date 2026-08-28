@@ -104,7 +104,7 @@ internal static class DataChecks
         var known = new HashSet<string>
         {
             "statBonus", "thorns", "lifesteal", "durabilityGuard",
-            "shardBurst", "armorThrow", "durabilitySiphon", "scavenge", "mend",
+            "shardBurst", "armorThrow", "durabilitySiphon", "scavenge", "mend", "summonAlly",
         };
 
         var items = new HashSet<string>();

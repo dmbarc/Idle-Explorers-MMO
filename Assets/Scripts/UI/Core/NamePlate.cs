@@ -43,7 +43,11 @@ public class NamePlate : MonoBehaviour
     /// <summary>Something that will hit you.</summary>
     public static readonly Color HostileColor = new(1.00f, 0.42f, 0.38f);
 
-    private const float FontSize = 2.6f;
+    /// <summary>
+    /// Larger than it was. At 2.6 a name over a character two metres away was already
+    /// hard to read, and the whole job of a name plate is to be read without effort.
+    /// </summary>
+    private const float FontSize = 3.6f;
 
     /// <summary>
     /// Above the health bar rather than sharing its line.
@@ -79,7 +83,12 @@ public class NamePlate : MonoBehaviour
     /// Belt and braces, and cheap: it is text markup rather than a second renderer,
     /// so it costs no draw call and cannot come apart from the label it belongs to.
     /// </summary>
-    private const string Backing = "<mark=#00000099>";
+    /// <summary>
+    /// Lighter than it was. At 99 the plate read as a solid UI chip stuck to the
+    /// world; the outline is what makes the glyphs legible, and the plate only has to
+    /// take the edge off whatever is behind them.
+    /// </summary>
+    private const string Backing = "<mark=#00000059>";
 
     private TMP_Text _label;
 

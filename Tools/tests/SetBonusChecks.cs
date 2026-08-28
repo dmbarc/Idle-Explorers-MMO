@@ -32,7 +32,7 @@ internal static class SetBonusChecks
     private static readonly string[] ResolverConstants =
     {
         "StatBonus", "Thorns", "Lifesteal", "DurabilityGuard",
-        "ShardBurst", "ArmorThrow", "DurabilitySiphon", "Scavenge", "Mend",
+        "ShardBurst", "ArmorThrow", "DurabilitySiphon", "Scavenge", "Mend", "SummonAlly",
     };
 
     public static void Run(Action<bool, string> check, string repoRoot)
@@ -98,9 +98,18 @@ internal static class SetBonusChecks
 
         int scavengeAt = TierOf(bonuses, Scavenge);
 
-        check(scavengeAt >= 0,
-              $"'{setId}' throws armour at {throwAt} pieces and can pick it back up");
-
+        // ══ SCAVENGE IS NO LONGER REQUIRED, ONLY ORDERED ══════════════════
+        //
+        // This used to insist a throwing set also scavenge. That was a design
+        // guideline wearing a test's clothes: a thrown piece lands on the ground as
+        // ordinary loot and can be walked over, so nothing is destroyed without it.
+        //
+        // The Weak Tin Man now spends its middle tier on a summon, at the owner's
+        // direction, and has no scavenge at all. Failing that is the test having an
+        // opinion about content rather than checking a property.
+        //
+        // What still holds, and is a real ordering mistake when broken: retrieval
+        // must not sit ABOVE the throw, or the set describes a loop it cannot close.
         check(scavengeAt < 0 || scavengeAt <= throwAt,
               $"'{setId}' scavenges at {scavengeAt} pieces, at or below the {throwAt} that throws");
     }

@@ -83,13 +83,22 @@ public class BossPortalController : MonoBehaviour
 
         var renderer = beam.GetComponent<Renderer>();
 
-        // Unlit, because a lit transparent cylinder in an overcast scene reads as a
-        // grey pipe. Falls back to whatever the pipeline gives rather than failing:
-        // a beacon that is the wrong colour still marks the spot.
-        Shader unlit = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+        // ══ WHY THE FALLBACK CHAIN GOES ALL THE WAY DOWN ═══════════════════
+        //
+        // This shipped magenta. Shader.Find only finds shaders INCLUDED IN THE BUILD,
+        // and when both of the first two came back null the code left the primitive
+        // wearing its default material -- which under URP is the built-in Diffuse, and
+        // the built-in pipeline's shaders are not in a URP build. Magenta is what a
+        // missing shader looks like, and it was a hundred metres tall.
+        //
+        // Sprites/Default always ships, so the chain now ends somewhere real and the
+        // material is ALWAYS assigned rather than conditionally. Copied from
+        // TelegraphDecal, which had already learned this.
+        Shader unlit = Shader.Find("Universal Render Pipeline/Unlit")
+                    ?? Shader.Find("Unlit/Color")
+                    ?? Shader.Find("Sprites/Default");
 
-        if (unlit != null) renderer.material = new Material(unlit);
-
+        renderer.material = new Material(unlit) { name = "PortalBeam" };
         renderer.material.color = BeaconColor;
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 

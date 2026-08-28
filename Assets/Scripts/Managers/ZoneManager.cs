@@ -44,12 +44,32 @@ public class ZoneManager : MonoBehaviour
     {
         IsLoading = true;
 
+        string sceneName = string.IsNullOrEmpty(map.sceneAddress) ? DefaultMapScene : map.sceneAddress;
+
+        // ══ CHECKED BEFORE ANYTHING IS TORN DOWN ════════════════════════════
+        //
+        // Unloading first and discovering the destination is not in Build Settings
+        // leaves the player in NOTHING -- no ground, no character, a black screen with
+        // a working HUD over it. That is what happened at the Goblin Throne, whose
+        // scene had never been built, and it reads as a hard freeze rather than as a
+        // missing map.
+        //
+        // Asking first costs one lookup and turns a dead end into a refusal.
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"[ZoneManager] Scene '{sceneName}' is not in Build Settings. " +
+                           "Run: Idle Explorers → Setup Everything");
+
+            GameEvents.FireToast($"{map.DisplayName} is not built yet.", ChatTone.Bad);
+
+            IsLoading = false;
+            yield break;
+        }
+
         // Unload the previous map before loading the next, so two terrains never
         // coexist and NavMesh queries stay unambiguous. Search by name rather than
         // trusting _loadedSceneName, which a cancelled unload may have cleared.
         yield return UnloadAllMapScenes();
-
-        string sceneName = string.IsNullOrEmpty(map.sceneAddress) ? DefaultMapScene : map.sceneAddress;
 
         // Set the map before the scene loads: objects in it resolve themselves
         // from CurrentMap in their own Start(), which runs on activation.
@@ -282,6 +302,31 @@ public class ZoneManager : MonoBehaviour
                 return false;
             }
         }
+        // ══ AND WHETHER THE KING IS DEAD ═════════════════════════════════
+        //
+        // Read from the kill ledger the boss gate already keeps, rather than a second
+        // record of the same fact. A player who has never beaten the Goblin King is
+        // told what to do next, which is the whole reason locked maps are SHOWN rather
+        // than hidden.
+        if (!string.IsNullOrEmpty(map.reqBossKill))
+        {
+            long kills = 0L;
+
+            if (character?.kills != null)
+                foreach (var row in character.kills)
+                    if (row != null && row.monsterId == map.reqBossKill)
+                        kills = row.activeKills + row.afkKills;
+
+            if (kills <= 0L)
+            {
+                string boss = GameManager.Content?.GetMonster(map.reqBossKill)?.DisplayName
+                              ?? map.reqBossKill;
+
+                reason = $"Requires defeating {boss}.";
+                return false;
+            }
+        }
+
         return true;
     }
 }

@@ -21,7 +21,21 @@ public class PlayerController : MonoBehaviour
 
     public double maxHealthPoints = 100;
     public double healthRegenAmount = 1;
-    public float healthRegenSpeed = 1f;
+
+    /// <summary>
+    /// Seconds between regeneration ticks.
+    ///
+    /// ══ WHY IT IS SLOW ════════════════════════════════════════════════════
+    ///
+    /// It was one second, which at a point a tick healed a level-fourteen character
+    /// from nothing to full in about a minute of standing still. Food had no job:
+    /// waiting was always cheaper than cooking, so the entire cooking skill was
+    /// something you levelled and never used.
+    ///
+    /// Five seconds makes a full heal a real wait and a cooked shrimp worth carrying,
+    /// without making a scratch permanent.
+    /// </summary>
+    public float healthRegenSpeed = 5f;
     /// <summary>
     /// Reach with nothing equipped. The weapon decides the real figure — see
     /// EffectiveAttackRange — and this is what a bare-handed character falls back to.
@@ -970,8 +984,24 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    /// <summary>How long after being hit before health starts coming back.</summary>
+    private const float RegenPauseAfterDamage = 6f;
+
+    private float _regenBlockedUntil;
+
     private void HandleRegen()
     {
+        // ══ NOT WHILE SOMETHING IS HITTING YOU ══════════════════════════════
+        //
+        // Slowing the tick alone still lets a character out-heal a weak monster
+        // forever, which is the same "food is pointless" outcome by a slower route.
+        // Regeneration is for recovering AFTER a fight.
+        if (Time.time < _regenBlockedUntil)
+        {
+            RegenResources(Time.deltaTime);
+            return;
+        }
+
         regenTimer += Time.deltaTime;
         if (regenTimer >= healthRegenSpeed)
         {
@@ -1079,6 +1109,9 @@ public class PlayerController : MonoBehaviour
         // to the player is reduced by it — a monster's swing, a trap, anything added
         // later. A floor of 1 keeps armour from ever making the player untouchable.
         damageAmount = System.Math.Max(1d, damageAmount * StatBlock.DamageThrough(Stats.EffectiveArmor));
+
+        // Regeneration is for recovering after a fight, not during one.
+        _regenBlockedUntil = Time.time + RegenPauseAfterDamage;
 
         currentHealthPoints = System.Math.Max(0d, currentHealthPoints - damageAmount);
         DamageNumber.Spawn(transform.position, damageAmount, DamageNumber.PlayerTook, "-");

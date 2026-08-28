@@ -22,10 +22,12 @@
       },
       {
         "piecesRequired": 4,
-        "description": "When dealing damage, has a chance to scoop up armor lying on the ground nearby and put it straight back on.",
-        "action": "scavenge",
-        "chance": 0.25,
-        "radius": 8.0
+        "description": "When dealing damage, has a chance to summon a tin robot for 30 seconds who attacks random enemies.",
+        "action": "summonAlly",
+        "param": "iron_golem",
+        "chance": 0.08,
+        "magnitude": 0.6,
+        "radius": 30.0
       },
       {
         "piecesRequired": 6,

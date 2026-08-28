@@ -391,6 +391,15 @@ public class MapData
     /// </summary>
     public bool             portalOnly;
 
+    /// <summary>
+    /// A boss this character must have killed at least once, or empty.
+    ///
+    /// Additive and defaults empty, so every existing map is unaffected. Checked
+    /// against the kill ledger the boss gate already maintains rather than a second
+    /// record of the same fact.
+    /// </summary>
+    public string           reqBossKill;
+
     public string DisplayName => name;
 }
 

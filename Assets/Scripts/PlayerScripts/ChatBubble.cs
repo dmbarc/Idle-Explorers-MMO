@@ -14,8 +14,19 @@ using UnityEngine;
 /// </summary>
 public class ChatBubble : MonoBehaviour
 {
-    /// <summary>Height above the speaker's origin. Clear of the damage numbers at 1.8.</summary>
-    private const float HeightAboveSpeaker = 2.4f;
+    /// <summary>
+    /// Height above the speaker's origin.
+    ///
+    /// ══ MEASURED FROM THE FEET, NOT THE MIDDLE ═════════════════════════════
+    ///
+    /// A SPUM rig's origin is at its feet and the art is roughly two units tall, so
+    /// 2.4 put the text across the character's chest -- readable, and sitting on top
+    /// of the thing it was meant to be coming from.
+    ///
+    /// Above the name plate, which sits at ClearOfHead. A bubble and a name competing
+    /// for the same line is worse than either alone.
+    /// </summary>
+    private const float HeightAboveSpeaker = 5.0f;
 
     private const float MinLifetime  = 3.5f;
     private const float PerCharacter = 0.06f;
@@ -31,6 +42,14 @@ public class ChatBubble : MonoBehaviour
     public const int MaxMessageLength = 120;
 
     private static readonly Color TextColor = new Color(1f, 0.98f, 0.90f);
+
+    /// <summary>
+    /// The dark plate behind the words.
+    ///
+    /// Less opaque than the name plates' -- speech is transient and a heavy slab over
+    /// the world for four seconds reads as a UI panel rather than as somebody talking.
+    /// </summary>
+    private const string Backing = "<mark=#00000070>";
 
     private TMP_Text _label;
     private float    _bornAt;
@@ -67,9 +86,20 @@ public class ChatBubble : MonoBehaviour
         // bubble — a separate quad would need its own material, its own sorting and
         // its own sizing against text that has not been laid out yet.
         label.text          = $"<mark=#12182CCC>{message}</mark>";
-        label.fontSize      = 3.2f;
+        // Larger. At 3.2 a sentence across a busy camp was a grey smear -- and the
+        // one thing a chat bubble has to be is readable at a glance, because it is
+        // gone in a few seconds.
+        label.fontSize      = 4.4f;
         label.alignment     = TextAlignmentOptions.Center;
         label.color         = TextColor;
+
+        // ══ A PLATE BEHIND THE WORDS ══════════════════════════════════════
+        //
+        // Same reasoning as the name plates. Speech is drawn over grass, water, stone
+        // and whatever colour a monster happens to be, and no single text colour is
+        // readable against all of them. Markup rather than a second renderer, so it
+        // costs no draw call and cannot come apart from the label.
+        label.text = Backing + label.text + "</mark>";
         label.textWrappingMode = TextWrappingModes.Normal;
         label.GetComponent<RectTransform>().sizeDelta = new Vector2(8f, 3f);
 

@@ -47,10 +47,20 @@ public static class SetBonusResolver
     /// <summary>Repairs a point of durability on every kill.</summary>
     public const string Mend = "mend";
 
+    /// <summary>
+    /// On dealing damage: a construct fights alongside you for a while.
+    ///
+    /// param names the monster it summons, magnitude is its damage and radius is
+    /// reused as the number of SECONDS it stays -- the bonus record has no duration
+    /// field and adding one would migrate every set in the game for a single use.
+    /// Documented here rather than left as a surprise.
+    /// </summary>
+    public const string SummonAlly = "summonAlly";
+
     private static readonly HashSet<string> Actions = new()
     {
         StatBonus, Thorns, Lifesteal, DurabilityGuard,
-        ShardBurst, ArmorThrow, DurabilitySiphon, Scavenge, Mend,
+        ShardBurst, ArmorThrow, DurabilitySiphon, Scavenge, Mend, SummonAlly,
     };
 
     /// <summary>Whether an action string from JSON is one this file implements.</summary>
@@ -185,8 +195,30 @@ public static class SetBonusResolver
                 case Scavenge:
                     if (Roll(bonus)) Scavenged(player, bonus.radius);
                     break;
+
+                case SummonAlly:
+                    if (Roll(bonus)) Summon(player, bonus);
+                    break;
             }
         }
+    }
+
+    /// <summary>
+    /// Puts a construct in the field for a while.
+    ///
+    /// Routed through AllyController.Summon, the same path the Goblin Spear uses, so
+    /// there is one thing that knows how to make an ally rather than two that can
+    /// drift apart.
+    /// </summary>
+    private static void Summon(PlayerController player, ItemSetBonus bonus)
+    {
+        if (player == null || string.IsNullOrEmpty(bonus.param)) return;
+
+        // radius carries the lifetime. See the note on SummonAlly.
+        float seconds = bonus.radius > 0f ? bonus.radius : 30f;
+
+        AllyController.Summon(bonus.param, player.transform,
+                              player.AttackDamage * bonus.magnitude, seconds);
     }
 
     /// <summary>Called when a monster dies to the player.</summary>

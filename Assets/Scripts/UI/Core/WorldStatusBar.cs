@@ -94,7 +94,12 @@ public class WorldStatusBar : MonoBehaviour
         // whole UI toolkit here is authored in pixels, so anything built with
         // UIFactory expects that coordinate space.
         var rect = _canvas.GetComponent<RectTransform>();
-        rect.sizeDelta  = new Vector2(BarWidth, BarHeight + 14f);
+        // ══ NO ROOM RESERVED ABOVE THE BAR ════════════════════════════════
+        //
+        // The extra 14 was headroom for a label that sat on top. The number is inside
+        // the bar now, so reserving space above it only pushed the whole thing further
+        // into the character's head.
+        rect.sizeDelta  = new Vector2(BarWidth, BarHeight);
         rect.localScale = Vector3.one / PixelsPerUnit;
 
         // Flat artwork in a 3D world, same as everything else here.
@@ -117,9 +122,19 @@ public class WorldStatusBar : MonoBehaviour
         _label = UIFactory.Label(transform, "", theme.fontSizeSmall, theme.textPrimary,
                                  TextAlignmentOptions.Center);
 
+        // ══ THE NUMBER GOES IN THE BAR ════════════════════════════════════
+        //
+        // It used to float above it, which read as two separate things stacked -- a
+        // detached number and a coloured line -- rather than as one health bar. Inside
+        // and centred, it is obviously the bar's own value.
         var labelRect = _label.GetComponent<RectTransform>();
-        labelRect.sizeDelta        = new Vector2(BarWidth, 14f);
-        labelRect.anchoredPosition = new Vector2(0f, BarHeight);
+        labelRect.sizeDelta        = new Vector2(BarWidth, BarHeight);
+        labelRect.anchoredPosition = Vector2.zero;
+
+        _label.alignment = TMPro.TextAlignmentOptions.Center;
+
+        // Drawn after the fill, or the fill covers it.
+        _label.transform.SetAsLastSibling();
 
         SetVisible(false);
     }

@@ -203,7 +203,8 @@
             "specialChance": 0.0,
             "specialLabel": ""
           }
-        ]
+        ],
+        "reqBossKill": "goblin_king"
       },
       {
         "id": "skeleton_graveyard",

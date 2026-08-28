@@ -40,6 +40,14 @@ public class DamageNumber : MonoBehaviour
     private const float BaseFontSize = 4f;
 
     /// <summary>
+    /// How far above a target's origin a number appears.
+    ///
+    /// Origins are at the feet. Two and a half clears a standing character without
+    /// reaching the name plate above it.
+    /// </summary>
+    private const float HeightAboveTarget = 2.5f;
+
+    /// <summary>
     /// Spawns a number above a point. Amounts below 1 are skipped — a stream of "0"s
     /// over a heavily armoured target is noise, not feedback.
     /// </summary>
@@ -62,7 +70,16 @@ public class DamageNumber : MonoBehaviour
         // Slight horizontal scatter so simultaneous hits do not stack into one
         // unreadable smear.
         Vector3 jitter = new(Random.Range(-0.35f, 0.35f), 0f, Random.Range(-0.2f, 0.2f));
-        go.transform.position = worldPosition + Vector3.up * 1.8f + jitter;
+
+        // ══ ABOVE THE HEAD, NOT THROUGH THE CHEST ═════════════════════════════
+        //
+        // A SPUM rig's origin is at its feet and the art is roughly two units tall, so
+        // 1.8 put the number squarely across the character -- which is exactly where
+        // the sprite is, and the two fought for the same pixels.
+        //
+        // Clear of the head and below the name plate, so a hit and a name are never
+        // the same line of text.
+        go.transform.position = worldPosition + Vector3.up * HeightAboveTarget + jitter;
 
         var label = go.AddComponent<TextMeshPro>();
         label.text      = prefix + NumberFormatter.Format((long)amount);
