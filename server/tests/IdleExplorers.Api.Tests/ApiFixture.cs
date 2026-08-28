@@ -22,10 +22,22 @@ namespace IdleExplorers.Api.Tests;
 ///
 /// ══ WHY IT MINTS ITS OWN TOKENS ═══════════════════════════════════════════════
 ///
-/// Signing a JWT with the local stack's HS256 secret produces exactly what Supabase
-/// Auth produces, so the tests go through the real authentication middleware rather
-/// than around it. A test that stubs out auth cannot catch an auth bug, and auth is
-/// the entire ownership boundary in this API.
+/// Signing a JWT with the local stack's HS256 secret goes through the real
+/// authentication middleware rather than around it. A test that stubs out auth cannot
+/// catch an auth bug, and auth is the entire ownership boundary in this API.
+///
+/// WHAT THESE TOKENS ARE NOT
+///
+/// This used to claim they were "exactly what Supabase Auth produces". They are not,
+/// and believing it cost a production outage: the project signs ES256 against a
+/// published JWKS, these are HS256 against a shared secret, and the server was
+/// configured only for the latter. Every test here passed while no real token was
+/// accepted by the deployed API.
+///
+/// So these are the right tool for ownership, idempotency and every rule that sits
+/// BEHIND authentication -- and no evidence at all about which algorithm production
+/// speaks. That question is asked in TokenValidationTests, against the configuration
+/// rather than against a token.
 ///
 /// It also means the "act as another player" tests are honest: they present a
 /// perfectly valid token for a different subject, which is what an attacker with

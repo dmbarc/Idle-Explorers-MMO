@@ -18,15 +18,29 @@ namespace IdleExplorers.Api.Auth;
 /// stopped here or nowhere — and the way it is stopped is by never reading identity
 /// from anywhere a client can write.
 ///
-/// ══ WHY THE SYMMETRIC KEY ═════════════════════════════════════════════════════
+/// ══ HOW A TOKEN IS VALIDATED ══════════════════════════════════════════════════
 ///
-/// Supabase signs its access tokens with a shared HS256 secret, so this validates
-/// against the same secret. It therefore also has the power to MINT tokens, which is
-/// exactly why it lives in server configuration and never in a Unity build.
+/// Supabase signs access tokens with an ASYMMETRIC key and publishes the public half
+/// as a JWKS, so this validates against that key set and cannot mint anything. The
+/// server holding no signing key is strictly better than the arrangement it replaced.
 ///
-/// TODO(Phase 7): Supabase is migrating to asymmetric JWTs with a published JWKS. At
-/// that point this becomes a key-set URL and the server loses the ability to mint,
-/// which is strictly better. The seam is here.
+/// ══ THIS WAS WRONG IN PRODUCTION, AND EVERY TEST STILL PASSED ═══════════
+///
+/// It used to validate with a symmetric HS256 secret, which is what Supabase used to
+/// issue. The project now signs ES256. So every real token was rejected, /account/
+/// answered 401, and the client reported that the game server did not answer.
+///
+/// What let it ship is worth writing down. The suite proved unauthenticated calls got
+/// 401 and that a FORGED token got 401 -- and both kept passing, because a server that
+/// rejects everything passes every test that asks whether bad tokens are refused.
+/// Nothing asked whether a GOOD token was accepted. A lock is not proof of a key.
+///
+/// ══ WHY THE SYMMETRIC KEY IS STILL HERE ═════════════════════════════════
+///
+/// The local stack that `supabase start` runs still signs HS256, and so does CI. The
+/// JwtBearer handler concatenates the keys named here with the ones it discovers, so
+/// naming both means one code path validates local development and production without
+/// a branch, and a Supabase key rotation is picked up on its own.
 /// </summary>
 public static class SupabaseAuth
 {
@@ -47,14 +61,32 @@ public static class SupabaseAuth
                      ?? Environment.GetEnvironmentVariable("SUPABASE_JWT_SECRET")
                      ?? LocalDevelopmentSecret;
 
+        string? supabaseUrl = configuration["SUPABASE_URL"]
+                           ?? Environment.GetEnvironmentVariable("SUPABASE_URL");
+
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {
+                // Where the public half of the signing key is published. Absent only
+                // on the local stack, which has no JWKS and signs HS256 -- so leaving
+                // it unset there keeps startup from reaching for a document that does
+                // not exist.
+                if (!string.IsNullOrWhiteSpace(supabaseUrl))
+                {
+                    options.MetadataAddress =
+                        supabaseUrl.TrimEnd('/') + "/auth/v1/.well-known/openid-configuration";
+                }
+
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret)),
+
+                    // PLURAL, and this is the whole trick: the handler concatenates
+                    // these with whatever the JWKS publishes. Production tokens
+                    // validate against the discovered ES256 key, local ones against
+                    // this, and neither needs to know the other exists.
+                    IssuerSigningKeys = [new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))],
 
                     // Supabase issues tokens for its own project URL, which differs
                     // between local, staging and production. The signature is what

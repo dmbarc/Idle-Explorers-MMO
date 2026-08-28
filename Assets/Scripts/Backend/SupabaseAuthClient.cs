@@ -220,7 +220,9 @@ namespace IdleExplorers.Backend
                 if (request.result != UnityWebRequest.Result.Success ||
                     request.responseCode is < 200 or >= 300)
                 {
-                    return AuthResult.Failed(Explain(request.responseCode, text));
+                    return Rejected(request.responseCode, text)
+                         ? AuthResult.WrongCredentials(Explain(request.responseCode, text))
+                         : AuthResult.Failed(Explain(request.responseCode, text));
                 }
 
                 var session = JsonUtility.FromJson<SessionResponse>(text);
@@ -293,6 +295,40 @@ namespace IdleExplorers.Backend
         /// Supabase answers with a JSON body naming the problem; the status alone says
         /// "400", which tells somebody who typed their password wrong nothing at all.
         /// </summary>
+        /// <summary>
+        /// Whether the email and password themselves were refused, as opposed to
+        /// anything else that can go wrong on the way.
+        ///
+        /// Worth telling apart because it is the only failure where clearing the
+        /// password box helps. Every other one -- a rate limit, an unreachable
+        /// service, a game server that did not answer -- leaves a player retyping a
+        /// password that was correct, which is a small insult repeated at the worst
+        /// moment.
+        ///
+        /// Read from error_code rather than the prose, because the prose is Supabase's
+        /// to reword and has been reworded.
+        /// </summary>
+        private static bool Rejected(long status, string text)
+        {
+            if (status is not (400 or 401)) return false;
+
+            try
+            {
+                var problem = JsonUtility.FromJson<AuthError>(text);
+
+                if (!string.IsNullOrEmpty(problem?.error_code))
+                    return problem.error_code is "invalid_credentials" or "invalid_grant";
+            }
+            catch (Exception)
+            {
+                // Not a problem document; fall through to the status.
+            }
+
+            // A 400 from the token endpoint with nothing else to go on is a bad
+            // password far more often than it is anything else.
+            return status == 400;
+        }
+
         private static string Explain(long status, string text)
         {
             if (!string.IsNullOrWhiteSpace(text))
@@ -359,7 +395,7 @@ namespace IdleExplorers.Backend
         }
 
         [Serializable] private class User   { public string id; public string email; }
-        [Serializable] private class AuthError { public string message; public string msg; public string error_description; }
+        [Serializable] private class AuthError { public string message; public string msg; public string error_description; public string error_code; }
     }
 
     /// <summary>What happened when somebody tried to sign in.</summary>
@@ -377,16 +413,32 @@ namespace IdleExplorers.Backend
         /// </summary>
         public readonly bool   AwaitingConfirmation;
 
-        private AuthResult(bool ok, string userId, string message, bool awaiting)
+        /// <summary>
+        /// True when the email and password themselves were refused.
+        ///
+        /// Distinct from a plain failure because it is the only one where the password
+        /// box should be emptied. A sign-in that succeeded and then could not reach the
+        /// game server must leave the field alone -- the password was right, and making
+        /// somebody retype it to retry is a penalty for the server's problem.
+        /// </summary>
+        public readonly bool   CredentialsRejected;
+
+        private AuthResult(bool ok, string userId, string message, bool awaiting,
+                           bool rejected = false)
         {
             Ok                   = ok;
             UserId               = userId;
             Message              = message;
             AwaitingConfirmation = awaiting;
+            CredentialsRejected  = rejected;
         }
 
         public static AuthResult Succeeded(string userId) => new(true, userId, "", false);
         public static AuthResult Failed(string message)   => new(false, "", message, false);
+
+        /// <summary>The email and password were refused. The only failure worth clearing a field over.</summary>
+        public static AuthResult WrongCredentials(string message) =>
+            new(false, "", message, false, rejected: true);
 
         public static AuthResult NeedsConfirmation() =>
             new(false, "", "Check your email to confirm the account, then sign in.", true);

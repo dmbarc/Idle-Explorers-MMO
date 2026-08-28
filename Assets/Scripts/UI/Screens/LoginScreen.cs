@@ -256,20 +256,34 @@ public class LoginScreen : UIScreen
 
             if (result.Ok)
             {
-                // Cleared the moment it is no longer needed. It was never written
-                // anywhere, and leaving it in a field is one screenshot away from
-                // being somewhere.
-                if (_passField != null) _passField.text = "";
-
                 // The email, so a returning player presses one field fewer. Saved only
                 // on SUCCESS -- remembering an address that failed to sign in would
                 // helpfully re-offer the typo every time.
                 PlayerPrefs.SetString(LastEmailKey, email);
                 PlayerPrefs.Save();
 
+                // ══ THE PASSWORD STAYS IN THE FIELD ═══════════════════════════
+                //
+                // It used to be wiped here, on the reasoning that a password sitting
+                // in a text field is one screenshot from being somewhere it should not
+                // be. True, but it was the wrong trade, and the failure showed exactly
+                // why: signing in SUCCEEDED and then the game server did not answer,
+                // which leaves the player on this screen -- with the retry button in
+                // front of them and an empty password box. The password was correct.
+                // Emptying it charged them for the server's problem.
+                //
+                // So it is emptied only when it was actually wrong, below. On the happy
+                // path this screen is torn down a moment later and the field goes with
+                // it; the value never leaves the field, is never logged and is never
+                // written to disk, and the box is masked throughout.
                 await LoadAccountAsync();
                 return;
             }
+
+            // Wrong email or password: emptying the box is helpful here, because the
+            // next attempt needs a different value in it and selecting the old one
+            // first is a step nobody wants.
+            if (result.CredentialsRejected && _passField != null) _passField.text = "";
 
             // Confirmation is not a failure -- the player did nothing wrong and the
             // next step is in their inbox.
