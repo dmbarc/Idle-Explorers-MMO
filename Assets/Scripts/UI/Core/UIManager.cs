@@ -137,6 +137,13 @@ public class UIManager : MonoBehaviour
     {
         var screen = GetOrCreate<T>();
 
+        // Which screens people actually open. Reported here rather than from each
+        // screen's OnShow, because this is the one place every push passes through --
+        // the same reasoning that put the position save in ZoneManager.EnterMap after
+        // two attempts in the wrong place.
+        IdleExplorers.Backend.TelemetrySync.Report(
+            IdleExplorers.Backend.Telemetry.ScreenOpen, ("screen", typeof(T).Name));
+
         // Hide the current top unless the incoming screen is an overlay. OnHide()
         // must be called when we do hide it, mirroring Pop() — screens unsubscribe
         // from GameEvents there, and skipping it leaks a duplicate subscription

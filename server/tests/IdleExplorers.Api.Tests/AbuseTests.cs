@@ -72,7 +72,12 @@ public class AbuseTests(ApiFixture api)
                         $"'{path}' answered {(int)response.StatusCode}");
         }
 
-        Assert.Equal(0L, await WalletBalance(player.UserId, "relic_coins"));
+        // The WELCOME grant, and not a coin more. Asserting zero here would be
+        // asserting that new accounts get nothing, which is a different claim and no
+        // longer true -- what this test is about is that none of the routes above
+        // added anything on top.
+        Assert.Equal(IdleExplorers.Rules.Currency.WelcomeRelicCoins,
+                     await WalletBalance(player.UserId, "relic_coins"));
         Assert.Equal(0L, await WalletBalance(player.UserId, "coins"));
     }
 

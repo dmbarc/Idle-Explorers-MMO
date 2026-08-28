@@ -103,6 +103,10 @@ namespace IdleExplorers.Backend
                                                    double damage, double seconds) =>
             _remote.StrikeAsync(characterId, monsterId, damage, seconds);
 
+        // Straight through. There is no local telemetry to disagree with.
+        public Awaitable<Telemetry.Receipt> ReportTelemetryAsync(Telemetry.Event[] events) =>
+            _remote.ReportTelemetryAsync(events);
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             _remote.GetPartyAsync(characterId);
 

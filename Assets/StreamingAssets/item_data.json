@@ -2006,5 +2006,14 @@
         "durationSeconds": 300
       }
     ]
+  },
+  {
+    "id": "relic_coins",
+    "name": "Relic Coins",
+    "description": "Older than the realm and harder to come by. The Goblin King has a few, though he could not tell you why.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": ""
   }
 ]

@@ -126,6 +126,12 @@ namespace IdleExplorers.Backend
                                                    double damage, double seconds) =>
             Completed(new StrikeResult { monsterId = monsterId, hit = false, alive = false });
 
+        // Offline there is nowhere to send them, and that is not a failure: the
+        // console already has every one of these, which is what a developer sitting
+        // at the editor actually reads.
+        public Awaitable<Telemetry.Receipt> ReportTelemetryAsync(Telemetry.Event[] events) =>
+            Completed(new Telemetry.Receipt { accepted = 0, rejected = 0 });
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId)   => Completed(Alone());
         public Awaitable<PartySnapshot> FormPartyAsync(string characterId)  => Completed(Alone());
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) => Completed(Alone());

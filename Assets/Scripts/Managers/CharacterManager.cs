@@ -54,6 +54,17 @@ public class CharacterManager : MonoBehaviour
         // It must exist BEFORE the first poll returns, or the first population is
         // adopted by nothing and the map stands empty until the second.
         MonsterSync.Attach(gameObject);
+
+        // And the reporter. Attached LAST but hooking the whole process: its error
+        // handler is Application.logMessageReceived, which catches an exception
+        // wherever it was thrown -- including inside Unity's own systems and inside
+        // code nobody thought to wrap.
+        IdleExplorers.Backend.TelemetrySync.Attach(gameObject);
+
+        IdleExplorers.Backend.TelemetrySync.Report(
+            IdleExplorers.Backend.Telemetry.SessionStart,
+            ("platform", Application.platform.ToString()),
+            ("version",  Application.version));
     }
 
     /// <summary>

@@ -85,6 +85,10 @@ namespace IdleExplorers.Backend
                                     new StrikeBody { monsterId = monsterId, damage = damage,
                                                      seconds = seconds });
 
+        public Awaitable<Telemetry.Receipt> ReportTelemetryAsync(Telemetry.Event[] events) =>
+            PostAsync<Telemetry.Receipt>("/telemetry/",
+                                         new Telemetry.Batch { events = events });
+
         public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
             GetAsync<PartySnapshot>($"/party/{characterId}");
 

@@ -64,6 +64,8 @@ internal static class Program
 
         IdleExplorersTests.SharedWorldChecks.Run(Check, RepoRoot());
 
+        IdleExplorersTests.PlaytestReadinessChecks.Run(Check, RepoRoot());
+
         AssetChecks.RigMasking(Check, RepoRoot());
         AssetChecks.MapCameras(Check, RepoRoot());
 

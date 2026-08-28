@@ -32,6 +32,11 @@ public static class IconLibrarySetup
         // Currency
         { "coins",         "gold_coins_many" },
 
+        // Relic coins were shop-only until the Goblin King started dropping them, and
+        // a shop balance is a number rather than an item — so they had never needed an
+        // icon. As a drop they appear in a loot list like anything else.
+        { "relic_coins",   "silver_coins_many" },
+
         // Ores — rough mineral chunks, NOT ingots. Every ore used to share one iron
         // ingot graphic, which made them indistinguishable and, worse, made raw ore
         // look like the smelted bar it is supposed to become.

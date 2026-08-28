@@ -23,6 +23,28 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public const string CoinsItemId = "coins";
 
+    /// <summary>
+    /// Relic coins, which the Goblin King drops and which are ALSO a wallet.
+    ///
+    /// ══ WHY THIS NEEDED SAYING TWICE ══════════════════════════════════════════
+    ///
+    /// Until the King dropped them, relic coins only ever arrived through the shop,
+    /// which credits the balance directly and never goes near a bag. As a DROP they
+    /// come through the same paths gold does -- and every one of those paths tested
+    /// for the gold id alone, so a relic coin would have gone looking for a slot,
+    /// stacked in the bag, and been overwritten by the next pull from a server that
+    /// had put it in the wallet.
+    ///
+    /// The server is right and this is the mirror catching up. Currency.WalletFor is
+    /// the shared answer to which of these is money; these constants exist because
+    /// this class predates it and is read from a dozen places by name.
+    /// </summary>
+    public const string RelicCoinsItemId = "relic_coins";
+
+    /// <summary>True for anything that belongs in a wallet rather than a slot.</summary>
+    public static bool IsCurrency(string itemId) =>
+        itemId == CoinsItemId || itemId == RelicCoinsItemId;
+
     /// <summary>The raw slot list, always MaxSlots long. Index == on-screen slot.</summary>
     public List<InventoryEntry> Items
     {
@@ -53,6 +75,23 @@ public class InventoryManager : MonoBehaviour
     /// addition which produces them cannot wrap before the clamp is applied.
     /// </summary>
     public const long MaxCoins = 1_000_000_000_000_000L;
+
+    /// <summary>
+    /// Puts currency in the right purse.
+    ///
+    /// One place, so the three call sites above cannot each remember a different set
+    /// of currencies. Anything that is not currency is a caller's mistake and says so
+    /// rather than silently vanishing.
+    /// </summary>
+    private void Credit(string itemId, long quantity)
+    {
+        if (quantity <= 0L) return;
+
+        if (itemId == CoinsItemId)           { AddCoins(quantity); return; }
+        if (itemId == RelicCoinsItemId)      { GameManager.Shop?.Grant(quantity, "drop"); return; }
+
+        Debug.LogWarning($"[InventoryManager] Credit called with '{itemId}', which is not a currency.");
+    }
 
     public void AddCoins(long amount)
     {
@@ -86,7 +125,7 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public bool AddItem(string itemId, long quantity)
     {
-        if (itemId == CoinsItemId) { AddCoins(quantity); return true; }
+        if (IsCurrency(itemId)) { Credit(itemId, quantity); return true; }
         if (string.IsNullOrEmpty(itemId) || quantity <= 0) return false;
 
         var inv = Items;
@@ -105,7 +144,7 @@ public class InventoryManager : MonoBehaviour
     /// <summary>Whether a quantity would fit. Defaults to a single unit.</summary>
     public bool CanAddItem(string itemId, long quantity = 1)
     {
-        if (itemId == CoinsItemId) return true;   // wallet, not a slot
+        if (IsCurrency(itemId)) return true;   // wallet, not a slot
         return SlotContainer.CanAddItem(Items, itemId, quantity);
     }
 
@@ -116,7 +155,7 @@ public class InventoryManager : MonoBehaviour
     /// </summary>
     public long AddUpTo(string itemId, long quantity)
     {
-        if (itemId == CoinsItemId) { AddCoins(quantity); return quantity; }
+        if (IsCurrency(itemId)) { Credit(itemId, quantity); return quantity; }
         if (string.IsNullOrEmpty(itemId) || quantity <= 0) return 0;
 
         var inv = Items;
@@ -129,13 +168,15 @@ public class InventoryManager : MonoBehaviour
 
     public long GetQuantity(string itemId)
     {
-        if (itemId == CoinsItemId) return Coins;
+        if (itemId == CoinsItemId)      return Coins;
+        if (itemId == RelicCoinsItemId) return ShopManager.Balance;
         return SlotContainer.GetQuantity(Items, itemId);
     }
 
     public bool RemoveItem(string itemId, long quantity)
     {
-        if (itemId == CoinsItemId) return TrySpendCoins(quantity);
+        if (itemId == CoinsItemId)      return TrySpendCoins(quantity);
+        if (itemId == RelicCoinsItemId) return GameManager.Shop?.TrySpend(quantity) ?? false;
 
         if (!SlotContainer.RemoveItem(Items, itemId, quantity)) return false;
 

@@ -79,10 +79,12 @@ public class OwnershipTests(ApiFixture api)
         Assert.Equal(player.UserId, body.RootElement.GetProperty("accountId").GetGuid());
         Assert.Empty(body.RootElement.GetProperty("characters").EnumerateArray());
 
-        // Both wallets present at zero, so a client never has to distinguish "no row"
-        // from "no money".
+        // Both wallets present, so a client never has to distinguish "no row" from
+        // "no money" -- gold at zero because nothing has been earned, relic coins at
+        // the welcome grant because creating the account is what pays it.
         Assert.Equal(0L, StackQuantity(body.RootElement, "wallets", "coins"));
-        Assert.Equal(0L, StackQuantity(body.RootElement, "wallets", "relic_coins"));
+        Assert.Equal(IdleExplorers.Rules.Currency.WelcomeRelicCoins,
+                     StackQuantity(body.RootElement, "wallets", "relic_coins"));
     }
 
     /// <summary>

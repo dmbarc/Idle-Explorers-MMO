@@ -53,6 +53,42 @@ namespace IdleExplorers.Rules
         public const string CoinsItemId = "coins";
 
         /// <summary>
+        /// The item id a loot table uses for relic coins.
+        ///
+        /// ══ WHY A BOSS MAY DROP A PREMIUM CURRENCY ════════════════════════════
+        ///
+        /// Because it is the one place in the game that cannot be farmed on a timer.
+        /// The King needs a thousand active kills to reach, has a five-minute enrage
+        /// clock, and can only be beaten by actually being there — so a handful of
+        /// relic coins from him is a reward for the hardest thing available rather
+        /// than a tap somebody can leave running overnight.
+        ///
+        /// It goes through GrantItemAsync like any other drop, which means it lands in
+        /// the WALLET and writes a ledger row rather than sitting in a bag slot. That
+        /// matters: relic coins are the number this whole architecture was built to
+        /// take off the player's machine, and an unledgered one would be unexplainable.
+        /// </summary>
+        public const string RelicCoinsItemId = "relic_coins";
+
+        /// <summary>
+        /// What a brand new account is given.
+        ///
+        /// ══ WHY IT IS HERE AND NOT A MIGRATION DEFAULT ════════════════════════
+        ///
+        /// A column default would silently apply to every account row ever inserted,
+        /// including ones created by a test fixture or a repair script, and it would
+        /// move the balance without a ledger row — which breaks the one invariant the
+        /// ledger exists for.
+        ///
+        /// So it is a grant, made once, at the moment the account is created, with the
+        /// row that explains it.
+        /// </summary>
+        public const long WelcomeRelicCoins = 1000L;
+
+        /// <summary>The reason recorded against that grant, so it can be found later.</summary>
+        public const string WelcomeReason = "welcome_grant";
+
+        /// <summary>
         /// The wallet this item id is money for, or null if it is an ordinary item.
         ///
         /// Returning null rather than throwing: most items are not currency, and the
@@ -62,7 +98,10 @@ namespace IdleExplorers.Rules
         {
             if (string.IsNullOrEmpty(itemId)) return null;
 
-            return itemId == CoinsItemId ? Coins : null;
+            if (itemId == CoinsItemId)      return Coins;
+            if (itemId == RelicCoinsItemId) return RelicCoins;
+
+            return null;
         }
 
         /// <summary>True when this item id should be credited rather than stored.</summary>

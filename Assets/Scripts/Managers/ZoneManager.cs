@@ -102,6 +102,9 @@ public class ZoneManager : MonoBehaviour
         // already finds them there.
         SpawnNpcs(map);
 
+        IdleExplorers.Backend.TelemetrySync.Report(
+            IdleExplorers.Backend.Telemetry.MapEnter, ("map", map.id));
+
         GameEvents.FireMapEntered(map.id);
         GameEvents.OnZoneEntered?.Invoke(map.zoneId);
 

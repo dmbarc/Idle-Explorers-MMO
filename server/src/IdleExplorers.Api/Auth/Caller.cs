@@ -59,18 +59,47 @@ public sealed class Caller(Db db)
 
         await using var connection = await db.OpenAsync(cancellation);
 
+        // ══ CREATED AND FUNDED IN ONE STATEMENT ═══════════════════════════════
+        //
         // ON CONFLICT DO NOTHING rather than check-then-insert: two requests arriving
         // together on a brand new account would both see nothing and both insert, and
         // one of them would fail on the primary key having already done its work.
+        //
+        // The welcome grant hangs off that same conflict clause, which is what makes
+        // it exactly-once without a lock or a flag: `returning id` yields a row ONLY
+        // for the statement that actually inserted, so a second request on the same
+        // account funds nothing. An existing account passing through here — which is
+        // every request the game makes — reaches the CTE with no rows and does nothing.
+        //
+        // ══ WHY THE LEDGER ROW IS IN THE SAME STATEMENT ═══════════════════════
+        //
+        // Because sum(delta) = balance is the invariant the scenario tests assert, and
+        // this runs with no transaction around it. Two statements could half-apply and
+        // leave a balance nobody can explain — which is precisely the state the ledger
+        // exists to make impossible.
         await connection.ExecuteAsync(
             """
-            insert into account (id, display_name)
-            values ($1, $2)
-            on conflict (id) do nothing;
+            with created as (
+                insert into account (id, display_name)
+                values ($1, $2)
+                on conflict (id) do nothing
+                returning id
+            ),
+            funded as (
+                insert into wallet (account_id, currency, balance)
+                select id, $3, $4 from created
+                on conflict (account_id, currency) do nothing
+                returning account_id
+            )
+            insert into wallet_ledger (account_id, currency, delta, reason)
+            select account_id, $3, $4, $5 from funded;
             """,
             null,
             userId.Value,
-            DefaultDisplayName(userId.Value));
+            DefaultDisplayName(userId.Value),
+            IdleExplorers.Rules.Currency.RelicCoins,
+            IdleExplorers.Rules.Currency.WelcomeRelicCoins,
+            IdleExplorers.Rules.Currency.WelcomeReason);
 
         // Read back rather than trusting the insert: the row may predate this request,
         // and a banned account must not be handed out just because it exists.

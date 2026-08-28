@@ -15,6 +15,8 @@ MonoBehaviour:
   itemIcons:
   - id: coins
     sprite: {fileID: 21300000, guid: 93b5b28db06f8d2439c780ec3aeb28d2, type: 3}
+  - id: relic_coins
+    sprite: {fileID: 21300000, guid: 401e0dc6359ba784fbe939a1148487cf, type: 3}
   - id: copper_ore
     sprite: {fileID: 21300000, guid: 36cc51f39c24a0842bfa1f31f573051a, type: 3}
   - id: tin_ore

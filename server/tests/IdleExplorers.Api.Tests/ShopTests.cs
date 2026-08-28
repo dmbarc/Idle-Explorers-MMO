@@ -48,7 +48,7 @@ public class ShopTests(ApiFixture api)
         HttpResponseMessage refused = await Grant(player, FirstPackId);
 
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        Assert.Equal(0L, await RelicCoins(player));
+        Assert.Equal(Welcome, await RelicCoins(player));
     }
 
     /// <summary>
@@ -79,7 +79,7 @@ public class ShopTests(ApiFixture api)
         HttpResponseMessage refused = await Grant(player, FirstPackId);
 
         Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
-        Assert.Equal(0L, await RelicCoins(player));
+        Assert.Equal(Welcome, await RelicCoins(player));
 
         await SetFlag(false);
     }
@@ -113,8 +113,11 @@ public class ShopTests(ApiFixture api)
 
             Assert.True(amount > 0L);
             Assert.False(body.GetProperty("paid").GetBoolean());
-            Assert.Equal(amount, body.GetProperty("balance").GetInt64());
-            Assert.Equal(amount, await RelicCoins(player));
+            // The pack's coins ON TOP of the welcome grant. Comparing the reported
+            // balance against the pack size alone would have quietly asserted that
+            // accounts start empty, which they no longer do.
+            Assert.Equal(Welcome + amount, body.GetProperty("balance").GetInt64());
+            Assert.Equal(Welcome + amount, await RelicCoins(player));
         }
         finally
         {
@@ -172,7 +175,7 @@ public class ShopTests(ApiFixture api)
             HttpResponseMessage refused = await Grant(player, "pack_of_infinite_wealth");
 
             Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
-            Assert.Equal(0L, await RelicCoins(player));
+            Assert.Equal(Welcome, await RelicCoins(player));
         }
         finally
         {
@@ -218,6 +221,15 @@ public class ShopTests(ApiFixture api)
     /// into tests of a missing pack.
     /// </summary>
     private static string FirstPackId => "relic_1300";
+
+    /// <summary>
+    /// What every account starts with.
+    ///
+    /// Named rather than written as 1000, so these tests move with the grant instead
+    /// of failing the day somebody changes it -- and so the assertions read as "the
+    /// welcome grant and nothing more" rather than as a magic number.
+    /// </summary>
+    private static long Welcome => IdleExplorers.Rules.Currency.WelcomeRelicCoins;
 
     private static async Task<HttpResponseMessage> Grant(Player player, string packId)
     {

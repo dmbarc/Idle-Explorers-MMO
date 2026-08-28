@@ -391,6 +391,12 @@
    }
   ],
   "lootTable": [
+        {
+          "itemId": "relic_coins",
+          "minQty": 1,
+          "maxQty": 2,
+          "weight": 100
+        },
    {
     "itemId": "coins",
     "minQty": 800,

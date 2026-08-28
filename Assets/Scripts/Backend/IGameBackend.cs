@@ -83,6 +83,16 @@ namespace IdleExplorers.Backend
         Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
                                             double damage, double seconds);
 
+        /// <summary>
+        /// Sends a batch of client events. Best-effort by design.
+        ///
+        /// The server may be told to ignore them by a feature flag, and answers OK
+        /// with nothing accepted when it is -- telemetry is not something a player
+        /// asked for, so a client must never see an error or start retrying because
+        /// the operator turned the stream down.
+        /// </summary>
+        Awaitable<Telemetry.Receipt> ReportTelemetryAsync(Telemetry.Event[] events);
+
         /// <summary>The group this character is in, or an empty one.</summary>
         Awaitable<PartySnapshot> GetPartyAsync(string characterId);
 
