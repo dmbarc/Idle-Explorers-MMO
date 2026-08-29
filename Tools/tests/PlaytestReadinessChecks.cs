@@ -29,6 +29,7 @@ internal static class PlaytestReadinessChecks
 
         Telemetry(check, root);
         Splash(check, root);
+        BossLoot(check, root);
         Currency(check, root);
     }
 
@@ -130,6 +131,42 @@ internal static class PlaytestReadinessChecks
         check(code.Contains("interactable = false"),
               "the continue button is dead until the content has loaded — pressing " +
               "through early reaches a character screen with no classes on it");
+    }
+
+    // ── Beating the King is VISIBLE ───────────────────────────────────────────
+
+    /// <summary>
+    /// Claiming boss loot re-reads what the server did with it.
+    ///
+    /// ══ STORING IS NOT SHOWING ════════════════════════════════════════════════
+    ///
+    /// The claim endpoint puts items in the bag and coins in the wallet, server-side,
+    /// and answers with a list. OnItemPickedUp has no subscriber that changes any
+    /// number — it is a notification. So without a pull the player kills the King,
+    /// sees a toast, and looks at an unchanged inventory and an unchanged relic-coin
+    /// counter.
+    ///
+    /// This is the third time in this project: relic coins granted and displayed as
+    /// zero, equipment applied and the sprite left bare, a gem credited and never
+    /// paid. Each time the write was perfect and nothing read it back.
+    /// </summary>
+    private static void BossLoot(Action<bool, string> check, string root)
+    {
+        string fight = Strip(Read(root, "Assets/Scripts/PlayerScripts/BossFight.cs"));
+
+        check(fight.Length > 0, "BossFight.cs is where it is expected to be");
+        if (fight.Length == 0) return;
+
+        string claim = Body(fight, "public async Awaitable ClaimAsync()");
+
+        check(claim.Length > 0, "BossFight.ClaimAsync is where it is expected to be");
+
+        check(claim.Contains("PullAccountAsync"),
+              "claiming boss loot re-reads the ACCOUNT, or the relic coins the King " +
+              "dropped are credited and the counter still says what it said before");
+
+        check(claim.Contains("PullCharacterAsync"),
+              "and the CHARACTER, or the items are in the bag and not on the screen");
     }
 
     // ── The currency rules ────────────────────────────────────────────────────

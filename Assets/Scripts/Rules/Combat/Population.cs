@@ -51,12 +51,22 @@ namespace IdleExplorers.Rules
         /// <summary>
         /// How far from the middle of a map monsters may be placed, in world units.
         ///
-        /// The two playable maps are a little over 120 units across at four units a
-        /// tile, so this keeps a spawn inside the walls with room to spare. The client
-        /// drops the point onto the NavMesh, which is what makes a rough position land
-        /// somewhere walkable.
+        /// ══ MEASURED, NOT ESTIMATED ═══════════════════════════════════════════
+        ///
+        /// Both playable maps are 32 by 24 tiles at four units a tile — so 128 across
+        /// and only 96 DEEP, centred on the origin. The first value here was 48, taken
+        /// from "a little over 120 units across", which is true of the x axis and puts
+        /// the z axis exactly on the outer wall.
+        ///
+        /// Every map's border row is cliff, so a spawn out there lands inside rock:
+        /// the client's NavMesh sample fails, falls back to the raw point, and the map
+        /// holds a monster nobody can reach or kill — occupying a population slot
+        /// forever, because only damage removes one.
+        ///
+        /// 40 is inside the walkable interior on the SHORTER axis, which is the one
+        /// that matters when a single number governs both.
         /// </summary>
-        public const float SpawnExtent = 48f;
+        public const float SpawnExtent = 40f;
 
         /// <summary>Closest two monsters may be placed to one another.</summary>
         public const float MinSeparation = 4f;

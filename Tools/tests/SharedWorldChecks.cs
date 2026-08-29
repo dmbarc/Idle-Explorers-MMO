@@ -100,7 +100,36 @@ internal static class SharedWorldChecks
         check(!rules.Contains("UnityEngine"),
               "Population has no engine dependency — the shared tree is compiled by the " +
               "server too, and one using directive breaks that quietly");
+
+        // ── And a spawn lands inside the walls ────────────────────────────────
+        //
+        // Both maps are 32x24 tiles at four units, so 128 across and 96 DEEP. An
+        // extent taken from the WIDER axis puts every z-axis spawn on the border row,
+        // which is cliff on every map -- and a monster inside rock cannot be reached
+        // or killed, so it holds a population slot for the life of the server.
+        var extent = Regex.Match(rules, @"SpawnExtent\s*=\s*([0-9.]+)f");
+
+        check(extent.Success, "Population.SpawnExtent is a number this check can read");
+
+        if (extent.Success)
+        {
+            float spawn = float.Parse(extent.Groups[1].Value,
+                                      System.Globalization.CultureInfo.InvariantCulture);
+
+            check(spawn <= ShortestHalfExtent,
+                  $"SpawnExtent is {spawn}, which must be inside the shorter axis " +
+                  $"({ShortestHalfExtent}) or monsters spawn in the cliff wall");
+        }
     }
+
+    /// <summary>
+    /// Half the SHORTER dimension of a map, minus its border row.
+    ///
+    /// 24 tiles deep at four units is 96, so 48 either side of the origin -- and the
+    /// outermost row is cliff on both maps, so the last usable ring is 44. 40 leaves a
+    /// tile of margin for the NavMesh sample to work with.
+    /// </summary>
+    private const float ShortestHalfExtent = 44f;
 
     /// <summary>
     /// Source with its comments removed.

@@ -330,6 +330,22 @@ public class BossFight : MonoBehaviour
                 GameEvents.FireToast("Your bag is full — the rest is waiting for you.",
                                      ChatTone.Warning);
             }
+
+            // ══ AND THE SCREEN IS TOLD ════════════════════════════════════════
+            //
+            // OnItemPickedUp has no subscribers that change any number — it is a
+            // notification, not a grant. The SERVER put the loot in the bag and the
+            // coins in the wallet, and until something reads that back the player sees
+            // an unchanged inventory and an unchanged relic-coin counter.
+            //
+            // That matters more now than it did: the King drops relic coins, which are
+            // a wallet rather than a bag slot, so the entire visible result of killing
+            // him would otherwise be a toast.
+            //
+            // The account for the wallets, the character for the bag. Both, because
+            // the King's table now contains one of each.
+            await IdleExplorers.Backend.ServerState.PullAccountAsync();
+            await IdleExplorers.Backend.ServerState.PullCharacterAsync(_characterId);
         }
         catch (BackendException e)
         {
