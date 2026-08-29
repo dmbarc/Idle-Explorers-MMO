@@ -76,6 +76,21 @@ public static class MonsterPrefabSetup
         new Recipe("bramblekin", SpumRoot + "Elf/SPUM_20240911215638048.prefab", "#4E7A38", 0.95f,
                    "Hollow of the Fading Light. An elf silhouette under a mossy green " +
                    "reads as something that grew rather than something that arrived."),
+
+        // ══ THE KING HAD NO BODY AT ALL ═══════════════════════════════════════
+        //
+        // GoblinThroneSetup placed `new GameObject("GoblinKing")` with a BossController
+        // and nothing else -- no rig, no renderer, no animator. So the arena had an
+        // invisible boss: the health bar appeared, because that is drawn by the HUD
+        // from the server's numbers, and there was nothing to fight.
+        //
+        // A Devil rig like the goblin, because he is one -- and half again as tall as
+        // the player, because the whole read of a boss at a distance is that it is
+        // bigger than the things you have been killing.
+        new Recipe("goblin_king", SpumRoot + "Devil/SPUM_20240911215637772.prefab", "#8B2F3A", 1.55f,
+                   "The Goblin Throne. The same race as his subjects and half again the " +
+                   "player's height, in a deep red -- so he reads as a goblin, as a boss, " +
+                   "and as neither of the two rigs already in the game."),
     };
 
     [MenuItem("Idle Explorers/Build Monster Prefabs")]

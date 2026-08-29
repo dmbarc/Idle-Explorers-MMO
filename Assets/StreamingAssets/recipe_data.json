@@ -796,5 +796,68 @@
     "outputQuantity": 1,
     "xpPerCraft": 2150,
     "baseSecondsPerCraft": 45
+  },
+  {
+    "id": "smith_bonecarver",
+    "name": "Bonecarver",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 12,
+    "inputs": [
+      {
+        "itemId": "bones",
+        "quantity": 600
+      },
+      {
+        "itemId": "tin_bar",
+        "quantity": 400
+      }
+    ],
+    "outputItemId": "bonecarver",
+    "outputQuantity": 1,
+    "xpPerCraft": 300,
+    "baseSecondsPerCraft": 30
+  },
+  {
+    "id": "smith_gravewarden",
+    "name": "Gravewarden",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 15,
+    "inputs": [
+      {
+        "itemId": "bones",
+        "quantity": 500
+      },
+      {
+        "itemId": "copper_bar",
+        "quantity": 300
+      }
+    ],
+    "outputItemId": "gravewarden",
+    "outputQuantity": 1,
+    "xpPerCraft": 260,
+    "baseSecondsPerCraft": 28
+  },
+  {
+    "id": "smith_marrow_reaver",
+    "name": "Marrow Reaver",
+    "skillId": "smithing",
+    "stationType": "anvil",
+    "reqSkillLevel": 30,
+    "inputs": [
+      {
+        "itemId": "bones",
+        "quantity": 1500
+      },
+      {
+        "itemId": "bronze_bar",
+        "quantity": 700
+      }
+    ],
+    "outputItemId": "marrow_reaver",
+    "outputQuantity": 1,
+    "xpPerCraft": 1300,
+    "baseSecondsPerCraft": 50
   }
 ]

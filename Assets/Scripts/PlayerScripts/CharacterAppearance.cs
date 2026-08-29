@@ -176,6 +176,23 @@ public class CharacterAppearance : MonoBehaviour
         // lifetime 0: it persists until the item comes off.
         _auraInstance = AbilityVFX.PlayAttached(wanted, transform, lifetime: 0f);
         _auraItemId   = item.id;
+
+        // ══ AND LIFTED OFF THE FLOOR ══════════════════════════════════════════
+        //
+        // PlayAttached puts the effect at the parent's origin, and a SPUM rig's origin
+        // is at its FEET. So every aura played as a puddle around the ankles, mostly
+        // clipped into the ground plane -- which is a large part of why four of the
+        // five looked like they were not playing at all.
+        //
+        // Measured rather than a constant, because the King is half again the height
+        // of a player and a fixed offset would put his aura at his knees.
+        if (_auraInstance != null)
+        {
+            float height = SpumRig.MeasureCharacterHeight(transform);
+
+            _auraInstance.transform.localPosition =
+                Vector3.up * (height > 0.1f ? height : 2f) * 0.5f;
+        }
     }
 
     // ── Rig lookup ────────────────────────────────────────────────────────────

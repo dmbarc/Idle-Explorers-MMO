@@ -92,5 +92,38 @@
     "lifestealFraction": 0.5,
     "costType": "mana",
     "cost": 14
+  },
+  {
+    "id": "bone_harvest",
+    "name": "Bone Harvest",
+    "description": "A cut that takes something with it.",
+    "isPassive": false,
+    "effect": "damage",
+    "power": 1.4,
+    "cooldownSeconds": 11,
+    "aoeRadius": 0,
+    "durationSeconds": 0,
+    "iconAddress": "",
+    "vfxAddress": "impact",
+    "hits": 1,
+    "lifestealFraction": 0.4,
+    "costType": "stamina",
+    "cost": 12
+  },
+  {
+    "id": "marrowcall",
+    "name": "Marrowcall",
+    "description": "Something in the pile still has opinions. It fights for thirty seconds.",
+    "isPassive": false,
+    "effect": "summon",
+    "power": 1,
+    "cooldownSeconds": 45,
+    "aoeRadius": 0,
+    "durationSeconds": 30,
+    "iconAddress": "",
+    "vfxAddress": "smoke",
+    "hits": 1,
+    "costType": "stamina",
+    "cost": 25
   }
 ]

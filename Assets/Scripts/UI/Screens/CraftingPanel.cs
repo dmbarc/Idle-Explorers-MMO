@@ -35,6 +35,15 @@ public class CraftingPanel : UIScreen
         BuildHeader(panel.transform, theme);
         BuildRecipeList(panel.transform, theme);
 
+        // ONE card for the whole list. It owns a RenderTexture, and one per row would
+        // allocate a texture per recipe in a list that runs to thirty.
+        _hover = RecipeHoverCard.Attach(this);
+
+        // Bound after the card exists, because a row cannot be wired to nothing.
+        foreach (var (row, recipe) in _hoverable) _hover?.Bind(row, recipe);
+
+        _hoverable.Clear();
+
         var close = UIFactory.Button(panel.transform, "CLOSE", () => GameManager.UI?.Pop(), width: 0f);
         UIFactory.At(close, 0.35f, 0.02f, 0.65f, 0.09f);
     }
@@ -104,6 +113,18 @@ public class CraftingPanel : UIScreen
             BuildRecipeRow(content, theme, recipe);
     }
 
+    /// <summary>The hover card every row shares. See RecipeHoverCard.</summary>
+    private RecipeHoverCard _hover;
+
+    /// <summary>
+    /// Rows waiting to be wired, because they are built before the card exists.
+    ///
+    /// Building the card first would work too, and this way the list is constructed
+    /// in the order it is read -- header, rows, then the thing that decorates them.
+    /// </summary>
+    private readonly System.Collections.Generic.List<(GameObject Row, CraftRecipe Recipe)>
+        _hoverable = new();
+
     private void BuildRecipeRow(Transform parent, UITheme theme, CraftRecipe recipe)
     {
         int  level    = GameManager.Skills?.GetSkillLevel(recipe.skillId) ?? 1;
@@ -115,6 +136,8 @@ public class CraftingPanel : UIScreen
         var row = UIFactory.Panel(parent, $"Recipe_{recipe.id}", theme.cardBg, false);
         var le  = row.AddComponent<LayoutElement>();
         le.minHeight = le.preferredHeight = 92f;
+
+        _hoverable.Add((row, recipe));
 
         // Output icon
         var icon = UIFactory.Icon(row.transform, GameManager.Content?.GetItemIcon(recipe.outputItemId), 48f);

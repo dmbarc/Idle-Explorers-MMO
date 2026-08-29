@@ -22,11 +22,17 @@ public class GroundArrow : MonoBehaviour
 {
     // ── Shape ─────────────────────────────────────────────────────────────────
 
+    // ══ TWICE THE SIZE IT WAS ═════════════════════════════════════════════════
+    //
+    // The marker is the only thing on screen that says WHICH tree, rock or goblin the
+    // character is working on, and at the old size it was a thumbnail-sized cone on a
+    // map seen from thirty units up. Doubled on every axis, so it reads at the camera
+    // distance the game is actually played at rather than the one it was authored at.
     private const int   Sides       = 8;
-    private const float HeadRadius  = 0.42f;
-    private const float HeadHeight  = 0.62f;
-    private const float ShaftRadius = 0.14f;
-    private const float ShaftHeight = 0.62f;
+    private const float HeadRadius  = 0.84f;
+    private const float HeadHeight  = 1.24f;
+    private const float ShaftRadius = 0.28f;
+    private const float ShaftHeight = 1.24f;
 
     /// <summary>How far the tip floats above the point at the bottom of the bounce.</summary>
     private const float HoverHeight = 0.35f;

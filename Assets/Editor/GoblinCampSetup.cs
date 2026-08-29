@@ -45,11 +45,11 @@ public static class GoblinCampSetup
     private static readonly string[] Layout =
     {
         "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC",
-        "C....TTTTT...............RRRR..C",
-        "C...TTTTTTT..............RR1RR.C",
+        "C....TT3TT...............RRRR..C",
+        "C...3TTTTTT..............RR1RR.C",
         "C..TTT3TTTT..............RRRRR.C",
-        "C...TTTTTT....g.........RR2RR..C",
-        "C....TTT.................RRR...C",
+        "C...TTTT3T....g.........RR2RR..C",
+        "C....3TT.................RRR...C",
         "C.........ffff..ffff...........C",
         "C.........f........f....~~~~...C",
         "C..g......f...t....f...~~~~~~..C",

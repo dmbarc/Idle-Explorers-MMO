@@ -1516,6 +1516,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
     "setId": "starter_warrior",
     "maxDurability": 40,
     "effects": [
@@ -1536,6 +1537,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
     "setId": "starter_warrior",
     "maxDurability": 30,
     "effects": [
@@ -1556,6 +1558,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
     "setId": "starter_warrior",
     "maxDurability": 20,
     "effects": [
@@ -1576,6 +1579,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
     "setId": "starter_ranger",
     "maxDurability": 40,
     "effects": [
@@ -1596,6 +1600,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
     "setId": "starter_ranger",
     "maxDurability": 30,
     "effects": [
@@ -1616,6 +1621,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
     "setId": "starter_ranger",
     "maxDurability": 20,
     "effects": [
@@ -1636,6 +1642,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
     "setId": "starter_sorcerer",
     "maxDurability": 40,
     "effects": [
@@ -1656,6 +1663,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
     "setId": "starter_sorcerer",
     "maxDurability": 30,
     "effects": [
@@ -1676,6 +1684,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
     "setId": "starter_sorcerer",
     "maxDurability": 20,
     "effects": [
@@ -1696,6 +1705,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
     "setId": "starter_tinkerer",
     "maxDurability": 40,
     "effects": [
@@ -1716,6 +1726,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
     "setId": "starter_tinkerer",
     "maxDurability": 30,
     "effects": [
@@ -1736,6 +1747,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
     "setId": "starter_tinkerer",
     "maxDurability": 20,
     "effects": [
@@ -1756,6 +1768,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
     "setId": "starter_specter",
     "maxDurability": 40,
     "effects": [
@@ -1776,6 +1789,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
     "setId": "starter_specter",
     "maxDurability": 30,
     "effects": [
@@ -1796,6 +1810,7 @@
     "levelReq": 1,
     "sourceSkill": "",
     "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
     "setId": "starter_specter",
     "maxDurability": 20,
     "effects": [
@@ -2015,5 +2030,77 @@
     "stackable": true,
     "levelReq": 0,
     "sourceSkill": ""
+  },
+  {
+    "id": "bonecarver",
+    "name": "Bonecarver",
+    "description": "Ground down from the camp’s leavings. It remembers being part of something.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 12,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_5",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "bone_harvest",
+        "equipText": "Equip: Bone Harvest — what it takes out of them goes into you."
+      }
+    ],
+    "weaponType": "melee",
+    "attackRange": 2.3,
+    "attackSpeedSeconds": 1.9,
+    "damageMin": 9,
+    "damageMax": 17
+  },
+  {
+    "id": "gravewarden",
+    "name": "Gravewarden",
+    "description": "A shield of stacked ribs, lashed tight. Surprisingly reassuring.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 15,
+    "sourceSkill": "smithing",
+    "equipSlot": "offhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/3_Shield/Shield_1",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 45,
+        "equipText": "Equip: +45 health. The dead are good at not dying twice."
+      }
+    ]
+  },
+  {
+    "id": "marrow_reaver",
+    "name": "Marrow Reaver",
+    "description": "Two hands, and both of them regret it. Somewhere inside is a goblin femur that has done rather well for itself.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 30,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/1_Axe/Axe_1",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "marrowcall",
+        "equipText": "Equip: Marrowcall — something gets up and fights for you."
+      }
+    ],
+    "weaponType": "melee",
+    "attackRange": 2.7,
+    "attackSpeedSeconds": 2.5,
+    "damageMin": 18,
+    "damageMax": 31,
+    "twoHanded": true
   }
 ]

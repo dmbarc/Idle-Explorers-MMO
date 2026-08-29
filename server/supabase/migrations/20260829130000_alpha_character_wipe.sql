@@ -1,0 +1,48 @@
+-- One-time alpha wipe: every character, deleted.
+--
+-- ══ WHY THIS IS A MIGRATION AND NOT A CONSOLE COMMAND ═════════════════════════
+--
+-- A data wipe in migration history is not obviously right, and the alternative was
+-- worse. Running it by hand needs the production connection string, which carries
+-- the database password; a migration runs through the CLI's existing link and asks
+-- nobody to paste a secret anywhere.
+--
+-- It also leaves a record. "Where did every character go on the 29th" has an answer
+-- in the repository rather than in somebody's shell history.
+--
+-- ══ WHY IT IS SAFE TO RE-RUN ══════════════════════════════════════════════════
+--
+-- On a fresh database there are no characters and this deletes nothing. On the
+-- production database it runs exactly once, because migrations do.
+--
+-- ══ WHAT IS AND IS NOT DESTROYED ══════════════════════════════════════════════
+--
+-- Characters, and everything that hangs off one: skills, inventory, equipment,
+-- activity, kill counts, buffs, party seats, presence, chat, encounters and pending
+-- loot. Every one of those is ON DELETE CASCADE from character, so this single
+-- statement is the whole wipe -- and the cascade is why it cannot leave an orphan
+-- behind the way a hand-written list of deletes would.
+--
+-- ACCOUNTS SURVIVE, and so do their wallets and the ledger explaining them. Two
+-- reasons: an account is the Supabase identity's partner and deleting it would
+-- orphan a login that still exists, and the welcome relic coins are already paid
+-- with a ledger row -- wiping the balance without wiping the row would break
+-- sum(delta) = balance, which is the invariant the whole economy is checked against.
+--
+-- The practical effect for a returning player: they log in as themselves, keep their
+-- relic coins, and make a new character. Which is what an alpha wipe should feel like.
+--
+-- ══ WHY THE SHARED WORLD GOES TOO ═════════════════════════════════════════════
+--
+-- map_monster is not owned by a character, so nothing cascades to it. Left alone it
+-- would keep whatever health and corpses the old population had -- monsters standing
+-- half-dead in a world with nobody in it. Clearing it lets the next poll build a
+-- fresh one.
+delete from character;
+
+delete from map_monster;
+
+-- Telemetry is deliberately NOT cleared. It is the record of what the last build did,
+-- including every client error, and that is the most useful thing in the database
+-- right now. It references accounts and characters with ON DELETE SET NULL, so the
+-- rows survive the wipe with a null character and their payloads intact.

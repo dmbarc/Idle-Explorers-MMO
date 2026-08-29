@@ -127,6 +127,40 @@ public static class IconLibrarySetup
         // Not a King drop, but the last equippable item still on a placeholder.
         { "tin_buckler",       "shield_curved" },
 
+
+        // ── Bones into weapons ────────────────────────────────────────────────
+        //
+        // Goblins drop bones and nothing consumed them, so a camp farmer ended up
+        // with thousands of an item that did nothing. These are that pile.
+        { "bonecarver",    "sword_bronze" },
+        { "gravewarden",   "New_Shield_01" },
+        { "marrow_reaver", "axe_bronze" },
+
+        // ── The starter sets ──────────────────────────────────────────────────
+        //
+        // Three shapes shared across five classes. The sets are one crude look
+        // wearing five different names, and the project owns exactly six clothing
+        // sprites of which five are already spoken for -- so these are silhouettes
+        // rather than garments, and honestly labelled as placeholders.
+        //
+        // What actually matters here is the WORN art, which they now have: a new
+        // character was being dressed by the server and still looked naked.
+        { "starter_warrior_tunic",            "character" },   // TODO(art)
+        { "starter_warrior_trews",            "pawn" },   // TODO(art)
+        { "starter_warrior_shoes",            "token" },   // TODO(art)
+        { "starter_ranger_tunic",             "character" },   // TODO(art)
+        { "starter_ranger_trews",             "pawn" },   // TODO(art)
+        { "starter_ranger_shoes",             "token" },   // TODO(art)
+        { "starter_sorcerer_tunic",           "character" },   // TODO(art)
+        { "starter_sorcerer_trews",           "pawn" },   // TODO(art)
+        { "starter_sorcerer_shoes",           "token" },   // TODO(art)
+        { "starter_tinkerer_tunic",           "character" },   // TODO(art)
+        { "starter_tinkerer_trews",           "pawn" },   // TODO(art)
+        { "starter_tinkerer_shoes",           "token" },   // TODO(art)
+        { "starter_specter_tunic",            "character" },   // TODO(art)
+        { "starter_specter_trews",            "pawn" },   // TODO(art)
+        { "starter_specter_shoes",            "token" },   // TODO(art)
+
         // Arcane
         { "chaos_rune",    "runeBlack_slab_012" },
         { "death_rune",    "runeBlack_slab_026" },

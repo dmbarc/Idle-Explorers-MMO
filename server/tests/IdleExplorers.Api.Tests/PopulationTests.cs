@@ -37,7 +37,25 @@ public class PopulationTests(ApiFixture api)
 {
     private static void RequireDatabase() => Skip.IfNot(ApiFixture.DatabaseReachable, ApiFixture.SkipReason);
 
-    private const string Camp   = "goblin_camp";
+    /// <summary>
+    /// This file's own map, and that is the whole reason it is the Hollow.
+    ///
+    /// ══ THE ISOLATION TRAP, AGAIN ═════════════════════════════════════════════
+    ///
+    /// These tests ran on goblin_camp, which eight other tests in the suite also poll.
+    /// The population is shared, so their polls spawned monsters, their kills left
+    /// corpses, and the prune and the read cap between them could remove a monster
+    /// this file had just killed -- "sequence contains no matching element", passing
+    /// alone and failing in the suite.
+    ///
+    /// Scoping the ASSERTIONS to a specific monster id was not enough, because the row
+    /// itself could be gone. Owning the map is: nothing else in the suite touches the
+    /// Hollow, so its population is only ever what these tests did to it.
+    ///
+    /// Isolation by construction, which is the rule three presence tests and an
+    /// encounter test had to learn before this one.
+    /// </summary>
+    private const string Camp   = "fading_hollow";
     private const string Throne = "goblin_throne";
 
     /// <summary>
@@ -55,7 +73,7 @@ public class PopulationTests(ApiFixture api)
         var monsters = await Poll(player, character, Camp);
 
         Assert.NotEmpty(monsters);
-        Assert.All(monsters, m => Assert.Equal("goblin", m.MonsterId));
+        Assert.All(monsters, m => Assert.Equal("bramblekin", m.MonsterId));
         Assert.All(monsters, m => Assert.True(m.MaxHealth > 0d));
     }
 

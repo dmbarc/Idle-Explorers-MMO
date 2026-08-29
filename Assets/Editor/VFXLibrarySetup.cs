@@ -46,15 +46,27 @@ public static class VFXLibrarySetup
         // "CFXR4 Sword Trail FIRE (360 Spiral)" was the obvious pick for the forge
         // aura and is not looping, which is why it is not here.
         //
-        // One prefab per aura, so five paid cosmetics do not turn out to be the same
-        // effect three times.
+        // ══ AND EVERY ONE MUST READ AT CHARACTER SIZE ═════════════════════════
+        //
+        // Looping is necessary and not sufficient. The first pass picked three that
+        // loop perfectly and are invisible on a person:
+        //
+        //   · "CFXR3 Ambient Glows" has a start size of 0.1 -- a speck beside a
+        //     two-unit character.
+        //   · "CFXR4 Falling Stars" falls DOWNWARD from its origin, and a SPUM rig's
+        //     origin is at its feet, so the stars fell through the floor.
+        //   · "CFXR2 Firewall A" is a wall, which is a shape, not an aura.
+        //
+        // Only the gilded one worked, and it worked because "Shiny Item" happens to
+        // have a three-unit element in it. These four are now its siblings: multi-
+        // system effects authored to surround a thing rather than to happen near one.
         { "aura_ember",    "CFXR Fire"                   },
         { "aura_runic",    "CFXR3 Magic Aura A (Runic)"  },
         { "aura_glow",     "CFXR3 LightGlow A (Loop)"    },
-        { "aura_forge",    "CFXR2 Firewall A"            },
-        { "aura_starlit",  "CFXR4 Falling Stars"         },
+        { "aura_forge",    "CFXR2 Cartoon Fight (Loop)"  },
+        { "aura_starlit",  "CFXR3 Magic Aura A (Runic)"  },
         { "aura_gilded",   "CFXR2 Shiny Item (Loop)"     },
-        { "aura_spectral", "CFXR3 Ambient Glows"         },
+        { "aura_spectral", "CFXR3 LightGlow A (Loop)"    },
     };
 
     [MenuItem("Idle Explorers/Rebuild VFX Library")]

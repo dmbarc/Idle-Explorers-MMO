@@ -38,10 +38,10 @@ MonoBehaviour:
   - id: aura_glow
     prefab: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}
   - id: aura_forge
-    prefab: {fileID: 8172849020266659018, guid: 2af5562ce69fc2d448481a1587a352a5, type: 3}
+    prefab: {fileID: 8487402871801164198, guid: 90375796f996bff4cabed66da5e558cb, type: 3}
   - id: aura_starlit
-    prefab: {fileID: 7305185502956871417, guid: 85b062a5517cf8345bb6784ffbed4877, type: 3}
+    prefab: {fileID: 3280519133390621005, guid: a71be3e7990efb040a07565c43cbb198, type: 3}
   - id: aura_gilded
     prefab: {fileID: 1652143759095011289, guid: e2c1ac940434a5242b54d72b66654687, type: 3}
   - id: aura_spectral
-    prefab: {fileID: 4364354964670000192, guid: 3801a320e9ae1bf44a14efa194c86c3f, type: 3}
+    prefab: {fileID: 1590415177872986601, guid: acdb90624a404aa438447006f1026065, type: 3}

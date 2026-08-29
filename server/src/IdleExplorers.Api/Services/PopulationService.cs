@@ -92,6 +92,17 @@ public sealed class PopulationService(ContentCache content)
     /// rather than two. Health is restored from the row's own max rather than from
     /// content, so a monster whose stats were rebalanced mid-life comes back as the
     /// thing that died.
+    ///
+    /// ══ AND spawned_at IS DELIBERATELY NOT TOUCHED ════════════════════════════
+    ///
+    /// It was, and that made a revived monster the YOUNGEST row in the map -- which is
+    /// exactly what PruneAsync deletes first. So a monster that had lived in the world
+    /// since the server started could be killed, revived, and then culled as though it
+    /// were overshoot, while genuinely new rows survived.
+    ///
+    /// spawned_at means "when this monster first appeared", and coming back from the
+    /// dead is not appearing. Leaving it alone also makes prune's ordering mean what it
+    /// says: the newest ARRIVALS are the excess.
     /// </summary>
     private static async Task ReviveAsync(NpgsqlConnection connection, string mapId,
                                           DateTimeOffset now, CancellationToken cancellation)
@@ -102,8 +113,7 @@ public sealed class PopulationService(ContentCache content)
                set health        = max_health,
                    died_at       = null,
                    tagged_by     = null,
-                   tagged_damage = 0,
-                   spawned_at    = $3
+                   tagged_damage = 0
              where map_id = $1
                and died_at is not null
                and $3 - died_at >= make_interval(secs => $2);
@@ -123,12 +133,22 @@ public sealed class PopulationService(ContentCache content)
                                          MonsterData monster, DateTimeOffset now,
                                          CancellationToken cancellation)
     {
-        long alive = await connection.ScalarAsync<long>(
-            "select count(*)::bigint from map_monster where map_id = $1 and died_at is null;",
+        // ══ CORPSES COUNT ═════════════════════════════════════════════════════
+        //
+        // This counted only the LIVING, so every death immediately spawned a
+        // replacement -- and then the corpse got up twenty-five seconds later and the
+        // map was one over, which the prune then had to cull. A map being farmed sat
+        // in a permanent cycle of spawning and deleting monsters nobody had seen.
+        //
+        // A corpse IS one of the map's monsters. It is lying down, and it will get up
+        // where it fell. Counting it keeps the population at a steady fourteen rows
+        // instead of fourteen-alive-plus-however-many-are-dead.
+        long held = await connection.ScalarAsync<long>(
+            "select count(*)::bigint from map_monster where map_id = $1;",
             null, mapId);
 
         int wanted = Population.Clamp(Population.PerMap);
-        int short_ = wanted - (int)alive;
+        int short_ = wanted - (int)held;
 
         if (short_ <= 0) return;
 
@@ -181,8 +201,12 @@ public sealed class PopulationService(ContentCache content)
             delete from map_monster
              where id in (
                    select id from map_monster
-                    where map_id = $1 and died_at is null
-                    order by spawned_at desc
+                    where map_id = $1
+                    -- id as a tiebreak, because a fixed clock -- the test harness has
+                    -- one -- gives every row in a batch the same spawned_at, and an
+                    -- unstable ordering makes the prune delete an arbitrary monster
+                    -- rather than the newest one.
+                    order by spawned_at desc, id desc
                    offset $2);
             """,
             null, mapId, Population.Clamp(Population.PerMap));

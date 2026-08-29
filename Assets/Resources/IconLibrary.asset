@@ -109,6 +109,42 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 7bba4e43f6206e1468ee47962f2babc2, type: 3}
   - id: tin_buckler
     sprite: {fileID: 21300000, guid: 58e0296901196f5448bc75b0332ee132, type: 3}
+  - id: bonecarver
+    sprite: {fileID: 21300000, guid: 027b0dcfd6cca18478c825d4f0d5878b, type: 3}
+  - id: gravewarden
+    sprite: {fileID: 21300000, guid: 3710a9b513cfe4549bbf0390faef38e0, type: 3}
+  - id: marrow_reaver
+    sprite: {fileID: 21300000, guid: 0626e4f7b3284c041953450ba7e112ef, type: 3}
+  - id: starter_warrior_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_warrior_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_warrior_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_ranger_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_ranger_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_ranger_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_sorcerer_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_sorcerer_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_sorcerer_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_tinkerer_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_tinkerer_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_tinkerer_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_specter_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_specter_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_specter_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
   - id: chaos_rune
     sprite: {fileID: 21300000, guid: aa2cbc0697e326144a59d8b719f7c3fe, type: 3}
   - id: death_rune

@@ -115,6 +115,76 @@ public class BossController : MonoBehaviour
         Phase = data?.PhaseAt(1d);
     }
 
+    /// <summary>
+    /// Gives the King a body if the scene did not.
+    ///
+    /// ══ WHY HE WAS INVISIBLE ══════════════════════════════════════════════════
+    ///
+    /// GoblinThroneSetup places `new GameObject("GoblinKing")` and adds a
+    /// BossController to it. That is all. No rig, no renderer, no animator — an empty
+    /// transform with a script on it.
+    ///
+    /// It was not obvious because the fight WORKED: the health bar is drawn by the HUD
+    /// from the server's numbers, the telegraphs are ground decals, and the damage was
+    /// real. The arena had a boss fight and no boss.
+    ///
+    /// ══ WHY AT RUNTIME AND NOT IN THE RECIPE ══════════════════════════════════
+    ///
+    /// The recipe is the right long-term home and it now builds a goblin_king prefab.
+    /// But the arena scene already exists with the empty object in it, and rebuilding
+    /// a generated scene to fix a missing sprite is a large diff and a NavMesh rebake
+    /// for something this file can do in eight lines on arrival.
+    ///
+    /// Idempotent: a King that already has art keeps it, so the day the scene is
+    /// regenerated with a proper prefab this quietly stops doing anything.
+    /// </summary>
+    private void EnsureBody()
+    {
+        if (GetComponentInChildren<SpriteRenderer>() != null) return;
+
+        string id = Data?.id;
+
+        var prefab = string.IsNullOrEmpty(id) ? null : Resources.Load<GameObject>("Monsters/" + id)
+                                             ?? Resources.Load<GameObject>("Monsters/_default");
+
+        if (prefab == null)
+        {
+            Debug.LogError($"[Boss] No rig for '{id}' and no fallback in Resources/Monsters. " +
+                           "The King will be invisible. Run 'Idle Explorers → Setup Everything'.");
+            return;
+        }
+
+        var body = Instantiate(prefab, transform.position, transform.rotation, transform);
+
+        body.name = "Body";
+        body.transform.localPosition = Vector3.zero;
+
+        // The prefab is a complete monster -- its own controller, agent and collider.
+        // Only the ART is wanted here; this object already owns the behaviour, and a
+        // second MonsterController would wander the King around his own arena.
+        foreach (var monster in body.GetComponentsInChildren<MonsterController>(true)) Destroy(monster);
+        foreach (var agent   in body.GetComponentsInChildren<NavMeshAgent>(true))     Destroy(agent);
+        foreach (var facing  in body.GetComponentsInChildren<SpriteFacing>(true))     Destroy(facing);
+        foreach (var plate   in body.GetComponentsInChildren<NamePlate>(true))        Destroy(plate.gameObject);
+        foreach (var bar     in body.GetComponentsInChildren<WorldStatusBar>(true))   Destroy(bar.gameObject);
+
+        // Colliders too: the King's own is what a click has to land on, and a spare
+        // set from the donor would sit in front of it.
+        foreach (var hit in body.GetComponentsInChildren<Collider>(true)) Destroy(hit);
+
+        // Something to click on and something for the camera ray to stop at.
+        if (GetComponent<Collider>() == null)
+        {
+            float height = Mathf.Max(1f, SpumRig.MeasureCharacterHeight(transform));
+
+            var capsule = gameObject.AddComponent<CapsuleCollider>();
+
+            capsule.radius = 1.1f;
+            capsule.height = height;
+            capsule.center = Vector3.up * height * 0.5f;
+        }
+    }
+
     private void Start()
     {
         // ══ THERE IS EXACTLY ONE KING ═════════════════════════════════════════
@@ -142,10 +212,6 @@ public class BossController : MonoBehaviour
             return;
         }
 
-        _agent  = GetComponent<NavMeshAgent>();
-        _anim   = GetComponentInChildren<Animator>();
-        _facing = SpriteFacing.Attach(gameObject);
-
         if (Data == null)
         {
             // Placed in a scene without being initialised: read the map's own boss
@@ -154,6 +220,12 @@ public class BossController : MonoBehaviour
             string monsterId = GameManager.Zone?.CurrentMap?.defaultMonsterId;
             Initialize(GameManager.Content?.GetMonster(monsterId));
         }
+
+        EnsureBody();
+
+        _agent  = GetComponent<NavMeshAgent>();
+        _anim   = GetComponentInChildren<Animator>();
+        _facing = SpriteFacing.Attach(gameObject);
 
         // Its own bar is the floating one every monster has; the big one at the top
         // of the screen is separate and owned by the HUD.
