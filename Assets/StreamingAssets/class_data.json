@@ -3,21 +3,40 @@
     "id": "warrior",
     "name": "Warrior",
     "flavorText": "Steel and fury. Outlasts everything by refusing to fall.",
-    "baseHp": 120, "baseMp": 40, "baseAttackMin": 8, "baseAttackMax": 14,
+    "baseHp": 120,
+    "baseMp": 40,
+    "baseAttackMin": 8,
+    "baseAttackMax": 14,
     "attackSpeedSeconds": 2.8,
     "stats": {
-      "health": 60, "mana": 20, "stamina": 60,
-      "healthRegen": 0.6, "manaRegen": 0, "staminaRegen": 0.8,
-      "minHit": 7, "maxHit": 11,
-      "critChance": 0.01, "critMultiplier": 0,
+      "health": 60,
+      "mana": 20,
+      "stamina": 60,
+      "healthRegen": 0.6,
+      "manaRegen": 0,
+      "staminaRegen": 0.8,
+      "minHit": 7,
+      "maxHit": 11,
+      "critChance": 0.01,
+      "critMultiplier": 0,
       "attackSpeedMultiplier": 0.07,
       "armor": 25,
-      "resonance": 0.10, "tenacity": 0.15,
+      "resonance": 0.1,
+      "tenacity": 0.15,
       "moveSpeed": -0.4,
       "skillAffinity": [
-        { "skillId": "smithing", "value": 0.25 },
-        { "skillId": "mining",   "value": 0.12 },
-        { "skillId": "combat",   "value": 0.12 }
+        {
+          "skillId": "smithing",
+          "value": 0.25
+        },
+        {
+          "skillId": "mining",
+          "value": 0.12
+        },
+        {
+          "skillId": "combat",
+          "value": 0.12
+        }
       ]
     },
     "previewLook": {
@@ -27,58 +46,406 @@
       "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye4",
       "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_3",
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_2",
-      "hairColor": "#2B2118", "eyeColor": "", "skinTint": ""
+      "hairColor": "#2B2118",
+      "eyeColor": "",
+      "skinTint": ""
     },
     "previewEquipment": [
-      { "slot": "chest", "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3" },
-      { "slot": "shoulders", "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3" },
-      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_2" },
-      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2" },
-      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1" }
+      {
+        "slot": "chest",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3"
+      },
+      {
+        "slot": "shoulders",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3"
+      },
+      {
+        "slot": "helmet",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_2"
+      },
+      {
+        "slot": "legs",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2"
+      },
+      {
+        "slot": "boots",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1"
+      }
     ],
     "abilities": [
-      { "id": "shield_bash",     "name": "Shield Bash",     "description": "A brutal shove that staggers what it hits.", "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 6,  "costType": "stamina", "cost": 15 },
-      { "id": "cleave",          "name": "Cleave",          "description": "Heavy sweep hitting all nearby enemies.",     "isPassive": false, "effect": "aoe",    "power": 1.4, "cooldownSeconds": 8,  "aoeRadius": 5.0, "costType": "stamina", "cost": 25 },
-      { "id": "battlecry",       "name": "Battlecry",       "description": "Swing faster for a short while.",             "isPassive": false, "effect": "haste",  "power": 1.5, "cooldownSeconds": 20, "durationSeconds": 8, "costType": "stamina", "cost": 30 },
-      { "id": "reckless_strike", "name": "Reckless Strike", "description": "Massive damage. You will feel it too.",       "isPassive": false, "effect": "damage", "power": 3.5, "cooldownSeconds": 12, "costType": "stamina", "cost": 35 }
+      {
+        "id": "shield_bash",
+        "name": "Shield Bash",
+        "description": "A brutal shove that staggers what it hits.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 2,
+        "cooldownSeconds": 6,
+        "costType": "stamina",
+        "cost": 15
+      },
+      {
+        "id": "cleave",
+        "name": "Cleave",
+        "description": "Heavy sweep hitting all nearby enemies.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 1.4,
+        "cooldownSeconds": 8,
+        "aoeRadius": 5,
+        "costType": "stamina",
+        "cost": 25
+      },
+      {
+        "id": "battlecry",
+        "name": "Battlecry",
+        "description": "Swing faster for a short while.",
+        "isPassive": false,
+        "effect": "haste",
+        "power": 1.5,
+        "cooldownSeconds": 20,
+        "durationSeconds": 8,
+        "costType": "stamina",
+        "cost": 30
+      },
+      {
+        "id": "reckless_strike",
+        "name": "Reckless Strike",
+        "description": "Massive damage. You will feel it too.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 3.5,
+        "cooldownSeconds": 12,
+        "costType": "stamina",
+        "cost": 35
+      },
+      {
+        "id": "earthshaker",
+        "name": "Earthshaker",
+        "description": "Bring the ground up to meet everything standing on it.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 2.6,
+        "cooldownSeconds": 22,
+        "aoeRadius": 6.5,
+        "durationSeconds": 0,
+        "iconAddress": "",
+        "vfxAddress": "aoe_burst",
+        "hits": 1,
+        "costType": "stamina",
+        "cost": 40
+      },
+      {
+        "id": "last_stand",
+        "name": "Last Stand",
+        "description": "Refuse, briefly and loudly.",
+        "isPassive": false,
+        "effect": "heal",
+        "power": 0.35,
+        "cooldownSeconds": 60,
+        "aoeRadius": 0,
+        "durationSeconds": 0,
+        "iconAddress": "",
+        "vfxAddress": "heal",
+        "hits": 1,
+        "costType": "stamina",
+        "cost": 20
+      }
     ],
     "talentTree": [
-      { "id": "war_shield_bash", "name": "Shield Bash", "description": "Learn Shield Bash. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "shield_bash", "effectValue": 0.15, "maxRank": 3, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "bulwark",      "name": "Bulwark",       "description": "+4% maximum health per rank.",                  "effectType": "maxHpPercent",        "effectValue": 0.04, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "heavy_swings", "name": "Heavy Swings",  "description": "+3% attack damage per rank.",                   "effectType": "attackDamagePercent", "effectValue": 0.03, "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "war_cleave",   "name": "Cleave",        "description": "Learn Cleave. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "cleave", "effectValue": 0.15, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "blood_scent",  "name": "Blood Scent",   "description": "Ordinary swings return 2% of their damage as health, per rank.", "effectType": "lifestealPercent", "effectValue": 0.02, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "war_drums",    "name": "War Drums",     "description": "Attack 4% faster per rank.",                    "effectType": "attackSpeedPercent",  "effectValue": 0.04, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "war_battlecry","name": "Battlecry",     "description": "Learn Battlecry. Each further rank adds 15% to its effect.", "effectType": "grantAbility", "abilityId": "battlecry", "effectValue": 0.15, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "iron_hide",    "name": "Iron Hide",     "description": "+7% maximum health per rank.",                  "effectType": "maxHpPercent",        "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["bulwark"] },
-      { "id": "tireless",     "name": "Tireless",      "description": "+5% offline progress per rank.",                "effectType": "afkRatePercent",      "effectValue": 0.05, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "war_reckless", "name": "Reckless Strike","description": "Learn Reckless Strike. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "reckless_strike", "effectValue": 0.15, "maxRank": 3, "tier": 3, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "unbreakable",  "name": "Unbreakable",   "description": "+30% maximum health. You do not fall.",         "effectType": "maxHpPercent",        "effectValue": 0.30, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["iron_hide"] }
+      {
+        "id": "war_shield_bash",
+        "name": "Shield Bash",
+        "tier": 0,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Shield Bash. Further ranks hit harder.",
+        "effectType": "grantAbility",
+        "abilityId": "shield_bash",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_blood_scent",
+        "name": "Blood Scent",
+        "tier": 0,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Your basic attacks return 8% of the damage as health.",
+        "effectType": "lifestealPercent",
+        "effectValue": 0.02,
+        "maxRank": 4
+      },
+      {
+        "id": "war_tireless",
+        "name": "Tireless",
+        "tier": 0,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fighting while away earns 20% faster.",
+        "effectType": "afkRatePercent",
+        "effectValue": 0.05,
+        "maxRank": 4
+      },
+      {
+        "id": "war_cleave",
+        "name": "Cleave",
+        "tier": 1,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Cleave. Further ranks hit harder.",
+        "effectType": "grantAbility",
+        "abilityId": "cleave",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_wide_arc",
+        "name": "Wide Arc",
+        "tier": 1,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Cleave hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "cleave",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "war_quick_recovery",
+        "name": "Quick Recovery",
+        "tier": 1,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Shield Bash comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "shield_bash",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "war_scavenger",
+        "name": "Scavenger",
+        "tier": 1,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Everything you kill drops 24% more.",
+        "effectType": "dropQuantityPercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "war_battlecry",
+        "name": "Battlecry",
+        "tier": 2,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Battlecry. Further ranks make it last harder.",
+        "effectType": "grantAbility",
+        "abilityId": "battlecry",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_hoarse_roar",
+        "name": "Hoarse Roar",
+        "tier": 2,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Battlecry is 36% stronger.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "battlecry",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "war_second_wind",
+        "name": "Second Wind",
+        "tier": 2,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You recover 6.0 more health a tick, always.",
+        "effectType": "healthRegenFlat",
+        "effectValue": 1.5,
+        "maxRank": 4
+      },
+      {
+        "id": "war_momentum",
+        "name": "Momentum",
+        "tier": 2,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Cleave comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "cleave",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "war_reckless",
+        "name": "Reckless Strike",
+        "tier": 3,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Reckless Strike. Further ranks hit harder.",
+        "effectType": "grantAbility",
+        "abilityId": "reckless_strike",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_earthshaker",
+        "name": "Earthshaker",
+        "tier": 3,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Earthshaker, which brings the ground up to meet everything standing on it.",
+        "effectType": "grantAbility",
+        "abilityId": "earthshaker",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_no_guard",
+        "name": "No Guard",
+        "tier": 3,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Reckless Strike hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "reckless_strike",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "war_butcher",
+        "name": "Butcher",
+        "tier": 3,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A further 9% of your damage comes back as health.",
+        "effectType": "lifestealPercent",
+        "effectValue": 0.03,
+        "maxRank": 3
+      },
+      {
+        "id": "war_last_stand",
+        "name": "Last Stand",
+        "tier": 4,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Last Stand, and refuse briefly.",
+        "effectType": "grantAbility",
+        "abilityId": "last_stand",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "war_aftershock",
+        "name": "Aftershock",
+        "tier": 4,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Earthshaker hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "earthshaker",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "war_stubborn",
+        "name": "Stubborn",
+        "tier": 4,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Last Stand comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "last_stand",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "war_unbreakable",
+        "name": "Unbreakable",
+        "tier": 5,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A third again as much of you to get through.",
+        "effectType": "maxHpPercent",
+        "effectValue": 0.3,
+        "maxRank": 1
+      },
+      {
+        "id": "war_executioner",
+        "name": "Executioner",
+        "tier": 5,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every swing lands a quarter harder.",
+        "effectType": "attackDamagePercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      }
     ]
   },
   {
     "id": "ranger",
     "name": "Ranger",
     "flavorText": "Rapid and ruthless. A dozen arrows while you raise your sword.",
-    "baseHp": 80, "baseMp": 60, "baseAttackMin": 5, "baseAttackMax": 10,
+    "baseHp": 80,
+    "baseMp": 60,
+    "baseAttackMin": 5,
+    "baseAttackMax": 10,
     "attackSpeedSeconds": 1.6,
     "stats": {
       "moveSpeed": 0.7,
-      "health": 20, "mana": 40, "stamina": 50,
-      "healthRegen": 0.3, "manaRegen": 0.3, "staminaRegen": 0.7,
-      "minHit": 4, "maxHit": 7,
-      "critChance": 0.05, "critMultiplier": 0.1,
+      "health": 20,
+      "mana": 40,
+      "stamina": 50,
+      "healthRegen": 0.3,
+      "manaRegen": 0.3,
+      "staminaRegen": 0.7,
+      "minHit": 4,
+      "maxHit": 7,
+      "critChance": 0.05,
+      "critMultiplier": 0.1,
       "attackSpeedMultiplier": 0.875,
       "armor": 10,
       "dropRateMultiplier": 0.05,
       "insight": 0.06,
       "skillAffinity": [
-        { "skillId": "woodcutting", "value": 0.25 },
-        { "skillId": "fishing",     "value": 0.12 },
-        { "skillId": "cooking",     "value": 0.12 }
+        {
+          "skillId": "woodcutting",
+          "value": 0.25
+        },
+        {
+          "skillId": "fishing",
+          "value": 0.12
+        },
+        {
+          "skillId": "cooking",
+          "value": 0.12
+        }
       ]
     },
     "previewLook": {
@@ -88,56 +455,401 @@
       "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye10",
       "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/2_Bow/Bow_1",
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/BowBack_1",
-      "hairColor": "#C08A3E", "eyeColor": "#2F7A4F", "skinTint": ""
+      "hairColor": "#C08A3E",
+      "eyeColor": "#2F7A4F",
+      "skinTint": ""
     },
     "previewEquipment": [
-      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_4" },
-      { "slot": "bracers", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5" },
-      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3" },
-      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3" }
+      {
+        "slot": "shirt",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_4"
+      },
+      {
+        "slot": "bracers",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5"
+      },
+      {
+        "slot": "legs",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3"
+      },
+      {
+        "slot": "boots",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3"
+      }
     ],
     "abilities": [
-      { "id": "rapid_shot",    "name": "Rapid Shot",    "description": "Three quick shots in a burst.",     "isPassive": false, "effect": "damage", "power": 0.8, "hits": 3, "cooldownSeconds": 5,  "costType": "stamina", "cost": 15 },
-      { "id": "marked_target", "name": "Marked Target", "description": "Line up the shot. It lands hard.",  "isPassive": false, "effect": "damage", "power": 3.0, "cooldownSeconds": 10, "costType": "stamina", "cost": 20 },
-      { "id": "barrage",       "name": "Barrage",       "description": "Arrow rain across a wide area.",    "isPassive": false, "effect": "aoe",    "power": 1.2, "cooldownSeconds": 12, "aoeRadius": 7.0, "costType": "stamina", "cost": 30 },
-      { "id": "evasion_roll",  "name": "Evasion Roll",  "description": "Roll clear and catch your breath.", "isPassive": false, "effect": "heal",   "power": 0.2, "cooldownSeconds": 18, "costType": "stamina", "cost": 25 }
+      {
+        "id": "rapid_shot",
+        "name": "Rapid Shot",
+        "description": "Three quick shots in a burst.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 0.8,
+        "hits": 3,
+        "cooldownSeconds": 5,
+        "costType": "stamina",
+        "cost": 15
+      },
+      {
+        "id": "marked_target",
+        "name": "Marked Target",
+        "description": "Line up the shot. It lands hard.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 3,
+        "cooldownSeconds": 10,
+        "costType": "stamina",
+        "cost": 20
+      },
+      {
+        "id": "barrage",
+        "name": "Barrage",
+        "description": "Arrow rain across a wide area.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 1.2,
+        "cooldownSeconds": 12,
+        "aoeRadius": 7,
+        "costType": "stamina",
+        "cost": 30
+      },
+      {
+        "id": "evasion_roll",
+        "name": "Evasion Roll",
+        "description": "Roll clear and catch your breath.",
+        "isPassive": false,
+        "effect": "heal",
+        "power": 0.2,
+        "cooldownSeconds": 18,
+        "costType": "stamina",
+        "cost": 25
+      },
+      {
+        "id": "piercing_volley",
+        "name": "Piercing Volley",
+        "description": "Four arrows through the same hole, give or take.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 0.9,
+        "cooldownSeconds": 14,
+        "aoeRadius": 0,
+        "durationSeconds": 0,
+        "iconAddress": "",
+        "vfxAddress": "impact",
+        "hits": 4,
+        "costType": "stamina",
+        "cost": 30
+      },
+      {
+        "id": "wind_step",
+        "name": "Wind Step",
+        "description": "Somewhere else, immediately, and rather smug about it.",
+        "isPassive": false,
+        "effect": "blink",
+        "power": 1,
+        "cooldownSeconds": 16,
+        "aoeRadius": 0,
+        "durationSeconds": 0,
+        "iconAddress": "",
+        "vfxAddress": "blink",
+        "hits": 1,
+        "costType": "stamina",
+        "cost": 18
+      }
     ],
     "talentTree": [
-      { "id": "rng_rapid_shot", "name": "Rapid Shot", "description": "Learn Rapid Shot. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "rapid_shot", "effectValue": 0.15, "maxRank": 3, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "quickdraw",   "name": "Quickdraw",   "description": "Attack 3.5% faster per rank.",           "effectType": "attackSpeedPercent",  "effectValue": 0.035, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "keen_edge",   "name": "Keen Edge",   "description": "+3% attack damage per rank.",            "effectType": "attackDamagePercent", "effectValue": 0.03,  "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "rng_marked",  "name": "Marked Target", "description": "Learn Marked Target. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "marked_target", "effectValue": 0.15, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "hunters_take","name": "Hunter's Take", "description": "+10% quantity from every drop, per rank.", "effectType": "dropQuantityPercent", "effectValue": 0.10, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "fieldcraft",  "name": "Fieldcraft",    "description": "Gather 4% faster per rank.",             "effectType": "gatherRatePercent",   "effectValue": 0.04, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "rng_barrage", "name": "Barrage",     "description": "Learn Barrage. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "barrage", "effectValue": 0.15, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "deadeye",     "name": "Deadeye",     "description": "+7% attack damage per rank.",            "effectType": "attackDamagePercent", "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["keen_edge"] },
-      { "id": "long_watch",  "name": "Long Watch",  "description": "+6% offline progress per rank.",         "effectType": "afkRatePercent",      "effectValue": 0.06, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "rng_evasion", "name": "Evasion Roll","description": "Learn Evasion Roll. Each further rank adds 15% to how much it restores.", "effectType": "grantAbility", "abilityId": "evasion_roll", "effectValue": 0.15, "maxRank": 3, "tier": 3, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "volley",      "name": "Volley",      "description": "+20% attack speed. The air is never empty.", "effectType": "attackSpeedPercent", "effectValue": 0.20, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["quickdraw"] }
+      {
+        "id": "rng_rapid_shot",
+        "name": "Rapid Shot",
+        "tier": 0,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Rapid Shot. Further ranks hit harder.",
+        "effectType": "grantAbility",
+        "abilityId": "rapid_shot",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_fletcher",
+        "name": "Fletcher",
+        "tier": 0,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Everything you kill drops 24% more.",
+        "effectType": "dropQuantityPercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "rng_woodsman",
+        "name": "Woodsman",
+        "tier": 0,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You gather 24% faster.",
+        "effectType": "gatherRatePercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "rng_marked",
+        "name": "Marked Target",
+        "tier": 1,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Marked Target. Further ranks mark harder.",
+        "effectType": "grantAbility",
+        "abilityId": "marked_target",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_barbed",
+        "name": "Barbed Heads",
+        "tier": 1,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Rapid Shot hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "rapid_shot",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_snap_shot",
+        "name": "Snap Shot",
+        "tier": 1,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Rapid Shot comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "rapid_shot",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_patient",
+        "name": "Patient",
+        "tier": 1,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fighting while away earns 20% faster.",
+        "effectType": "afkRatePercent",
+        "effectValue": 0.05,
+        "maxRank": 4
+      },
+      {
+        "id": "rng_barrage",
+        "name": "Barrage",
+        "tier": 2,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Barrage. Further ranks hit harder.",
+        "effectType": "grantAbility",
+        "abilityId": "barrage",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_wider_spread",
+        "name": "Wider Spread",
+        "tier": 2,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Barrage hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "barrage",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_field_dressing",
+        "name": "Field Dressing",
+        "tier": 2,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You recover 6.0 more health a tick, always.",
+        "effectType": "healthRegenFlat",
+        "effectValue": 1.5,
+        "maxRank": 4
+      },
+      {
+        "id": "rng_relentless",
+        "name": "Relentless",
+        "tier": 2,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Marked Target comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "marked_target",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_evasion",
+        "name": "Evasion Roll",
+        "tier": 3,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Evasion Roll. Further ranks carry you further.",
+        "effectType": "grantAbility",
+        "abilityId": "evasion_roll",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_volley",
+        "name": "Piercing Volley",
+        "tier": 3,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Piercing Volley: four arrows through the same hole, give or take.",
+        "effectType": "grantAbility",
+        "abilityId": "piercing_volley",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_deep_quiver",
+        "name": "Deep Quiver",
+        "tier": 3,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Piercing Volley hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "piercing_volley",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_tracker",
+        "name": "Tracker",
+        "tier": 3,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every skill earns 24% more experience.",
+        "effectType": "skillXpPercent",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_wind_step",
+        "name": "Wind Step",
+        "tier": 4,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Wind Step, and be somewhere else immediately.",
+        "effectType": "grantAbility",
+        "abilityId": "wind_step",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_light_feet",
+        "name": "Light Feet",
+        "tier": 4,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Evasion Roll comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "evasion_roll",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_gale",
+        "name": "Gale",
+        "tier": 4,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Wind Step comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "wind_step",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "rng_deadeye",
+        "name": "Deadeye",
+        "tier": 5,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every shot lands a quarter harder.",
+        "effectType": "attackDamagePercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      },
+      {
+        "id": "rng_fleet",
+        "name": "Fleet",
+        "tier": 5,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You draw and loose a quarter faster.",
+        "effectType": "attackSpeedPercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      }
     ]
   },
   {
     "id": "sorcerer",
     "name": "Sorcerer",
     "flavorText": "Slow, fragile, and capable of ending a fight before it starts.",
-    "baseHp": 55, "baseMp": 120, "baseAttackMin": 20, "baseAttackMax": 35,
+    "baseHp": 55,
+    "baseMp": 120,
+    "baseAttackMin": 20,
+    "baseAttackMax": 35,
     "attackSpeedSeconds": 3.5,
     "stats": {
       "moveSpeed": -0.2,
-      "health": -5, "mana": 100, "stamina": 5,
-      "healthRegen": 0, "manaRegen": 1.4, "staminaRegen": 0,
-      "minHit": 19, "maxHit": 32,
-      "critChance": 0.02, "critMultiplier": 0.15,
+      "health": -5,
+      "mana": 100,
+      "stamina": 5,
+      "healthRegen": 0,
+      "manaRegen": 1.4,
+      "staminaRegen": 0,
+      "minHit": 19,
+      "maxHit": 32,
+      "critChance": 0.02,
+      "critMultiplier": 0.15,
       "attackSpeedMultiplier": -0.143,
       "armor": 2,
       "insight": 0.04,
       "skillAffinity": [
-        { "skillId": "infusion",    "value": 0.25 },
-        { "skillId": "convergence", "value": 0.12 },
-        { "skillId": "chronicle",   "value": 0.12 }
+        {
+          "skillId": "infusion",
+          "value": 0.25
+        },
+        {
+          "skillId": "convergence",
+          "value": 0.12
+        },
+        {
+          "skillId": "chronicle",
+          "value": 0.12
+        }
       ]
     },
     "previewLook": {
@@ -147,56 +859,404 @@
       "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye8",
       "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/5_Wand/Ward_1",
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_3",
-      "hairColor": "#8C8C93", "eyeColor": "#5E3B7A", "skinTint": ""
+      "hairColor": "#8C8C93",
+      "eyeColor": "#5E3B7A",
+      "skinTint": ""
     },
     "previewEquipment": [
-      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_7" },
-      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_5" },
-      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4" }
+      {
+        "slot": "shirt",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_7"
+      },
+      {
+        "slot": "helmet",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_5"
+      },
+      {
+        "slot": "legs",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4"
+      }
     ],
     "abilities": [
-      { "id": "fireball",     "name": "Fireball",     "description": "A bloom of fire across everything nearby.", "isPassive": false, "effect": "aoe",   "power": 1.8, "cooldownSeconds": 8,  "aoeRadius": 6.0, "costType": "mana", "cost": 25 },
-      { "id": "frost_nova",   "name": "Frost Nova",   "description": "Chills and slows everything around you.",   "isPassive": false, "effect": "slow",  "power": 1.0, "cooldownSeconds": 14, "aoeRadius": 5.0, "durationSeconds": 5, "costType": "mana", "cost": 30 },
-      { "id": "arcane_surge", "name": "Arcane Surge", "description": "Cast and swing markedly faster.",            "isPassive": false, "effect": "haste", "power": 1.8, "cooldownSeconds": 24, "durationSeconds": 6, "costType": "mana", "cost": 45 },
-      { "id": "blink",        "name": "Blink",        "description": "Step through space toward where you look.",  "isPassive": false, "effect": "blink", "power": 0.15, "cooldownSeconds": 15, "aoeRadius": 8.0, "costType": "mana", "cost": 20 }
+      {
+        "id": "fireball",
+        "name": "Fireball",
+        "description": "A bloom of fire across everything nearby.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 1.8,
+        "cooldownSeconds": 8,
+        "aoeRadius": 6,
+        "costType": "mana",
+        "cost": 25
+      },
+      {
+        "id": "frost_nova",
+        "name": "Frost Nova",
+        "description": "Chills and slows everything around you.",
+        "isPassive": false,
+        "effect": "slow",
+        "power": 1,
+        "cooldownSeconds": 14,
+        "aoeRadius": 5,
+        "durationSeconds": 5,
+        "costType": "mana",
+        "cost": 30
+      },
+      {
+        "id": "arcane_surge",
+        "name": "Arcane Surge",
+        "description": "Cast and swing markedly faster.",
+        "isPassive": false,
+        "effect": "haste",
+        "power": 1.8,
+        "cooldownSeconds": 24,
+        "durationSeconds": 6,
+        "costType": "mana",
+        "cost": 45
+      },
+      {
+        "id": "blink",
+        "name": "Blink",
+        "description": "Step through space toward where you look.",
+        "isPassive": false,
+        "effect": "blink",
+        "power": 0.15,
+        "cooldownSeconds": 15,
+        "aoeRadius": 8,
+        "costType": "mana",
+        "cost": 20
+      },
+      {
+        "id": "chain_lightning",
+        "name": "Chain Lightning",
+        "description": "It looks for the next one on its own.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 2.2,
+        "cooldownSeconds": 15,
+        "aoeRadius": 7,
+        "durationSeconds": 0,
+        "iconAddress": "",
+        "vfxAddress": "lightning_ball",
+        "hits": 1,
+        "costType": "mana",
+        "cost": 35
+      },
+      {
+        "id": "time_warp",
+        "name": "Time Warp",
+        "description": "Everything else slows down. That is the polite description.",
+        "isPassive": false,
+        "effect": "haste",
+        "power": 0.8,
+        "cooldownSeconds": 40,
+        "aoeRadius": 0,
+        "durationSeconds": 12,
+        "iconAddress": "",
+        "vfxAddress": "haste_aura",
+        "hits": 1,
+        "costType": "mana",
+        "cost": 45
+      }
     ],
     "talentTree": [
-      { "id": "sor_fireball", "name": "Fireball", "description": "Learn Fireball. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "fireball", "effectValue": 0.15, "maxRank": 3, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "arcane_might", "name": "Arcane Might", "description": "+5% ability power per rank.",     "effectType": "abilityPowerPercent", "effectValue": 0.05, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "ley_sense",    "name": "Ley Sense",    "description": "+4% skill experience per rank.",  "effectType": "skillXpPercent",      "effectValue": 0.04, "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "sor_frost",    "name": "Frost Nova",   "description": "Learn Frost Nova. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "frost_nova", "effectValue": 0.15, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "spellweave",   "name": "Spellweave",   "description": "Ability cooldowns are 4% shorter per rank.", "effectType": "cooldownPercent", "effectValue": 0.04, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "frail_form",   "name": "Frail Form",   "description": "+8% attack damage per rank. Nothing defends you.", "effectType": "attackDamagePercent", "effectValue": 0.08, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "sor_surge",    "name": "Arcane Surge", "description": "Learn Arcane Surge. Each further rank adds 15% to its effect.", "effectType": "grantAbility", "abilityId": "arcane_surge", "effectValue": 0.15, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "overchannel",  "name": "Overchannel",  "description": "+9% ability power per rank.",     "effectType": "abilityPowerPercent", "effectValue": 0.09, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["arcane_might"] },
-      { "id": "astral_drift", "name": "Astral Drift", "description": "+6% offline progress per rank.",  "effectType": "afkRatePercent",      "effectValue": 0.06, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "sor_blink",    "name": "Blink",        "description": "Learn Blink. Each further rank adds 15% to how far it takes you.", "effectType": "grantAbility", "abilityId": "blink", "effectValue": 0.15, "maxRank": 3, "tier": 3, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "cataclysm",    "name": "Cataclysm",    "description": "+30% ability power. Everything you cast is worse for them.", "effectType": "abilityPowerPercent", "effectValue": 0.30, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["overchannel"] }
+      {
+        "id": "sor_fireball",
+        "name": "Fireball",
+        "tier": 0,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Fireball. Further ranks burn hotter.",
+        "effectType": "grantAbility",
+        "abilityId": "fireball",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_scholar",
+        "name": "Scholar",
+        "tier": 0,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every skill earns 32% more experience.",
+        "effectType": "skillXpPercent",
+        "effectValue": 0.08,
+        "maxRank": 4
+      },
+      {
+        "id": "sor_transmuter",
+        "name": "Transmuter",
+        "tier": 0,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Crafting has a 16% chance to produce double.",
+        "effectType": "craftDoubleChance",
+        "effectValue": 0.04,
+        "maxRank": 4
+      },
+      {
+        "id": "sor_frost_nova",
+        "name": "Frost Nova",
+        "tier": 1,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Frost Nova. Further ranks bite deeper.",
+        "effectType": "grantAbility",
+        "abilityId": "frost_nova",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_hotter_flame",
+        "name": "Hotter Flame",
+        "tier": 1,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fireball hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "fireball",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_quick_cast",
+        "name": "Quick Cast",
+        "tier": 1,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fireball comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "fireball",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_attuned",
+        "name": "Attuned",
+        "tier": 1,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fighting while away earns 20% faster.",
+        "effectType": "afkRatePercent",
+        "effectValue": 0.05,
+        "maxRank": 4
+      },
+      {
+        "id": "sor_arcane_surge",
+        "name": "Arcane Surge",
+        "tier": 2,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Arcane Surge. Further ranks surge harder.",
+        "effectType": "grantAbility",
+        "abilityId": "arcane_surge",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_deep_winter",
+        "name": "Deep Winter",
+        "tier": 2,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Frost Nova hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "frost_nova",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_leyline",
+        "name": "Leyline",
+        "tier": 2,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You recover 6.0 more health a tick, always.",
+        "effectType": "healthRegenFlat",
+        "effectValue": 1.5,
+        "maxRank": 4
+      },
+      {
+        "id": "sor_overflow",
+        "name": "Overflow",
+        "tier": 2,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Arcane Surge comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "arcane_surge",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_blink",
+        "name": "Blink",
+        "tier": 3,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Blink. Further ranks carry you further.",
+        "effectType": "grantAbility",
+        "abilityId": "blink",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_chain",
+        "name": "Chain Lightning",
+        "tier": 3,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Chain Lightning, which looks for the next one on its own.",
+        "effectType": "grantAbility",
+        "abilityId": "chain_lightning",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_forked",
+        "name": "Forked",
+        "tier": 3,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Chain Lightning hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "chain_lightning",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_siphon",
+        "name": "Siphon",
+        "tier": 3,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A further 9% of your damage comes back as health.",
+        "effectType": "lifestealPercent",
+        "effectValue": 0.03,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_time_warp",
+        "name": "Time Warp",
+        "tier": 4,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Time Warp. Everything else slows down.",
+        "effectType": "grantAbility",
+        "abilityId": "time_warp",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_short_step",
+        "name": "Short Step",
+        "tier": 4,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Blink comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "blink",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_unwound",
+        "name": "Unwound",
+        "tier": 4,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Time Warp comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "time_warp",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "sor_archmage",
+        "name": "Archmage",
+        "tier": 5,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every ability you have is a third stronger.",
+        "effectType": "abilityPowerPercent",
+        "effectValue": 0.3,
+        "maxRank": 1
+      },
+      {
+        "id": "sor_wardened",
+        "name": "Wardened",
+        "tier": 5,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A quarter again as much of you to get through.",
+        "effectType": "maxHpPercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      }
     ]
   },
   {
     "id": "tinkerer",
     "name": "Tinkerer",
     "flavorText": "Fights with leverage. Makes more than they break, usually.",
-    "baseHp": 75, "baseMp": 80, "baseAttackMin": 6, "baseAttackMax": 12,
+    "baseHp": 75,
+    "baseMp": 80,
+    "baseAttackMin": 6,
+    "baseAttackMax": 12,
     "attackSpeedSeconds": 2.2,
     "stats": {
       "moveSpeed": -0.3,
-      "health": 15, "mana": 60, "stamina": 35,
-      "healthRegen": 0.4, "manaRegen": 0.6, "staminaRegen": 0.5,
-      "minHit": 5, "maxHit": 9,
-      "critChance": 0.02, "critMultiplier": 0,
+      "health": 15,
+      "mana": 60,
+      "stamina": 35,
+      "healthRegen": 0.4,
+      "manaRegen": 0.6,
+      "staminaRegen": 0.5,
+      "minHit": 5,
+      "maxHit": 9,
+      "critChance": 0.02,
+      "critMultiplier": 0,
       "attackSpeedMultiplier": 0.364,
       "armor": 15,
-      "dropRate": 1, "dropRateMultiplier": 0.08,
-      "momentum": 0.10, "diligence": 0.05, "tenacity": 0.10,
+      "dropRate": 1,
+      "dropRateMultiplier": 0.08,
+      "momentum": 0.1,
+      "diligence": 0.05,
+      "tenacity": 0.1,
       "skillAffinity": [
-        { "skillId": "fabrication", "value": 0.25 },
-        { "skillId": "smithing",    "value": 0.12 },
-        { "skillId": "brokerage",   "value": 0.12 }
+        {
+          "skillId": "fabrication",
+          "value": 0.25
+        },
+        {
+          "skillId": "smithing",
+          "value": 0.12
+        },
+        {
+          "skillId": "brokerage",
+          "value": 0.12
+        }
       ]
     },
     "previewLook": {
@@ -206,56 +1266,405 @@
       "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye6",
       "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/6_Hammer/F_SR_Hammer",
       "backAddress": "",
-      "hairColor": "#A33B22", "eyeColor": "#C08A3E", "skinTint": ""
+      "hairColor": "#A33B22",
+      "eyeColor": "#C08A3E",
+      "skinTint": ""
     },
     "previewEquipment": [
-      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_10" },
-      { "slot": "bracers", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8" },
-      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_7" },
-      { "slot": "boots", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1" }
+      {
+        "slot": "shirt",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_10"
+      },
+      {
+        "slot": "bracers",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8"
+      },
+      {
+        "slot": "helmet",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_7"
+      },
+      {
+        "slot": "boots",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1"
+      }
     ],
     "abilities": [
-      { "id": "salvage_strike", "name": "Salvage Strike", "description": "Hits where it will come apart.",        "isPassive": false, "effect": "damage",  "power": 2.4, "cooldownSeconds": 7,  "costType": "stamina", "cost": 15 },
-      { "id": "deploy_turret",  "name": "Deploy Turret",  "description": "Leaves something behind to keep firing.", "isPassive": false, "effect": "summon", "power": 1.3, "cooldownSeconds": 10, "aoeRadius": 6.0, "durationSeconds": 12, "costType": "mana", "cost": 30 },
-      { "id": "smoke_bomb",     "name": "Smoke Bomb",     "description": "Everything nearby forgets you exist.",   "isPassive": false, "effect": "stealth", "power": 0.8, "cooldownSeconds": 12, "aoeRadius": 5.0, "durationSeconds": 6, "costType": "stamina", "cost": 20 },
-      { "id": "overclock",      "name": "Overclock",      "description": "Push everything past its rating.",       "isPassive": false, "effect": "haste",   "power": 1.6, "cooldownSeconds": 20, "durationSeconds": 8, "costType": "mana", "cost": 35 }
+      {
+        "id": "salvage_strike",
+        "name": "Salvage Strike",
+        "description": "Hits where it will come apart.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 2.4,
+        "cooldownSeconds": 7,
+        "costType": "stamina",
+        "cost": 15
+      },
+      {
+        "id": "deploy_turret",
+        "name": "Deploy Turret",
+        "description": "Leaves something behind to keep firing.",
+        "isPassive": false,
+        "effect": "summon",
+        "power": 1.3,
+        "cooldownSeconds": 10,
+        "aoeRadius": 6,
+        "durationSeconds": 12,
+        "costType": "mana",
+        "cost": 30
+      },
+      {
+        "id": "smoke_bomb",
+        "name": "Smoke Bomb",
+        "description": "Everything nearby forgets you exist.",
+        "isPassive": false,
+        "effect": "stealth",
+        "power": 0.8,
+        "cooldownSeconds": 12,
+        "aoeRadius": 5,
+        "durationSeconds": 6,
+        "costType": "stamina",
+        "cost": 20
+      },
+      {
+        "id": "overclock",
+        "name": "Overclock",
+        "description": "Push everything past its rating.",
+        "isPassive": false,
+        "effect": "haste",
+        "power": 1.6,
+        "cooldownSeconds": 20,
+        "durationSeconds": 8,
+        "costType": "mana",
+        "cost": 35
+      },
+      {
+        "id": "scrap_swarm",
+        "name": "Scrap Swarm",
+        "description": "Three of them. None of them asked to be here.",
+        "isPassive": false,
+        "effect": "summon",
+        "power": 1,
+        "cooldownSeconds": 50,
+        "aoeRadius": 0,
+        "durationSeconds": 30,
+        "iconAddress": "",
+        "vfxAddress": "smoke",
+        "hits": 1,
+        "costType": "stamina",
+        "cost": 35
+      },
+      {
+        "id": "concussive_blast",
+        "name": "Concussive Blast",
+        "description": "Everything nearby forgets what it was doing.",
+        "isPassive": false,
+        "effect": "slow",
+        "power": 0.5,
+        "cooldownSeconds": 18,
+        "aoeRadius": 6,
+        "durationSeconds": 6,
+        "iconAddress": "",
+        "vfxAddress": "frost",
+        "hits": 1,
+        "costType": "stamina",
+        "cost": 25
+      }
     ],
     "talentTree": [
-      { "id": "tin_salvage",    "name": "Salvage Strike", "description": "Learn Salvage Strike. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "salvage_strike", "effectValue": 0.15, "maxRank": 3, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "precision_tools","name": "Precision Tools","description": "Craft 5% faster per rank.",       "effectType": "craftSpeedPercent", "effectValue": 0.05, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "salvager",       "name": "Salvager",       "description": "+6% quantity from every drop, per rank.", "effectType": "dropQuantityPercent", "effectValue": 0.06, "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "tin_turret",     "name": "Deploy Turret",  "description": "Learn Deploy Turret. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "deploy_turret", "effectValue": 0.15, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "mass_production","name": "Mass Production","description": "+5% chance per rank to double a craft.", "effectType": "craftDoubleChance", "effectValue": 0.05, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["precision_tools"] },
-      { "id": "reinforced",     "name": "Reinforced",     "description": "+6% maximum health per rank.",    "effectType": "maxHpPercent",      "effectValue": 0.06, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "tin_smoke",      "name": "Smoke Bomb",     "description": "Learn Smoke Bomb. Each further rank adds 15% to its radius.", "effectType": "grantAbility", "abilityId": "smoke_bomb", "effectValue": 0.15, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "automation",     "name": "Automation",     "description": "+8% offline progress per rank.",  "effectType": "afkRatePercent",    "effectValue": 0.08, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "apprentice",     "name": "Apprentice",     "description": "+7% skill experience per rank.",  "effectType": "skillXpPercent",    "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "tin_overclock",  "name": "Overclock",      "description": "Learn Overclock. Each further rank adds 15% to its effect.", "effectType": "grantAbility", "abilityId": "overclock", "effectValue": 0.15, "maxRank": 3, "tier": 3, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "assembly_line",  "name": "Assembly Line",  "description": "+25% chance to double a craft. The workshop runs itself.", "effectType": "craftDoubleChance", "effectValue": 0.25, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["mass_production"] }
+      {
+        "id": "tnk_salvage",
+        "name": "Salvage Strike",
+        "tier": 0,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Salvage Strike. Further ranks salvage more.",
+        "effectType": "grantAbility",
+        "abilityId": "salvage_strike",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_efficient",
+        "name": "Efficient",
+        "tier": 0,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You craft 24% faster.",
+        "effectType": "craftSpeedPercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "tnk_prospector",
+        "name": "Prospector",
+        "tier": 0,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You gather 24% faster.",
+        "effectType": "gatherRatePercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "tnk_turret",
+        "name": "Deploy Turret",
+        "tier": 1,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Deploy Turret. Further ranks build it sturdier.",
+        "effectType": "grantAbility",
+        "abilityId": "deploy_turret",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_sharper_scrap",
+        "name": "Sharper Scrap",
+        "tier": 1,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Salvage Strike hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "salvage_strike",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_spare_parts",
+        "name": "Spare Parts",
+        "tier": 1,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Deploy Turret comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "deploy_turret",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_mass_produce",
+        "name": "Mass Produce",
+        "tier": 1,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Crafting has a 20% chance to produce double.",
+        "effectType": "craftDoubleChance",
+        "effectValue": 0.05,
+        "maxRank": 4
+      },
+      {
+        "id": "tnk_smoke",
+        "name": "Smoke Bomb",
+        "tier": 2,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Smoke Bomb. Further ranks thicken it.",
+        "effectType": "grantAbility",
+        "abilityId": "smoke_bomb",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_high_calibre",
+        "name": "High Calibre",
+        "tier": 2,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Deploy Turret hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "deploy_turret",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_night_shift",
+        "name": "Night Shift",
+        "tier": 2,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fighting while away earns 24% faster.",
+        "effectType": "afkRatePercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "tnk_quick_hands",
+        "name": "Quick Hands",
+        "tier": 2,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Smoke Bomb comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "smoke_bomb",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_overclock",
+        "name": "Overclock",
+        "tier": 3,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Overclock. Further ranks push it further.",
+        "effectType": "grantAbility",
+        "abilityId": "overclock",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_swarm",
+        "name": "Scrap Swarm",
+        "tier": 3,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Scrap Swarm. Three of them. None asked to be here.",
+        "effectType": "grantAbility",
+        "abilityId": "scrap_swarm",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_more_scrap",
+        "name": "More Scrap",
+        "tier": 3,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Scrap Swarm is 36% stronger.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "scrap_swarm",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_junker",
+        "name": "Junker",
+        "tier": 3,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Everything you kill drops 21% more.",
+        "effectType": "dropQuantityPercent",
+        "effectValue": 0.07,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_concussive",
+        "name": "Concussive Blast",
+        "tier": 4,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Concussive Blast. Everything nearby forgets what it was doing.",
+        "effectType": "grantAbility",
+        "abilityId": "concussive_blast",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_redline",
+        "name": "Redline",
+        "tier": 4,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Overclock is 36% stronger.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "overclock",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_recharged",
+        "name": "Recharged",
+        "tier": 4,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Concussive Blast comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "concussive_blast",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "tnk_machinist",
+        "name": "Machinist",
+        "tier": 5,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every ability you have is a third stronger.",
+        "effectType": "abilityPowerPercent",
+        "effectValue": 0.3,
+        "maxRank": 1
+      },
+      {
+        "id": "tnk_overengineered",
+        "name": "Overengineered",
+        "tier": 5,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A quarter again as much of you to get through.",
+        "effectType": "maxHpPercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      }
     ]
   },
   {
     "id": "specter",
     "name": "Specter",
     "flavorText": "Half here. Takes what it needs and leaves quietly.",
-    "baseHp": 65, "baseMp": 90, "baseAttackMin": 10, "baseAttackMax": 18,
-    "attackSpeedSeconds": 2.0,
+    "baseHp": 65,
+    "baseMp": 90,
+    "baseAttackMin": 10,
+    "baseAttackMax": 18,
+    "attackSpeedSeconds": 2,
     "stats": {
       "moveSpeed": 0.9,
-      "health": 5, "mana": 70, "stamina": 30,
-      "healthRegen": 0.2, "manaRegen": 0.9, "staminaRegen": 0.4,
-      "minHit": 9, "maxHit": 15,
-      "critChance": 0.08, "critMultiplier": 0.25,
+      "health": 5,
+      "mana": 70,
+      "stamina": 30,
+      "healthRegen": 0.2,
+      "manaRegen": 0.9,
+      "staminaRegen": 0.4,
+      "minHit": 9,
+      "maxHit": 15,
+      "critChance": 0.08,
+      "critMultiplier": 0.25,
       "attackSpeedMultiplier": 0.5,
       "armor": 8,
-      "diligence": 0.08, "insight": 0.03,
+      "diligence": 0.08,
+      "insight": 0.03,
       "skillAffinity": [
-        { "skillId": "spectralwork", "value": 0.25 },
-        { "skillId": "gleaning",     "value": 0.12 },
-        { "skillId": "negotiation",  "value": 0.12 }
+        {
+          "skillId": "spectralwork",
+          "value": 0.25
+        },
+        {
+          "skillId": "gleaning",
+          "value": 0.12
+        },
+        {
+          "skillId": "negotiation",
+          "value": 0.12
+        }
       ]
     },
     "previewLook": {
@@ -265,34 +1674,358 @@
       "eyeAddress": "Addons/Legacy/0_Unit/0_Sprite/0_Eye/Eye7",
       "weaponAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/4_Spear/Spear_1",
       "backAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1",
-      "hairColor": "", "eyeColor": "#3E6B8C", "skinTint": ""
+      "hairColor": "",
+      "eyeColor": "#3E6B8C",
+      "skinTint": ""
     },
     "previewEquipment": [
-      { "slot": "shirt", "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_12" },
-      { "slot": "helmet", "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_9" },
-      { "slot": "legs", "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4" }
+      {
+        "slot": "shirt",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_12"
+      },
+      {
+        "slot": "helmet",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_9"
+      },
+      {
+        "slot": "legs",
+        "sprite": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4"
+      }
     ],
     "abilities": [
-      { "id": "spectral_strike", "name": "Spectral Strike", "description": "A blow that ignores most of what is in the way.", "isPassive": false, "effect": "damage", "power": 2.6, "cooldownSeconds": 6,  "costType": "mana", "cost": 20 },
-      { "id": "haunt",           "name": "Haunt",           "description": "Dread spreads through everything nearby.",        "isPassive": false, "effect": "aoe",    "power": 1.5, "cooldownSeconds": 11, "aoeRadius": 6.0, "costType": "mana", "cost": 25 },
-      { "id": "soul_drain",      "name": "Soul Drain",      "description": "What it loses, you gain.",                        "isPassive": false, "effect": "damage", "power": 2.0, "cooldownSeconds": 9,  "lifestealFraction": 0.5, "costType": "mana", "cost": 25 },
-      { "id": "phase_shift",     "name": "Phase Shift",     "description": "Step out of the world and back into it, mended.",  "isPassive": false, "effect": "heal",   "power": 0.25, "cooldownSeconds": 20, "costType": "mana", "cost": 30 }
+      {
+        "id": "spectral_strike",
+        "name": "Spectral Strike",
+        "description": "A blow that ignores most of what is in the way.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 2.6,
+        "cooldownSeconds": 6,
+        "costType": "mana",
+        "cost": 20
+      },
+      {
+        "id": "haunt",
+        "name": "Haunt",
+        "description": "Dread spreads through everything nearby.",
+        "isPassive": false,
+        "effect": "aoe",
+        "power": 1.5,
+        "cooldownSeconds": 11,
+        "aoeRadius": 6,
+        "costType": "mana",
+        "cost": 25
+      },
+      {
+        "id": "soul_drain",
+        "name": "Soul Drain",
+        "description": "What it loses, you gain.",
+        "isPassive": false,
+        "effect": "damage",
+        "power": 2,
+        "cooldownSeconds": 9,
+        "lifestealFraction": 0.5,
+        "costType": "mana",
+        "cost": 25
+      },
+      {
+        "id": "phase_shift",
+        "name": "Phase Shift",
+        "description": "Step out of the world and back into it, mended.",
+        "isPassive": false,
+        "effect": "heal",
+        "power": 0.25,
+        "cooldownSeconds": 20,
+        "costType": "mana",
+        "cost": 30
+      },
+      {
+        "id": "grave_chill",
+        "name": "Grave Chill",
+        "description": "The cold gets into their joints first.",
+        "isPassive": false,
+        "effect": "slow",
+        "power": 0.55,
+        "cooldownSeconds": 16,
+        "aoeRadius": 6.5,
+        "durationSeconds": 7,
+        "iconAddress": "",
+        "vfxAddress": "frost",
+        "hits": 1,
+        "costType": "mana",
+        "cost": 24
+      },
+      {
+        "id": "spirit_walk",
+        "name": "Spirit Walk",
+        "description": "Briefly not worth noticing.",
+        "isPassive": false,
+        "effect": "stealth",
+        "power": 1,
+        "cooldownSeconds": 35,
+        "aoeRadius": 0,
+        "durationSeconds": 8,
+        "iconAddress": "",
+        "vfxAddress": "smoke",
+        "hits": 1,
+        "costType": "mana",
+        "cost": 30
+      }
     ],
     "talentTree": [
-      { "id": "spc_strike",   "name": "Spectral Strike", "description": "Learn Spectral Strike. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "spectral_strike", "effectValue": 0.15, "maxRank": 3, "tier": 0, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "spectral_edge","name": "Spectral Edge", "description": "+3.5% attack damage per rank.",  "effectType": "attackDamagePercent", "effectValue": 0.035, "maxRank": 5, "tier": 0, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "hollow_form",  "name": "Hollow Form",   "description": "Ordinary swings return 2% of their damage as health, per rank.", "effectType": "lifestealPercent", "effectValue": 0.02, "maxRank": 5, "tier": 0, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "spc_haunt",    "name": "Haunt",         "description": "Learn Haunt. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "haunt", "effectValue": 0.15, "maxRank": 3, "tier": 1, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "phase_speed",  "name": "Phase Speed",   "description": "Attack 5% faster per rank.",     "effectType": "attackSpeedPercent", "effectValue": 0.05, "maxRank": 3, "tier": 1, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "grave_take",   "name": "Grave Take",    "description": "+9% quantity from every drop, per rank.", "effectType": "dropQuantityPercent", "effectValue": 0.09, "maxRank": 3, "tier": 1, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "spc_drain",    "name": "Soul Drain",    "description": "Learn Soul Drain. Each further rank adds 15% to its damage.", "effectType": "grantAbility", "abilityId": "soul_drain", "effectValue": 0.15, "maxRank": 3, "tier": 2, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "unliving",     "name": "Unliving",      "description": "+7% maximum health per rank.",   "effectType": "maxHpPercent",     "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 1, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "restless",     "name": "Restless",      "description": "+7% offline progress per rank.", "effectType": "afkRatePercent",   "effectValue": 0.07, "maxRank": 3, "tier": 2, "column": 2, "talentPointCost": 1, "requiresNodeIds": [] },
-
-      { "id": "spc_phase",    "name": "Phase Shift",   "description": "Learn Phase Shift. Each further rank adds 15% to how much it restores.", "effectType": "grantAbility", "abilityId": "phase_shift", "effectValue": 0.15, "maxRank": 3, "tier": 3, "column": 0, "talentPointCost": 1, "requiresNodeIds": [] },
-      { "id": "wraithform",   "name": "Wraithform",    "description": "+20% lifesteal on ordinary swings. You stop needing to stop.", "effectType": "lifestealPercent", "effectValue": 0.20, "maxRank": 1, "tier": 3, "column": 1, "talentPointCost": 1, "requiresNodeIds": ["hollow_form"] }
+      {
+        "id": "spc_strike",
+        "name": "Spectral Strike",
+        "tier": 0,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Spectral Strike. Further ranks cut deeper.",
+        "effectType": "grantAbility",
+        "abilityId": "spectral_strike",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_grave_robber",
+        "name": "Grave Robber",
+        "tier": 0,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Everything you kill drops 24% more.",
+        "effectType": "dropQuantityPercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "spc_quiet_hours",
+        "name": "Quiet Hours",
+        "tier": 0,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Fighting while away earns 24% faster.",
+        "effectType": "afkRatePercent",
+        "effectValue": 0.06,
+        "maxRank": 4
+      },
+      {
+        "id": "spc_haunt",
+        "name": "Haunt",
+        "tier": 1,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Haunt. Further ranks linger longer.",
+        "effectType": "grantAbility",
+        "abilityId": "haunt",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_cold_edge",
+        "name": "Cold Edge",
+        "tier": 1,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Spectral Strike hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "spectral_strike",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_restless",
+        "name": "Restless",
+        "tier": 1,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Spectral Strike comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "spectral_strike",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_leech",
+        "name": "Leech",
+        "tier": 1,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Your attacks return 10% of the damage as health.",
+        "effectType": "lifestealPercent",
+        "effectValue": 0.025,
+        "maxRank": 4
+      },
+      {
+        "id": "spc_soul_drain",
+        "name": "Soul Drain",
+        "tier": 2,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Soul Drain. Further ranks drain harder.",
+        "effectType": "grantAbility",
+        "abilityId": "soul_drain",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_deeper_draught",
+        "name": "Deeper Draught",
+        "tier": 2,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Soul Drain hits 36% harder.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "soul_drain",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_undying",
+        "name": "Undying",
+        "tier": 2,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "You recover 8.0 more health a tick, always.",
+        "effectType": "healthRegenFlat",
+        "effectValue": 2,
+        "maxRank": 4
+      },
+      {
+        "id": "spc_insistent",
+        "name": "Insistent",
+        "tier": 2,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Haunt comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "haunt",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_phase",
+        "name": "Phase Shift",
+        "tier": 3,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Phase Shift. Further ranks carry you further.",
+        "effectType": "grantAbility",
+        "abilityId": "phase_shift",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_chill",
+        "name": "Grave Chill",
+        "tier": 3,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Grave Chill. The cold gets into their joints first.",
+        "effectType": "grantAbility",
+        "abilityId": "grave_chill",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_deep_cold",
+        "name": "Deep Cold",
+        "tier": 3,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Grave Chill is 36% stronger.",
+        "effectType": "abilityPowerPercent",
+        "abilityId": "grave_chill",
+        "effectValue": 0.12,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_reaper",
+        "name": "Reaper",
+        "tier": 3,
+        "column": 3,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Every skill earns 24% more experience.",
+        "effectType": "skillXpPercent",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_spirit_walk",
+        "name": "Spirit Walk",
+        "tier": 4,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Learn Spirit Walk, and briefly stop being worth noticing.",
+        "effectType": "grantAbility",
+        "abilityId": "spirit_walk",
+        "effectValue": 0.15,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_slip",
+        "name": "Slip",
+        "tier": 4,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Phase Shift comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "phase_shift",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_untethered",
+        "name": "Untethered",
+        "tier": 4,
+        "column": 2,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "Spirit Walk comes back 24% sooner.",
+        "effectType": "cooldownPercent",
+        "abilityId": "spirit_walk",
+        "effectValue": 0.08,
+        "maxRank": 3
+      },
+      {
+        "id": "spc_wraith",
+        "name": "Wraith",
+        "tier": 5,
+        "column": 0,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A tenth of everything you deal comes back as health.",
+        "effectType": "lifestealPercent",
+        "effectValue": 0.1,
+        "maxRank": 1
+      },
+      {
+        "id": "spc_deathless",
+        "name": "Deathless",
+        "tier": 5,
+        "column": 1,
+        "talentPointCost": 1,
+        "requiresNodeIds": [],
+        "description": "A quarter again as much of you to get through.",
+        "effectType": "maxHpPercent",
+        "effectValue": 0.25,
+        "maxRank": 1
+      }
     ]
   }
 ]

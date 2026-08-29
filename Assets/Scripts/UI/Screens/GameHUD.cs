@@ -132,6 +132,7 @@ public class GameHUD : UIScreen
         UpdateWorldHover();
         UpdateChatWheel();
         UpdateBuffStrip();
+        UpdateTalentPulse();
     }
 
     // ── Corner ────────────────────────────────────────────────────────────────
@@ -415,6 +416,9 @@ public class GameHUD : UIScreen
     {
         var btn = UIFactory.Button(parent, "TAL", () => GameManager.UI?.Push<TalentPanel>(), width: 54f);
 
+        _talentButton      = btn.GetComponent<Image>();
+        _talentButtonColor = _talentButton != null ? _talentButton.color : Color.white;
+
         _talentBadge = UIFactory.Label(btn.transform, "", UIManager.Theme.fontSizeLabel,
                                         UIManager.Theme.accentGreen, TextAlignmentOptions.TopRight);
         UIFactory.At(_talentBadge, 0.35f, 0.55f, 0.95f, 0.98f);
@@ -427,7 +431,49 @@ public class GameHUD : UIScreen
         if (_talentBadge == null) return;
 
         int available = TalentManager.AvailablePoints(CharacterManager.Current);
+
         _talentBadge.text = available > 0 ? $"+{available}" : "";
+
+        // Drives the pulse below. Stored rather than recomputed per frame: this walks
+        // the tree, and the answer only changes when a level or a spend does.
+        _unspentPoints = available;
+
+        // Back to its own colour the moment the last point is spent, rather than
+        // waiting for the next pulse frame to land on the trough.
+        if (available <= 0 && _talentButton != null) _talentButton.color = _talentButtonColor;
+    }
+
+    // ── The talent button, while there is something to spend ──────────────────
+
+    private Image _talentButton;
+    private Color _talentButtonColor = Color.white;
+    private int   _unspentPoints;
+
+    /// <summary>
+    /// How fast the button breathes. Slow enough to read as an invitation rather than
+    /// an alarm -- this is "you have something to spend", not "you are on fire".
+    /// </summary>
+    private const float TalentPulsesPerSecond = 0.8f;
+
+    /// <summary>
+    /// Pulses the talent button while points are unspent.
+    ///
+    /// ══ WHY THE BADGE WAS NOT ENOUGH ══════════════════════════════════════════
+    ///
+    /// There has always been a "+3" in the corner of the button, in a row of nine
+    /// buttons of identical size and colour, in the busiest part of the screen. It is
+    /// information rather than a signal: you find it when you already know to look.
+    ///
+    /// Colour movement is the one thing the eye picks up without being pointed at it,
+    /// and it costs a lerp per frame on a single Image.
+    /// </summary>
+    private void UpdateTalentPulse()
+    {
+        if (_talentButton == null || _unspentPoints <= 0) return;
+
+        float wave = (Mathf.Sin(Time.unscaledTime * Mathf.PI * 2f * TalentPulsesPerSecond) + 1f) * 0.5f;
+
+        _talentButton.color = Color.Lerp(_talentButtonColor, UIManager.Theme.accentGreen, wave * 0.75f);
     }
 
     /// <summary>
@@ -1223,12 +1269,87 @@ public class GameHUD : UIScreen
         GameEvents.FireToast($"⬆ Level {newLevel}!");
         GameManager.Audio?.PlayLevelUp();
 
+        // ══ AND SOMETHING THE PLAYER ACTUALLY NOTICES ═════════════════════════
+        //
+        // A toast and a sound is what every gathering tick already produces. Levelling
+        // is the moment the game hands over a talent point, and it was arriving in the
+        // same corner, in the same colour, as "+3 Tin Ore".
+        StartCoroutine(LevelUpFlourish(newLevel));
+        BurstOnPlayer();
+
         // The bar's floor and ceiling both moved — without this it stays where the
         // previous level left it until the next scrap of XP arrives.
         RefreshXp();
 
         // Every level is a talent point, so the badge changes on every level-up.
         RefreshTalentBadge();
+    }
+
+    /// <summary>
+    /// The banner that makes a level land.
+    ///
+    /// Built and destroyed per level-up rather than kept hidden: it happens once every
+    /// few minutes at most, and a permanent object that is invisible 99% of the time is
+    /// a thing to remember to hide correctly on every screen change.
+    ///
+    /// Scales up as it fades out, which is the cheapest motion that reads as a
+    /// flourish rather than as a popup, and it is deliberately NOT interactive -- it
+    /// appears over the middle of the play area and must never eat a click.
+    /// </summary>
+    private System.Collections.IEnumerator LevelUpFlourish(int newLevel)
+    {
+        var theme = UIManager.Theme;
+
+        var banner = UIFactory.Label(transform, $"LEVEL {newLevel}", theme.fontSizeTitle,
+                                      theme.accentGold, TextAlignmentOptions.Center);
+
+        banner.raycastTarget = false;
+        UIFactory.At(banner, 0.20f, 0.55f, 0.80f, 0.72f);
+
+        // Outlined, because it is drawn over whatever the world happens to be and gold
+        // on grass is not reliably legible.
+        Material material = banner.fontMaterial;
+
+        material.EnableKeyword(ShaderUtilities.Keyword_Outline);
+        material.SetFloat(ShaderUtilities.ID_OutlineWidth, 0.2f);
+        material.SetColor(ShaderUtilities.ID_OutlineColor, Color.black);
+
+        var rt = banner.GetComponent<RectTransform>();
+
+        const float Seconds = 1.6f;
+
+        for (float t = 0f; t < Seconds; t += Time.unscaledDeltaTime)
+        {
+            float k = t / Seconds;
+
+            // Out fast, then hold, then away -- so the number is readable rather than
+            // a smear. A straight fade spends most of its time nearly invisible.
+            banner.alpha = k < 0.15f ? k / 0.15f
+                         : k < 0.65f ? 1f
+                                     : 1f - (k - 0.65f) / 0.35f;
+
+            rt.localScale = Vector3.one * Mathf.Lerp(0.7f, 1.25f, Mathf.SmoothStep(0f, 1f, k));
+
+            yield return null;
+        }
+
+        if (banner != null) Destroy(banner.gameObject);
+    }
+
+    /// <summary>
+    /// A burst of light on the character themselves.
+    ///
+    /// On the PLAYER rather than in the UI, so the thing that levelled up is the thing
+    /// that flashes. Silently does nothing when there is no rig in the world yet --
+    /// levelling from an AFK summary happens on a screen with no character on it.
+    /// </summary>
+    private void BurstOnPlayer()
+    {
+        EnsurePlayer();
+
+        if (_player == null) return;
+
+        AbilityVFX.PlayAttached("heal", _player.transform, lifetime: 2.5f);
     }
 
     private void OnHealthChanged(double current, double max)

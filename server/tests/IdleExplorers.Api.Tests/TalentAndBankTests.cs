@@ -189,10 +189,21 @@ public class TalentAndBankTests(ApiFixture api)
         await using var player = await api.NewPlayerAsync();
         Guid character = await OwnershipTests.CreateCharacter(player, "Sharpened");
 
-        string node = await DamageNodeAsync(character);
-        Skip.If(node == null, "No damage-percent talent is authored.");
+        await GiveLevels(character, 60);
 
-        await GiveLevels(character, 30);
+        // ══ SPEND THE WAY UP TO IT ════════════════════════════════════════════
+        //
+        // This used to demand a damage node at TIER 0 and skip when it found none.
+        // The tree rework moved every character-wide damage node to a tier-5 capstone
+        // -- correctly, that was the point -- and the test quietly stopped running
+        // rather than failing. A skip nobody notices is a check that has been deleted.
+        //
+        // So it walks there instead: enough points into whatever is reachable below,
+        // then the node itself. Which is also what a player has to do.
+        string node = await DamageNodeAsync(character);
+        Skip.If(node == null, "No character-wide damage talent is authored at all.");
+
+        await ClearThePathTo(player, character, node);
 
         // A measured hour of fighting, before.
         long before = await FightForAnHour(player, character);
@@ -236,7 +247,7 @@ public class TalentAndBankTests(ApiFixture api)
 
             foreach (var node in entry.talentTree)
             {
-                if (node == null || node.tier != 0)                      continue;
+                if (node == null)                                        continue;
                 if (node.effectType != "attackDamagePercent")            continue;
                 if (!string.IsNullOrEmpty(node.abilityId))               continue;
                 if (node.effectValue <= 0f)                              continue;
@@ -247,6 +258,52 @@ public class TalentAndBankTests(ApiFixture api)
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Buys enough of the tree BELOW a node to make it reachable, and stops there.
+    ///
+    /// Deliberately does not buy the node itself: the test measures an hour of
+    /// fighting WITHOUT it, then buys it, then measures again. A helper that bought it
+    /// too would leave the test purchasing a single-rank capstone twice and reading
+    /// the second refusal as a failure -- which is exactly what it did.
+    ///
+    /// Tier N needs Talents.TierRequirement(N) points spent anywhere in the character's
+    /// trees, so the filler is whatever is lowest -- the test is about the damage node
+    /// paying out, not about which route was taken to it.
+    /// </summary>
+    private async Task ClearThePathTo(Player player, Guid character, string nodeId)
+    {
+        var tree = api.Content.Catalogue.Classes.Values
+                      .FirstOrDefault(c => c?.talentTree != null &&
+                                           c.talentTree.Any(n => n?.id == nodeId));
+
+        Assert.NotNull(tree);
+
+        TalentNode target = tree!.talentTree.First(n => n.id == nodeId);
+
+        int needed = IdleExplorers.Rules.Talents.TierRequirement(target.tier);
+        int spent  = 0;
+
+        foreach (var filler in tree.talentTree.Where(n => n != null && n.tier < target.tier &&
+                                                          n.id != nodeId)
+                                              .OrderBy(n => n.tier))
+        {
+            for (int rank = 0; rank < filler.RankCap && spent < needed; rank++)
+            {
+                var response = await OwnershipTests.Post(
+                    player, $"/talent/{character}", new { nodeId = filler.id });
+
+                if (!response.IsSuccessStatusCode) break;
+
+                spent++;
+            }
+
+            if (spent >= needed) break;
+        }
+
+        Assert.True(spent >= needed,
+                    $"could only spend {spent} of the {needed} points tier {target.tier} needs");
     }
 
     /// <summary>

@@ -1923,7 +1923,7 @@
       {
         "trigger": "onEquipPassive",
         "action": "grantAbility",
-        "param": "overclock",
+        "param": "piston_overdrive",
         "equipText": "Equip: Overclock — swing far faster than the maul was designed for."
       }
     ]

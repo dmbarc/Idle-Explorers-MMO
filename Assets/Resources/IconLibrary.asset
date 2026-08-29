@@ -279,6 +279,26 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 76cd122226468be45b5867872e28f816, type: 3}
   - id: salvage_strike
     sprite: {fileID: 21300000, guid: b54b94da5cee5c046bf327246ac181e6, type: 3}
+  - id: earthshaker
+    sprite: {fileID: 21300000, guid: 3d58e07cb6b28e840ab8439bcddd47e9, type: 3}
+  - id: last_stand
+    sprite: {fileID: 21300000, guid: 77d881e451bba50468b3b22861c5a27e, type: 3}
+  - id: piercing_volley
+    sprite: {fileID: 21300000, guid: e3eea5105900c584193ae2f8fd9a36c9, type: 3}
+  - id: wind_step
+    sprite: {fileID: 21300000, guid: acc57c77134a4a44e8b5012728142cb9, type: 3}
+  - id: chain_lightning
+    sprite: {fileID: 21300000, guid: 5c56b7c5e21960c41bc7aac6366d655d, type: 3}
+  - id: time_warp
+    sprite: {fileID: 21300000, guid: 178542dd25344b14587107a91c1d65a2, type: 3}
+  - id: scrap_swarm
+    sprite: {fileID: 21300000, guid: 038586565664e6a4199dd01a5bfba398, type: 3}
+  - id: concussive_blast
+    sprite: {fileID: 21300000, guid: 69b0e562553e1044e99a82a1619b4b9a, type: 3}
+  - id: grave_chill
+    sprite: {fileID: 21300000, guid: 1c84373cf4be81c44b97ce70ed9d78e6, type: 3}
+  - id: spirit_walk
+    sprite: {fileID: 21300000, guid: 4c4b73e7694c0df4380603cef5f2173b, type: 3}
   - id: spectral_strike
     sprite: {fileID: 21300000, guid: 447c1db264f59444f9cb13fee59a250e, type: 3}
   - id: phase_shift

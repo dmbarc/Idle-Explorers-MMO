@@ -66,6 +66,8 @@ internal static class Program
 
         IdleExplorersTests.PlaytestReadinessChecks.Run(Check, RepoRoot());
 
+        IdleExplorersTests.TalentTreeChecks.Run(Check, RepoRoot());
+
         AssetChecks.RigMasking(Check, RepoRoot());
         AssetChecks.MapCameras(Check, RepoRoot());
 

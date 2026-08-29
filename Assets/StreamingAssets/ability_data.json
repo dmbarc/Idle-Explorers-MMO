@@ -61,8 +61,8 @@
     "cost": 22
   },
   {
-    "id": "overclock",
-    "name": "Overclock",
+    "id": "piston_overdrive",
+    "name": "Piston Overdrive",
     "description": "Swing far faster than the maul was built to survive. It usually does.",
     "isPassive": false,
     "effect": "haste",

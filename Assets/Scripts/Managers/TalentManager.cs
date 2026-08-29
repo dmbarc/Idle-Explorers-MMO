@@ -258,7 +258,21 @@ public static class TalentManager
         return true;
     }
 
-    private static void PlaceInFirstEmptySlot(CharacterData character, string abilityId)
+    /// <summary>
+    /// Puts a newly learned ability in the first empty bar slot.
+    ///
+    /// ══ WHY THIS IS PUBLIC NOW ════════════════════════════════════════════════
+    ///
+    /// Because the local spend path is NOT the one that runs. Spend() hands off to the
+    /// server and returns immediately when there is one, so everything below that
+    /// hand-off -- including this -- only ever ran offline. Online, a player unlocked
+    /// an ability and it went nowhere: no bar slot, no button, no way to use the thing
+    /// they had just spent a point on.
+    ///
+    /// ServerActions.ApplyTalents calls it when the server's answer lands, which is
+    /// the moment the client actually learns the rank went through.
+    /// </summary>
+    public static void PlaceInFirstEmptySlot(CharacterData character, string abilityId)
     {
         var ability = FindAbilityFor(character, abilityId);
         if (ability == null || !ability.IsActivatable) return;   // passives never occupy a slot
@@ -494,9 +508,25 @@ public static class TalentManager
         return total;
     }
 
-    /// <summary>Power multiplier for an ability, from the ranks invested in it.</summary>
+    /// <summary>
+    /// Power multiplier for an ability, from the ranks invested in it.
+    ///
+    /// ══ TWO WAYS TO MAKE ONE ABILITY HIT HARDER ═══════════════════════════════
+    ///
+    /// Ranks past the first on the node that GRANTED it, which is the old behaviour
+    /// and the reason a grant node can have maxRank above one.
+    ///
+    /// And a SEPARATE node scoped to that ability with abilityPowerPercent, which is
+    /// the shape almost every talent in the reworked trees uses: "Cleave hits thirty
+    /// percent harder" rather than "+3% damage". That was expressible in the data and
+    /// silently did nothing, because this only ever read the grant.
+    ///
+    /// An ability-scoped node is deliberately left OUT of the character-wide total by
+    /// Talents.Bonus, so the two cannot double-count.
+    /// </summary>
     public static float AbilityPowerMultiplier(CharacterData character, string abilityId) =>
-        1f + AbilityBonus(character, abilityId, GrantAbility);
+        1f + AbilityBonus(character, abilityId, GrantAbility)
+           + AbilityBonus(character, abilityId, AbilityPowerPercent);
 
     // ── Validation ────────────────────────────────────────────────────────────
 

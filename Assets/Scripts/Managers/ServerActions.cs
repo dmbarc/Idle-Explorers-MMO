@@ -185,6 +185,15 @@ public static class ServerActions
 
         if (character == null || talents?.ranks == null) return;
 
+        // What they had before, so a rank that is NEW can be told from one that was
+        // already there. Without this every pull would re-place every ability the
+        // character has ever learned, undoing a bar they had arranged.
+        var before = new System.Collections.Generic.HashSet<string>(System.StringComparer.Ordinal);
+
+        if (character.talents != null)
+            foreach (var had in character.talents)
+                if (had != null && had.rank > 0) before.Add(had.nodeId);
+
         character.talents ??= new System.Collections.Generic.List<TalentRank>();
         character.talents.Clear();
 
@@ -193,6 +202,24 @@ public static class ServerActions
             if (rank == null || rank.rank <= 0) continue;
 
             character.talents.Add(new TalentRank { nodeId = rank.nodeId, rank = rank.rank });
+        }
+
+        // ══ AND A NEWLY LEARNED ABILITY GOES ON THE BAR ═══════════════════════
+        //
+        // TalentManager.Spend does this too, and that code never runs online: it hands
+        // off to the server and returns before reaching it. So an ability unlocked on
+        // a live server went nowhere -- the point was spent, the tree lit up, and
+        // there was no button.
+        //
+        // Here, because this is where the client finds out the rank actually took.
+        foreach (var rank in talents.ranks)
+        {
+            if (rank == null || rank.rank <= 0 || before.Contains(rank.nodeId)) continue;
+
+            TalentNode node = TalentManager.FindNode(character, rank.nodeId);
+
+            if (node is { GrantsAbility: true })
+                TalentManager.PlaceInFirstEmptySlot(character, node.abilityId);
         }
 
         GameEvents.OnTalentsChanged?.Invoke();

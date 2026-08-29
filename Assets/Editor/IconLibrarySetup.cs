@@ -316,6 +316,19 @@ public static class IconLibrarySetup
         { "salvage_strike",  "pickaxe_basic" },
 
         // Specter
+
+        // ── The ten abilities the reworked trees added ────────────────────────
+        { "earthshaker",       "exploding" },
+        { "last_stand",        "award" },
+        { "piercing_volley",   "dice_sword" },
+        { "wind_step",         "spinner" },
+        { "chain_lightning",   "Meteor 1-0" },
+        { "time_warp",         "hourglass" },
+        { "scrap_swarm",       "Spider 1-2" },
+        { "concussive_blast",  "hexagon" },
+        { "grave_chill",       "skull" },
+        { "spirit_walk",       "Witch 1-1" },
+
         { "spectral_strike", "Hand Scepter 1-0-1" },
         { "phase_shift",     "Grave 1-0" },
         { "haunt",           "bone_skull" },

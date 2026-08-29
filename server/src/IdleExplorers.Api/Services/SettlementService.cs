@@ -515,6 +515,18 @@ public sealed class SettlementService(Db db, ContentCache content)
             result.SupervisedActions,
             result.Actions - result.SupervisedActions);
 
+        // ── Wear ──────────────────────────────────────────────────────────────
+        //
+        // Fighting scuffs what you are wearing. Here rather than on the client,
+        // because durability lives in the equipment table and a client that wore its
+        // own gear down would watch the next pull put every point back.
+        //
+        // From KILLS, because the server has no list of blows -- farm combat is an
+        // integral, not a simulation. It is the same number every other reward in this
+        // method is paid from.
+        await WearArmourAsync(connection, tx, characterId,
+                              Durability.WearFor(result.Actions, rng), cancellation);
+
         // ── Loot ──────────────────────────────────────────────────────────────
         foreach (LootStack stack in result.Loot)
         {
@@ -579,6 +591,62 @@ public sealed class SettlementService(Db db, ContentCache content)
     /// TODO(Phase 1): set bonuses, through the same setBonuses argument StatAssembly
     /// already takes.
     /// </summary>
+    /// <summary>
+    /// Spreads wear across what the character is wearing.
+    ///
+    /// ══ WHY IT IS SPREAD AND NOT DUMPED ON ONE PIECE ══════════════════════════
+    ///
+    /// A whole window's wear landing on one slot would break a helmet in an afternoon
+    /// while the boots stayed pristine, and the repair bill would arrive as a series
+    /// of surprises rather than as a running cost.
+    ///
+    /// Divided evenly with the remainder going to the piece the RNG picks, so the set
+    /// wears together and the arithmetic still adds up to exactly what WearFor said.
+    ///
+    /// ══ WHY A BROKEN PIECE IS NOT DESTROYED ═══════════════════════════════════
+    ///
+    /// greatest(0, ...) floors it. A piece at zero stays worn and stops contributing
+    /// its stats -- ResolveStatsAsync already skips it -- and can be repaired. Deleting
+    /// gear somebody earned because they did not watch a bar is a punishment, and the
+    /// whole repair loop depends on the broken thing still being there.
+    /// </summary>
+    private static async Task WearArmourAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                              Guid characterId, int points,
+                                              CancellationToken cancellation)
+    {
+        if (points <= 0) return;
+
+        // Only pieces that CAN wear and have not already. A character in nothing, or
+        // in nothing but rings, wears nothing down.
+        var slots = new List<string>();
+
+        await using (var command = connection.Sql(
+            "select slot_id from equipment where character_id = $1 and durability > 0 order by slot_id;",
+            tx, characterId))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation)) slots.Add(reader.GetString(0));
+        }
+
+        if (slots.Count == 0) return;
+
+        int each = points / slots.Count;
+        int rest = points % slots.Count;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            int wear = each + (i < rest ? 1 : 0);
+
+            if (wear <= 0) continue;
+
+            await connection.ExecuteAsync(
+                "update equipment set durability = greatest(0, durability - $3) " +
+                " where character_id = $1 and slot_id = $2;",
+                tx, characterId, slots[i], wear);
+        }
+    }
+
     private async Task<StatBlock> ResolveStatsAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
                                                     Guid characterId, CancellationToken cancellation)
     {
