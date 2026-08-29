@@ -108,6 +108,25 @@ public static class IconLibrarySetup
         { "draught_of_vigour",    "flask_full" },
         { "kingsbane_tonic",      "bottle_standard_blue" },
 
+        // ── The Goblin King's drops ───────────────────────────────────────────
+        //
+        // Every one of these drew a generated placeholder, which is the worst thing
+        // for the ONE loot table in the game somebody has to earn: a thousand kills, a
+        // five-minute enrage clock, and the reward is a grey square.
+        { "kings_crown",       "crown_gold" },
+        { "goblin_spear",      "weapon_pole" },
+        { "trisong_bow",       "weapon_bow" },
+        { "goblin_slasher",    "weapon_sword" },
+        { "goblin_smasher",    "shield_straight" },
+        { "goblin_destroyer",  "weapon_axe_double" },
+
+        // The project owns no boot or shoe sprite at all — checked, not assumed.
+        // A silver dash at least reads as speed.
+        { "swiftstride_boots", "arrowSilver_right" },   // TODO(art): actual boots
+
+        // Not a King drop, but the last equippable item still on a placeholder.
+        { "tin_buckler",       "shield_curved" },
+
         // Arcane
         { "chaos_rune",    "runeBlack_slab_012" },
         { "death_rune",    "runeBlack_slab_026" },

@@ -117,6 +117,31 @@ public class BossController : MonoBehaviour
 
     private void Start()
     {
+        // ══ THERE IS EXACTLY ONE KING ═════════════════════════════════════════
+        //
+        // Three things already try to guarantee this: the scene holds a single
+        // BossController, MonsterSpawner refuses to spawn anything with isBoss, and
+        // the server's population does the same.
+        //
+        // This is the last one, and it is the only one that cannot be got round by a
+        // route nobody has thought of — a scene loaded twice, an editor rebuild that
+        // duplicates the object, a future spawner. Whatever produced the second King,
+        // it does not survive its own Start.
+        //
+        // The FIRST one wins. The newcomer destroys itself rather than the incumbent,
+        // because the incumbent may already be in a fight the server knows about.
+        foreach (var other in FindObjectsByType<BossController>(FindObjectsInactive.Exclude))
+        {
+            if (other == this || other == null) continue;
+
+            Debug.LogWarning($"[Boss] A second {name} appeared and was removed. " +
+                             "Something is spawning bosses -- check MonsterSpawner and " +
+                             "the map's population.");
+
+            Destroy(gameObject);
+            return;
+        }
+
         _agent  = GetComponent<NavMeshAgent>();
         _anim   = GetComponentInChildren<Animator>();
         _facing = SpriteFacing.Attach(gameObject);

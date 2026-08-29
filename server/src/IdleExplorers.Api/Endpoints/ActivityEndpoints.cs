@@ -216,6 +216,30 @@ public static class ActivityEndpoints
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
+            // ══ A BOSS IS NOT AN ACTIVITY ═════════════════════════════════════
+            //
+            // Settlement resolves combat statistically: dps against the monster's
+            // health, integrated over the window, paying its whole loot table. Point
+            // that at goblin_king and a player who walks away overnight is paid for
+            // hundreds of Kings -- crowns, weapons and the relic coins he drops --
+            // without ever entering the arena or beating the enrage timer.
+            //
+            // The boss exists precisely BECAUSE it cannot be farmed on a timer. It is
+            // reached through a thousand active kills and won by being there, and
+            // EncounterEndpoints is the only route to its rewards.
+            //
+            // Refused here rather than filtered inside the settle, because an activity
+            // that is stored and then silently pays nothing is a player watching an
+            // empty progress bar with no idea why.
+            if (monster.isBoss)
+            {
+                return Results.Problem(
+                    title:      "not a farmable monster",
+                    detail:     $"{monster.DisplayName} has to be fought, not ground down. " +
+                                "Use the portal.",
+                    statusCode: StatusCodes.Status409Conflict);
+            }
+
             DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
 
             return await db.InCharacterTransactionAsync(characterId, async (connection, tx) =>

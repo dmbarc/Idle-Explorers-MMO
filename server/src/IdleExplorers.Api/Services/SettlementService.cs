@@ -455,6 +455,16 @@ public sealed class SettlementService(Db db, ContentCache content)
         MonsterData? monster = content.Catalogue.GetMonster(activity.MonsterId);
         if (monster is null) return Outcome.Nothing;
 
+        // ══ AND A BOSS PAYS NOTHING HERE, EVER ════════════════════════════════
+        //
+        // The /fight endpoint refuses to SET a boss, which stops it happening. This
+        // stops it PAYING for a row that already says so -- one written before that
+        // guard existed, or by any future path that forgets.
+        //
+        // It is the difference between a rule and a door: the boss's whole design is
+        // that it cannot be farmed on a timer, and settlement is the timer.
+        if (monster.isBoss) return Outcome.Nothing;
+
         // The snapshot is taken HERE, from what is worn now -- not passed in, and
         // never from the client. Swapping gear changes the next window, not this one.
         StatBlock stats     = await ResolveStatsAsync(connection, tx, characterId, cancellation);

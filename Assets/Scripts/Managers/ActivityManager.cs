@@ -216,6 +216,15 @@ public class ActivityManager : MonoBehaviour
         var monster = GameManager.Content?.GetMonster(map.defaultMonsterId);
         if (monster == null) return;
 
+        // A BOSS IS NOT AN ACTIVITY. The throne's defaultMonsterId is goblin_king,
+        // because that is what a player fights there -- and settlement resolves combat
+        // statistically, so a standing activity pointed at him would pay for hundreds
+        // of Kings overnight without anybody entering the arena.
+        //
+        // The server refuses it too, which is the enforcement. This stops the client
+        // asking on every entry and collecting a 409 for its trouble.
+        if (monster.isBoss) return;
+
         var current = CurrentActivity;
         if (current != null &&
             current.skillId          == "combat" &&

@@ -251,6 +251,69 @@ public class WelcomeAndDropTests(ApiFixture api)
         await Task.CompletedTask;
     }
 
+    // ── The King cannot be farmed ─────────────────────────────────────────────
+
+    /// <summary>
+    /// A boss may not be set as a standing activity.
+    ///
+    /// ══ THE EXPLOIT ═══════════════════════════════════════════════════════════
+    ///
+    /// Settlement resolves combat statistically -- dps against the monster's health,
+    /// integrated over the window, paying the whole loot table. Point that at
+    /// goblin_king and walking away overnight pays for HUNDREDS of Kings: crowns,
+    /// weapons, and the relic coins he now drops, without ever entering the arena or
+    /// beating the enrage timer.
+    ///
+    /// The boss exists precisely because it cannot be ground down on a clock.
+    /// </summary>
+    [SkippableFact]
+    public async Task ABossCannotBeSetAsAnActivity()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Idler");
+
+        HttpResponseMessage refused = await OwnershipTests.Post(
+            player, $"/activity/{character}/fight", new { monsterId = "goblin_king" });
+
+        Assert.Equal(System.Net.HttpStatusCode.Conflict, refused.StatusCode);
+
+        await using var db = await api.OpenDatabaseAsync();
+        await using var command = db.CreateCommand();
+
+        command.CommandText = "select coalesce(monster_id, '') from activity where character_id = $1;";
+        command.Parameters.AddWithValue(character);
+
+        Assert.NotEqual("goblin_king", (string?)(await command.ExecuteScalarAsync() ?? ""));
+    }
+
+    /// <summary>
+    /// And an ordinary monster still can.
+    ///
+    /// The paired acceptance. A guard that refused every monster would satisfy the
+    /// test above and quietly stop the whole game from farming anything.
+    /// </summary>
+    [SkippableFact]
+    public async Task AnOrdinaryMonsterStillCan()
+    {
+        RequireDatabase();
+
+        await using var player = await api.NewPlayerAsync();
+        Guid character = await OwnershipTests.CreateCharacter(player, "Grinder");
+
+        (await OwnershipTests.Post(player, $"/activity/{character}/fight",
+                                   new { monsterId = "goblin" })).EnsureSuccessStatusCode();
+
+        await using var db = await api.OpenDatabaseAsync();
+        await using var command = db.CreateCommand();
+
+        command.CommandText = "select monster_id from activity where character_id = $1;";
+        command.Parameters.AddWithValue(character);
+
+        Assert.Equal("goblin", (string?)await command.ExecuteScalarAsync());
+    }
+
     // ── Machinery ─────────────────────────────────────────────────────────────
 
     private async Task<long> Balance(Player player, string currency)

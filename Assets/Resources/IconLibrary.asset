@@ -93,6 +93,22 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 563cee1ccc508dd43b1852807ba99063, type: 3}
   - id: kingsbane_tonic
     sprite: {fileID: 21300000, guid: 10876d86c0d0c7948ab7c3f219be6325, type: 3}
+  - id: kings_crown
+    sprite: {fileID: 21300000, guid: 409f9bc68f7fc3646b5386b3fb9e2a3a, type: 3}
+  - id: goblin_spear
+    sprite: {fileID: 21300000, guid: d296faa1474b5294eba2c99ff8e4416a, type: 3}
+  - id: trisong_bow
+    sprite: {fileID: 21300000, guid: cc99b01cf00633f428cbdf85445f2182, type: 3}
+  - id: goblin_slasher
+    sprite: {fileID: 21300000, guid: 368371b8db0a71b498275e76991724d6, type: 3}
+  - id: goblin_smasher
+    sprite: {fileID: 21300000, guid: 83dbcbdfc0bf7f24582cc7367a61529c, type: 3}
+  - id: goblin_destroyer
+    sprite: {fileID: 21300000, guid: 70e699d298236f24e826ad2c048d60b8, type: 3}
+  - id: swiftstride_boots
+    sprite: {fileID: 21300000, guid: 7bba4e43f6206e1468ee47962f2babc2, type: 3}
+  - id: tin_buckler
+    sprite: {fileID: 21300000, guid: 58e0296901196f5448bc75b0332ee132, type: 3}
   - id: chaos_rune
     sprite: {fileID: 21300000, guid: aa2cbc0697e326144a59d8b719f7c3fe, type: 3}
   - id: death_rune
