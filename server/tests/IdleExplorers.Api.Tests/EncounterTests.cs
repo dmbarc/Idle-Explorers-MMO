@@ -87,6 +87,25 @@ public class EncounterTests(ApiFixture api)
         }
     }
 
+    /// <summary>
+    /// ONE FIGHT AT A TIME, AND A SECOND ENGAGE JOINS IT.
+    ///
+    /// ══ WHAT CHANGED, AND WHY THE ASSERTION MOVED ═════════════════════════════
+    ///
+    /// This used to assert a 409, and the 409 was the bug. Nothing closed an
+    /// encounter except killing the King or the enrage clock running out -- not dying,
+    /// not closing the tab, not walking out of the arena -- so a player who did any of
+    /// those had a live row with their name on it, and every attempt to fight again
+    /// for the next five minutes was refused as "already fighting" by a server talking
+    /// about a fight nobody was playing. From inside the client that is an arena with
+    /// no boss in it.
+    ///
+    /// The exploit the refusal was protecting against is unchanged and still closed:
+    /// two encounter ROWS, one set of actions feeding both, two lots of loot. That is
+    /// what is asserted here now, because it is what actually matters -- and it is
+    /// enforced by the partial unique index rather than by a handler check, which
+    /// would be a race unless it held a lock.
+    /// </summary>
     [SkippableFact]
     public async Task OnlyOneFightAtATime()
     {
@@ -95,14 +114,12 @@ public class EncounterTests(ApiFixture api)
         await using var player = await api.NewPlayerAsync();
         Guid character = await Ready(player, "Doubler");
 
-        await EngageOk(player, character);
+        JsonElement first = await EngageOk(player, character);
 
-        // The exploit: two encounters, one set of actions feeding both, two lots of
-        // loot. Refused by a partial unique index rather than by a handler check,
-        // because a handler check is a race unless it holds a lock.
-        var second = await Engage(player, character);
+        JsonElement second = await EngageOk(player, character);
 
-        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+        Assert.Equal(first.GetProperty("encounterId").GetGuid(),
+                     second.GetProperty("encounterId").GetGuid());
 
         await using var db = await api.OpenDatabaseAsync();
         Assert.Equal(1L, await CountEncounters(db, character));

@@ -121,105 +121,163 @@ public static class EncounterEndpoints
                 // their own dead encounter row.
                 await ExpireStaleAsync(connection, tx, characterId, now);
 
-                var frozen = await settlement.FreezeCombatAsync(connection, tx, characterId,
-                                                                http.RequestAborted);
-
                 double enrageSeconds = BossEncounter.ClampEnrage(boss.enrageSeconds);
-
-                // Seeded from the character and the instant, so every roll in this
-                // fight is re-derivable from two columns months later.
-                long seed = HashCode.Combine(characterId, now.UtcTicks);
 
                 Guid? partyId = await connection.ScalarAsync<Guid?>(
                     "select party_id from party_member where character_id = $1;", tx, characterId);
 
                 Guid encounterId;
-                bool joinedExisting = false;
+                bool joinedExisting;
 
-                // ══ WALKING INTO A FIGHT ALREADY IN PROGRESS ═══════════════════════
+                // ══ ENGAGING A FIGHT YOU ARE ALREADY IN IS A REJOIN ════════════════
                 //
-                // A group has ONE fight. Whoever engages first starts it; everybody
-                // else joins the same boss and the same health pool.
+                // It used to be a 409, and that one refusal is what made the King look
+                // broken in a playtest. Dying does not resolve an encounter, nor does
+                // closing the tab, nor does walking back out of the arena -- so a
+                // player who did any of those had a live row with their name on it, and
+                // every attempt to fight the King again for the next five minutes was
+                // answered "you are already in an encounter" by a server talking about
+                // a fight nobody was playing.
                 //
-                // Their snapshot is frozen NOW, not when the fight began, and their
-                // clock starts NOW -- so arriving late brings the gear you are wearing
-                // and earns you the seconds you were present for, never the ones
-                // before that.
-                Guid? running = partyId is null ? null : await connection.ScalarAsync<Guid?>(
-                    """
-                    select id from encounter
-                    where party_id = $1 and ended_at is null and monster_id = $2;
-                    """,
-                    tx, partyId.Value, monsterId);
+                // From inside the client that reads as an arena with no boss in it:
+                // engage fails, so BossController never starts, so there are no
+                // telegraphs, no health bar, and nothing to hit.
+                //
+                // So walking back in is a rejoin, into exactly the fight that was
+                // already running -- right down to the seed.
+                //
+                // ══ AND THE SNAPSHOT IS NOT REFROZEN ═══════════════════════════════
+                //
+                // Deliberately, and it is what makes the rejoin safe. A rejoin that
+                // refroze would be a gear swap: engage, see the King is a phase ahead,
+                // walk out, put the good sword on, walk back in. The participant row
+                // keeps whatever was frozen when this character FIRST joined, and that
+                // is both what is echoed back and what the damage ceiling is drawn
+                // from.
+                Live? mine = await ReadLiveAsync(connection, tx, characterId, now);
 
-                if (running is not null)
+                if (mine is not null && !string.Equals(mine.MonsterId, monsterId, StringComparison.Ordinal))
                 {
-                    encounterId    = running.Value;
+                    // A live fight against something else. THIS one really is a
+                    // refusal -- two bosses at once is what the index exists to stop.
+                    return Results.Problem(
+                        title:      "already fighting",
+                        detail:     "You are already in an encounter. Resolve it first.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                if (mine is not null)
+                {
+                    encounterId    = mine.Id;
                     joinedExisting = true;
                 }
                 else
                 {
+                    // Frozen only for somebody who is not already in the fight, for the
+                    // reason above.
+                    var frozen = await settlement.FreezeCombatAsync(connection, tx, characterId,
+                                                                    http.RequestAborted);
+
+                    // ══ WALKING INTO A FIGHT ALREADY IN PROGRESS ═══════════════════
+                    //
+                    // A group has ONE fight. Whoever engages first starts it; everybody
+                    // else joins the same boss and the same health pool.
+                    //
+                    // Their snapshot is frozen NOW, not when the fight began, so
+                    // arriving late brings the gear you are wearing. The CLOCK is the
+                    // encounter's own, though: a latecomer does not get a fresh five
+                    // minutes, because that would make walking out and back in the way
+                    // to beat the enrage timer.
+                    Guid? running = partyId is null ? null : await connection.ScalarAsync<Guid?>(
+                        """
+                        select id from encounter
+                        where party_id = $1 and ended_at is null and monster_id = $2;
+                        """,
+                        tx, partyId.Value, monsterId);
+
+                    if (running is not null)
+                    {
+                        encounterId    = running.Value;
+                        joinedExisting = true;
+                    }
+                    else
+                    {
+                        // Seeded from the character and the instant, so every roll in
+                        // this fight is re-derivable from two columns months later.
+                        long seed = HashCode.Combine(characterId, now.UtcTicks);
+
+                        try
+                        {
+                            encounterId = await connection.ScalarAsync<Guid>(
+                                """
+                                insert into encounter (character_id, monster_id, frozen_dps,
+                                                       frozen_attack_seconds, seed, boss_max_hp,
+                                                       started_at, enrage_at, party_id)
+                                values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                returning id;
+                                """,
+                                tx, characterId, monsterId, frozen.Dps, frozen.AttackSeconds,
+                                seed, MaxHpOf(boss), now, now.AddSeconds(enrageSeconds), partyId);
+                        }
+                        catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
+                        {
+                            // Two engages racing. Both would otherwise start a fight, be
+                            // fed by one set of actions, and loot twice.
+                            return Results.Problem(
+                                title:      "already fighting",
+                                detail:     "You are already in an encounter. Resolve it first.",
+                                statusCode: StatusCodes.Status409Conflict);
+                        }
+
+                        joinedExisting = false;
+                    }
+
                     try
                     {
-                        encounterId = await connection.ScalarAsync<Guid>(
+                        await connection.ExecuteAsync(
                             """
-                            insert into encounter (character_id, monster_id, frozen_dps,
-                                                   frozen_attack_seconds, seed, boss_max_hp,
-                                                   started_at, enrage_at, party_id)
-                            values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                            returning id;
+                            insert into encounter_participant
+                                (encounter_id, character_id, frozen_dps, frozen_attack_seconds, joined_at)
+                            values ($1, $2, $3, $4, $5);
                             """,
-                            tx, characterId, monsterId, frozen.Dps, frozen.AttackSeconds,
-                            seed, MaxHpOf(boss), now, now.AddSeconds(enrageSeconds), partyId);
+                            tx, encounterId, characterId, frozen.Dps, frozen.AttackSeconds, now);
                     }
                     catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
                     {
-                        // Either partial unique index. Two engages racing would
-                        // otherwise both start a fight, be fed by one set of actions,
-                        // and loot twice.
-                        return Results.Problem(
-                            title:      "already fighting",
-                            detail:     "You are already in an encounter. Resolve it first.",
-                            statusCode: StatusCodes.Status409Conflict);
+                        // Raced with themselves. Harmless: the row that won holds the
+                        // same snapshot, and the describe below is what they asked for.
+                        joinedExisting = true;
                     }
                 }
 
-                try
-                {
-                    await connection.ExecuteAsync(
-                        """
-                        insert into encounter_participant
-                            (encounter_id, character_id, frozen_dps, frozen_attack_seconds, joined_at)
-                        values ($1, $2, $3, $4, $5);
-                        """,
-                        tx, encounterId, characterId, frozen.Dps, frozen.AttackSeconds, now);
-                }
-                catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.UniqueViolation)
-                {
-                    // Already swinging at this one. Not an error worth refusing -- the
-                    // describe below is exactly what they asked for.
-                    joinedExisting = true;
-                }
+                // ══ DESCRIBED FROM THE ENCOUNTER, NEVER FROM THIS REQUEST ══════════
+                //
+                // The seed, the clock, the pool and this fighter's own frozen snapshot,
+                // all read back out of the rows that are actually running.
+                //
+                // The bug this closes: a joiner used to be handed the seed generated
+                // for THEIR request, so the entire attack timeline they telegraphed
+                // came from a different fight than the one the leader was seeing --
+                // two people in one arena dodging different cones. Their elapsed was
+                // zero as well, so their enrage clock restarted and their King fought
+                // on for five minutes after everybody else's had given up.
+                Joined live = await ReadJoinedAsync(connection, tx, encounterId, characterId);
 
                 await TelemetryEndpoints.RecordAsync(
                     connection, tx, accountId.Value, characterId,
                     TelemetryEvents.BossEngaged, now,
                     ("monster", monsterId),
-                    ("dps",     frozen.Dps.ToString("F1")),
+                    ("dps",     live.FrozenDps.ToString("F1")),
                     ("joined",  joinedExisting ? "existing" : "new"),
                     ("party",   partyId?.ToString() ?? ""));
 
-                // The pool as it stands, which is NOT zero for somebody walking into a
-                // fight already under way -- telling them the King is at full health
-                // would put every client's health bar out by however much the group
-                // had already done.
-                long pool = await connection.ScalarAsync<long>(
-                    "select damage_dealt from encounter where id = $1;", tx, encounterId);
-
-                return Results.Ok(Describe(encounterId, boss, frozen, seed, enrageSeconds,
-                                           damageDealt: pool, elapsed: 0d));
+                return Results.Ok(Describe(encounterId, boss, live.FrozenDps, live.FrozenAttackSeconds,
+                                           live.Seed, (live.EnrageAt - live.StartedAt).TotalSeconds,
+                                           damageDealt: live.DamageDealt,
+                                           elapsed: Math.Max(0d, (now - live.StartedAt).TotalSeconds)));
             }, http.RequestAborted);
         });
+
 
         // ── Act ───────────────────────────────────────────────────────────────
         //
@@ -448,6 +506,7 @@ public static class EncounterEndpoints
                     tx, live.Id, now, won);
 
                 var drops = new List<(string ItemId, long Quantity)>();
+                var offered = new List<object>();
                 long xp = 0L;
 
                 if (won)
@@ -478,48 +537,75 @@ public static class EncounterEndpoints
 
                     if (fighters.Count == 0) fighters.Add(characterId);
 
-                    // ══ ONE ROLL EACH, NOT ONE ROLL SHARED ═════════════════════════════
+                    // ══ EXPERIENCE IS NOT CONTESTED ════════════════════════════════
                     //
-                    // The seed is offset by the fighter's position so four people do
-                    // not all receive identical drops from one shared roll -- which
-                    // would make a group of four either four spears or none, and turn
-                    // the drop table into a coin flip for the whole raid.
-                    //
-                    // Still deterministic: (seed, index) reproduces any of them months
-                    // later from two columns.
-                    for (int i = 0; i < fighters.Count; i++)
+                    // Everybody who fought it gets the full amount, and nobody rolls
+                    // for it. Splitting experience would make a group strictly worse
+                    // than soloing for anybody who could manage it, which is the wrong
+                    // thing for the only group encounter in the game to teach.
+                    if (xp > 0L)
                     {
-                        Guid fighter = fighters[i];
-
-                        var rng = new CounterRandom(live.Seed, LootSeedOffset + (ulong)(i * 64));
-
-                        foreach (var entry in boss.lootTable ?? [])
-                        {
-                            if (entry is null) continue;
-
-                            long quantity = RollDrop(entry, rng);
-                            if (quantity <= 0L) continue;
-
-                            // Only the caller's own drops are reported back; the rest
-                            // are waiting in their own pending_loot.
-                            if (fighter == characterId) drops.Add((entry.itemId, quantity));
-
-                            await connection.ExecuteAsync(
-                                """
-                                insert into pending_loot (character_id, encounter_id, item_id, quantity)
-                                values ($1, $2, $3, $4);
-                                """,
-                                tx, fighter, live.Id, entry.itemId, quantity);
-                        }
-
-                        if (xp > 0L)
+                        foreach (Guid fighter in fighters)
                         {
                             await connection.ExecuteAsync(
                                 "update character set xp = xp + $2 where id = $1;",
                                 tx, fighter, xp);
                         }
                     }
+
+                    // ══ ITEMS ARE ════════════════════════════════════════════════════
+                    //
+                    // One table, rolled once, and the group rolls for what fell.
+                    //
+                    // It used to roll the whole table separately for every fighter,
+                    // and the reason that had to change is arithmetic: four people
+                    // killing the King produced four Goblin Spears, so by the second
+                    // clear the drop nobody could get was the drop everybody had. A
+                    // boss whose rewards multiply by party size has no reason to be a
+                    // group boss.
+                    //
+                    // Solo is the exception, and not out of kindness -- offering one
+                    // person a need/greed window against themselves is a dialog with
+                    // one button in it. One fighter means the drop is theirs.
+                    var rng = new CounterRandom(live.Seed, LootSeedOffset);
+
+                    int rollIndex = 0;
+
+                    foreach (var entry in boss.lootTable ?? [])
+                    {
+                        if (entry is null) continue;
+
+                        long quantity = RollDrop(entry, rng);
+                        if (quantity <= 0L) continue;
+
+                        if (fighters.Count == 1)
+                        {
+                            if (fighters[0] == characterId) drops.Add((entry.itemId, quantity));
+
+                            await connection.ExecuteAsync(
+                                """
+                                insert into pending_loot (character_id, encounter_id, item_id, quantity)
+                                values ($1, $2, $3, $4);
+                                """,
+                                tx, fighters[0], live.Id, entry.itemId, quantity);
+
+                            continue;
+                        }
+
+                        Guid rollId = await connection.ScalarAsync<Guid>(
+                            """
+                            insert into loot_roll (encounter_id, item_id, quantity, roll_index, offered_at)
+                            values ($1, $2, $3, $4, $5)
+                            returning id;
+                            """,
+                            tx, live.Id, entry.itemId, quantity, rollIndex, now);
+
+                        offered.Add(new { rollId, itemId = entry.itemId, quantity });
+
+                        rollIndex++;
+                    }
                 }
+
 
                 await TelemetryEndpoints.RecordAsync(
                     connection, tx, accountId.Value, characterId,
@@ -541,7 +627,88 @@ public static class EncounterEndpoints
                     // Named "pending" rather than "loot" on purpose: it is earned and
                     // recorded, and it is not in the bag until it is claimed.
                     pending     = drops.Select(d => new { itemId = d.ItemId, quantity = d.Quantity }).ToArray(),
+
+                    // What the GROUP has to settle between them. Empty when one person
+                    // fought it, because a roll against nobody is a dialog with one
+                    // button in it.
+                    rolls       = offered.ToArray(),
                 });
+            }, http.RequestAborted);
+        });
+
+
+        // ── Flee ──────────────────────────────────────────────────────────────
+        //
+        // ══ WHY LEAVING NEEDS AN ENDPOINT AT ALL ══════════════════════════════
+        //
+        // Because the throne was a one-way door: the only exits were killing the King
+        // or dying to him, and neither is something a player should have to do to get
+        // out of a room they walked into by accident.
+        //
+        // Adding a door to the ROOM is not enough on its own. Walking out leaves a
+        // live encounter row with your name on it, and until that row is closed the
+        // fight follows you around -- your damage still counts toward a boss you are
+        // not looking at, and re-entering finds a fight already half spent.
+        //
+        // ══ WHY IT IS NOT resolve ═════════════════════════════════════════════
+        //
+        // resolve ends the ENCOUNTER, for everybody in it. One person walking out of a
+        // four-person fight must not end the other three's, so this removes exactly
+        // one participant and ends the fight only when it removed the last one.
+        //
+        // No loot, no experience, no verdict. Leaving is not losing, it is leaving --
+        // and the enrage clock keeps running for whoever stayed.
+        group.MapPost("/{characterId:guid}/flee", async Task<IResult> (HttpContext http, Caller caller,
+                                                          Db db, IGameClock clock, Guid characterId) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync<IResult>(characterId, async (connection, tx) =>
+            {
+                Live? live = await ReadLiveAsync(connection, tx, characterId, now);
+
+                // Not an error. A client that leaves the arena twice, or leaves an
+                // arena it was never fighting in, has asked for a state that is
+                // already true -- and a door that can fail is a door players get
+                // trapped behind.
+                if (live is null) return Results.Ok(new { left = false, ended = false });
+
+                await connection.ExecuteAsync(
+                    "delete from encounter_participant where encounter_id = $1 and character_id = $2;",
+                    tx, live.Id, characterId);
+
+                long remaining = await connection.ScalarAsync<long>(
+                    "select count(*) from encounter_participant where encounter_id = $1;",
+                    tx, live.Id);
+
+                bool ended = remaining == 0L;
+
+                if (ended)
+                {
+                    // The last one out closes the fight. Marked as a loss, because it
+                    // was not a win -- and leaving it open would hold the party's
+                    // partial unique index against the next attempt.
+                    await connection.ExecuteAsync(
+                        "update encounter set ended_at = $2, won = false where id = $1;",
+                        tx, live.Id, now);
+                }
+
+                await TelemetryEndpoints.RecordAsync(
+                    connection, tx, accountId.Value, characterId,
+                    TelemetryEvents.BossEnded, now,
+                    ("monster", live.MonsterId),
+                    ("won",     "false"),
+                    ("seconds", ((long)(now - live.StartedAt).TotalSeconds).ToString()),
+                    ("damage",  live.MyDamage.ToString()),
+                    ("left",    "true"));
+
+                return Results.Ok(new { left = true, ended });
             }, http.RequestAborted);
         });
 
@@ -620,6 +787,124 @@ public static class EncounterEndpoints
             }, http.RequestAborted);
         });
 
+
+        // ── What the group is still rolling for ───────────────────────────────
+        //
+        // ══ WHY SETTLING HAPPENS ON A READ ════════════════════════════════════
+        //
+        // Somebody will close their browser with a roll open, and the crown must not
+        // sit unclaimed for ever waiting on an answer that is never coming. The
+        // obvious home for that is a background sweep, and there is no background
+        // service in this API -- adding one to expire a loot roll would be a whole
+        // new thing to run, watch and reason about for a job that has to happen
+        // roughly once a minute.
+        //
+        // So an expired roll settles the next time anybody looks at it. In practice
+        // that is within two seconds of expiring, because the group is polling this
+        // endpoint while the window is open and stops only once it is empty. The
+        // property that matters is that the OUTCOME does not depend on who looked
+        // first: LootRoll.Decide reads only the answers, and an unanswered roll is a
+        // pass.
+        group.MapGet("/{characterId:guid}/rolls", async Task<IResult> (HttpContext http, Caller caller,
+                                                          Db db, IGameClock clock, Guid characterId) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync<IResult>(characterId, async (connection, tx) =>
+            {
+                await SettleExpiredRollsAsync(connection, tx, characterId, now, http.RequestAborted);
+
+                return Results.Ok(new { rolls = await OpenRollsAsync(connection, tx, characterId, now) });
+            }, http.RequestAborted);
+        });
+
+        // ── Need, greed, or pass ──────────────────────────────────────────────
+        //
+        // The client sends a WORD. It does not send a number, because a die a client
+        // rolls is a die a client chooses -- the roll is derived here from the fight's
+        // own seed, which also means a contested drop can be re-derived from two
+        // columns months later rather than taken on the server's word.
+        group.MapPost("/{characterId:guid}/rolls/{rollId:guid}", async Task<IResult> (
+                          HttpContext http, Caller caller, Db db, IGameClock clock,
+                          Guid characterId, Guid rollId, [FromBody] RollChoice? request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string choice = request?.Choice ?? LootRoll.Pass;
+
+            if (!LootRoll.IsChoice(choice))
+            {
+                return Results.Problem(
+                    title:      "no such choice",
+                    detail:     $"'{choice}' is not need, greed or pass.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync<IResult>(characterId, async (connection, tx) =>
+            {
+                Roll? roll = await ReadRollAsync(connection, tx, rollId);
+
+                if (roll is null || roll.SettledAt is not null)
+                {
+                    // Already decided, or never existed. Not a refusal worth an error
+                    // page: a player pressing "need" a moment after the timer ran out
+                    // has done nothing wrong, and telling them so helps nobody.
+                    return Results.Ok(new { answered = false, settled = true });
+                }
+
+                // ══ ONLY THE PEOPLE WHO FOUGHT IT ═════════════════════════════
+                //
+                // Checked here rather than implied by the client only showing the
+                // dialog to fighters. Anybody with a roll id and an account could
+                // otherwise put a hand up for a crown they were nowhere near.
+                var fighters = await FightersAsync(connection, tx, roll.EncounterId);
+
+                int index = fighters.IndexOf(characterId);
+
+                if (index < 0)
+                {
+                    return Results.Problem(
+                        title:      "not your fight",
+                        detail:     "You did not fight this encounter.",
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+
+                long seed = await connection.ScalarAsync<long>(
+                    "select seed from encounter where id = $1;", tx, roll.EncounterId);
+
+                int die = LootRoll.RollFor(seed, roll.RollIndex, index);
+
+                // Insert, never update. Changing your mind after seeing what somebody
+                // else rolled is the one thing a need/greed window must not allow, and
+                // a primary key says so more reliably than a check would.
+                long written = await connection.ScalarAsync<long>(
+                    """
+                    insert into loot_roll_choice (roll_id, character_id, choice, roll, answered_at)
+                    values ($1, $2, $3, $4, $5)
+                    on conflict (roll_id, character_id) do nothing
+                    returning 1;
+                    """,
+                    tx, rollId, characterId, choice, die, now);
+
+                bool settled = await TrySettleAsync(connection, tx, roll, fighters, now,
+                                                    http.RequestAborted);
+
+                return Results.Ok(new { answered = written > 0L, roll = die, settled });
+            }, http.RequestAborted);
+        });
+
         // ── What is waiting ───────────────────────────────────────────────────
         group.MapGet("/{characterId:guid}/loot", async Task<IResult> (HttpContext http, Caller caller, Db db,
                                                         Guid characterId) =>
@@ -649,6 +934,214 @@ public static class EncounterEndpoints
 
             return Results.Ok(new { pending = waiting.ToArray() });
         });
+    }
+
+
+    // ── Rolling for what the King dropped ─────────────────────────────────────
+
+    private sealed record Roll(Guid Id, Guid EncounterId, string ItemId, long Quantity,
+                               int RollIndex, DateTimeOffset OfferedAt, DateTimeOffset? SettledAt);
+
+    private static async Task<Roll?> ReadRollAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                   Guid rollId)
+    {
+        await using var command = connection.Sql(
+            """
+            select id, encounter_id, item_id, quantity, roll_index, offered_at, settled_at
+            from loot_roll where id = $1;
+            """,
+            tx, rollId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync()) return null;
+
+        return new Roll(
+            reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2), reader.GetInt64(3),
+            reader.GetInt32(4), reader.GetFieldValue<DateTimeOffset>(5),
+            reader.IsDBNull(6) ? null : reader.GetFieldValue<DateTimeOffset>(6));
+    }
+
+    /// <summary>
+    /// Everybody who fought an encounter, in the order they joined it.
+    ///
+    /// The ORDER is load-bearing twice over: it is the index the dice are derived
+    /// from, and it is the tie-break of last resort when two people need the same
+    /// item and roll the same number. Both need it to be stable rather than fair,
+    /// which "when did you get here" is.
+    /// </summary>
+    private static async Task<List<Guid>> FightersAsync(NpgsqlConnection connection,
+                                                        NpgsqlTransaction tx, Guid encounterId)
+    {
+        var fighters = new List<Guid>();
+
+        await using var command = connection.Sql(
+            "select character_id from encounter_participant where encounter_id = $1 order by joined_at, character_id;",
+            tx, encounterId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync()) fighters.Add(reader.GetGuid(0));
+
+        return fighters;
+    }
+
+    /// <summary>
+    /// Every roll this character can still answer, with what they have already said.
+    ///
+    /// Their own answer is included and everybody else's is not, deliberately: seeing
+    /// that two people have already pressed need would change what the third presses,
+    /// and a need/greed window whose result depends on how long you waited before
+    /// answering is a race rather than a roll.
+    /// </summary>
+    private static async Task<object[]> OpenRollsAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                       Guid characterId, DateTimeOffset now)
+    {
+        var rolls = new List<object>();
+
+        await using var command = connection.Sql(
+            """
+            select r.id, r.item_id, r.quantity, r.offered_at, c.choice, c.roll
+            from loot_roll r
+            join encounter_participant p
+              on p.encounter_id = r.encounter_id and p.character_id = $1
+            left join loot_roll_choice c
+              on c.roll_id = r.id and c.character_id = $1
+            where r.settled_at is null
+            order by r.offered_at, r.roll_index;
+            """,
+            tx, characterId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            var offeredAt = reader.GetFieldValue<DateTimeOffset>(3);
+
+            rolls.Add(new
+            {
+                rollId    = reader.GetGuid(0),
+                itemId    = reader.GetString(1),
+                quantity  = reader.GetInt64(2),
+                secondsLeft = LootRoll.Remaining((now - offeredAt).TotalSeconds),
+
+                myChoice  = reader.IsDBNull(4) ? "" : reader.GetString(4),
+                myRoll    = reader.IsDBNull(5) ? 0  : reader.GetInt32(5),
+            });
+        }
+
+        return rolls.ToArray();
+    }
+
+    /// <summary>
+    /// Decides a roll if it can be decided, and pays out if it can.
+    ///
+    /// ══ WHY THE UPDATE IS THE LOCK ════════════════════════════════════════════
+    ///
+    /// Four people can answer the same roll in the same instant, and each of them is
+    /// holding a lock on their OWN character row -- which is exactly the wrong row to
+    /// be holding for a decision about a shared crown. Without something else, all
+    /// four would find the roll answerable and all four would grant the winner a copy.
+    ///
+    /// So the settle is a conditional update on the roll itself: `where settled_at is
+    /// null`. The first transaction to reach it flips the row and grants; every other
+    /// one blocks on that row until the first commits, then updates nothing and grants
+    /// nothing. The row IS the mutual exclusion, and it does not depend on anybody
+    /// remembering to take a lock.
+    /// </summary>
+    private static async Task<bool> TrySettleAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                   Roll roll, List<Guid> fighters, DateTimeOffset now,
+                                                   CancellationToken cancellation)
+    {
+        var entries = new List<LootRoll.Entry>();
+
+        await using (var command = connection.Sql(
+            "select character_id, choice, roll from loot_roll_choice where roll_id = $1;",
+            tx, roll.Id))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation))
+            {
+                Guid who = reader.GetGuid(0);
+
+                entries.Add(new LootRoll.Entry(who.ToString(), reader.GetString(1), reader.GetInt32(2),
+                                               Math.Max(0, fighters.IndexOf(who))));
+            }
+        }
+
+        if (!LootRoll.CanSettle(entries.Count, fighters.Count, (now - roll.OfferedAt).TotalSeconds))
+            return false;
+
+        string winner = LootRoll.Decide(entries);
+
+        Guid? winnerId = Guid.TryParse(winner, out Guid parsed) ? parsed : null;
+
+        long flipped = await connection.ScalarAsync<long>(
+            """
+            update loot_roll set settled_at = $2, winner_id = $3
+             where id = $1 and settled_at is null
+            returning 1;
+            """,
+            tx, roll.Id, now, winnerId);
+
+        // Somebody else settled it first. Theirs is the payout; this one adds nothing.
+        if (flipped <= 0L) return true;
+
+        if (winnerId is not null)
+        {
+            // Into pending_loot rather than into the bag, for the same reason every
+            // other boss drop goes there: a full bag must delay a crown, never eat it.
+            await connection.ExecuteAsync(
+                """
+                insert into pending_loot (character_id, encounter_id, item_id, quantity)
+                values ($1, $2, $3, $4);
+                """,
+                tx, winnerId.Value, roll.EncounterId, roll.ItemId, roll.Quantity);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Settles anything this character can see that has run out of time.
+    ///
+    /// Everybody passing is a real outcome and is recorded as one -- settled, with no
+    /// winner -- rather than left open for ever. An item nobody wanted is destroyed,
+    /// which is the honest reading of four people pressing pass.
+    /// </summary>
+    private static async Task SettleExpiredRollsAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                      Guid characterId, DateTimeOffset now,
+                                                      CancellationToken cancellation)
+    {
+        var expired = new List<Roll>();
+
+        await using (var command = connection.Sql(
+            """
+            select r.id, r.encounter_id, r.item_id, r.quantity, r.roll_index, r.offered_at
+            from loot_roll r
+            join encounter_participant p
+              on p.encounter_id = r.encounter_id and p.character_id = $1
+            where r.settled_at is null and r.offered_at <= $2;
+            """,
+            tx, characterId, now.AddSeconds(-LootRoll.DecideSeconds)))
+        {
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+            while (await reader.ReadAsync(cancellation))
+            {
+                expired.Add(new Roll(
+                    reader.GetGuid(0), reader.GetGuid(1), reader.GetString(2), reader.GetInt64(3),
+                    reader.GetInt32(4), reader.GetFieldValue<DateTimeOffset>(5), null));
+            }
+        }
+
+        foreach (Roll roll in expired)
+        {
+            await TrySettleAsync(connection, tx, roll,
+                                 await FightersAsync(connection, tx, roll.EncounterId),
+                                 now, cancellation);
+        }
     }
 
     // ── Reading the fight ─────────────────────────────────────────────────────
@@ -708,6 +1201,56 @@ public static class EncounterEndpoints
             reader.GetFieldValue<DateTimeOffset>(9), reader.GetFieldValue<DateTimeOffset>(10),
             reader.GetInt64(11), reader.GetFieldValue<DateTimeOffset>(12),
             reader.IsDBNull(13) ? (Guid?)null : reader.GetGuid(13));
+    }
+
+
+    /// <summary>
+    /// The fight as it stands, plus this fighter's own frozen snapshot.
+    ///
+    /// ══ WHY THIS EXISTS RATHER THAN REUSING WHAT ENGAGE COMPUTED ══════════════
+    ///
+    /// Because what engage computed is not necessarily what is stored. Three callers
+    /// reach the same describe: somebody starting a fight, somebody joining a party's
+    /// fight, and somebody walking back into their own. Only the first of those has a
+    /// seed, a clock and a snapshot that are all its own; the other two must be told
+    /// about the fight that is ACTUALLY running, or they telegraph a different one.
+    ///
+    /// So the describe reads from the rows, always, and the difference between the
+    /// three callers stops existing at this line.
+    /// </summary>
+    private sealed record Joined(long Seed, long DamageDealt, DateTimeOffset StartedAt,
+                                 DateTimeOffset EnrageAt, double FrozenDps, double FrozenAttackSeconds);
+
+    private static async Task<Joined> ReadJoinedAsync(NpgsqlConnection connection, NpgsqlTransaction tx,
+                                                      Guid encounterId, Guid characterId)
+    {
+        await using var command = connection.Sql(
+            """
+            select e.seed, e.damage_dealt, e.started_at, e.enrage_at,
+                   p.frozen_dps, p.frozen_attack_seconds
+            from encounter e
+            join encounter_participant p
+              on p.encounter_id = e.id and p.character_id = $2
+            where e.id = $1;
+            """,
+            tx, encounterId, characterId);
+
+        await using var reader = await command.ExecuteReaderAsync();
+
+        if (!await reader.ReadAsync())
+        {
+            // Cannot happen: the caller has just inserted or found both rows inside
+            // this transaction. Thrown rather than defaulted, because a describe built
+            // from invented numbers is a client predicting a fight that is not there --
+            // and that failure would be silent, which is worse than a 500.
+            throw new InvalidOperationException(
+                $"Encounter {encounterId} has no participant row for {characterId}.");
+        }
+
+        return new Joined(
+            reader.GetInt64(0), reader.GetInt64(1),
+            reader.GetFieldValue<DateTimeOffset>(2), reader.GetFieldValue<DateTimeOffset>(3),
+            reader.GetDouble(4), reader.GetDouble(5));
     }
 
     /// <summary>
@@ -786,8 +1329,9 @@ public static class EncounterEndpoints
         return min == max ? min : rng.RangeInclusive(min, max);
     }
 
-    private static object Describe(Guid id, MonsterData boss, SettlementService.FrozenCombat frozen,
-                                   long seed, double enrageSeconds, long damageDealt, double elapsed)
+    private static object Describe(Guid id, MonsterData boss, double frozenDps,
+                                   double frozenAttackSeconds, long seed, double enrageSeconds,
+                                   long damageDealt, double elapsed)
     {
         long maxHp = MaxHpOf(boss);
 
@@ -829,8 +1373,8 @@ public static class EncounterEndpoints
 
             // Echoed so the client can predict its own numbers from the shared rules
             // and reconcile. It is not authority -- it is a copy of the authority.
-            frozenDps           = frozen.Dps,
-            frozenAttackSeconds = frozen.AttackSeconds,
+            frozenDps,
+            frozenAttackSeconds,
 
             enrageSeconds,
             elapsedSeconds = elapsed,
@@ -883,6 +1427,9 @@ public static class EncounterEndpoints
             statusCode: StatusCodes.Status404NotFound);
 
     public sealed record EngageRequest(string? MonsterId);
+
+    /// <summary>Need, greed or pass. A word, never a number -- see the endpoint.</summary>
+    public sealed record RollChoice(string? Choice);
 
     public sealed record ActionBatch(BossAction[]? Actions);
 

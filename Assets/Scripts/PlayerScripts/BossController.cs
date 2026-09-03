@@ -30,6 +30,28 @@ using UnityEngine.AI;
 /// from a seed, so client and server agree on every attack without a round trip per
 /// swing. This file draws it; BossFight is the conversation that fetched it.
 ///
+/// ══ EACH CLIENT DRAWS ITS OWN KING ════════════════════════════════════════════
+///
+/// Worth stating plainly, because it looks like a bug and is a choice. In a group,
+/// every client runs its own BossController, and each one chases and faces ITS OWN
+/// player -- so the King is standing somewhere different on each of the four screens.
+///
+/// The alternative is putting his position in the shared population and polling it,
+/// which buys a King who is in the same place for everybody and costs a King who
+/// teleports two metres every two seconds, because there is no socket to smooth it
+/// with. Between a boss who is consistently wrong and a boss who is intermittently
+/// right, the first is the one a player can fight.
+///
+/// It works because nothing here is scored on position. The fail condition is the
+/// enrage clock; damage dealt comes from a frozen snapshot; damage taken is
+/// presentation. Every client therefore sees a fight that is internally coherent --
+/// the cones point at the person watching them and land where they were drawn -- and
+/// all four are settling the same health pool on the server.
+///
+/// TODO(Phase 4): if a later boss ever rewards standing somewhere, this has to become
+/// server-owned, and that means a transport that can carry a position sixty times a
+/// second rather than once every two.
+///
 /// ══ WHAT THIS FILE IS NOT ALLOWED TO DECIDE ═══════════════════════════════════
 ///
 /// The King's health, whether he died, whether the player won, and what dropped. All
@@ -37,7 +59,7 @@ using UnityEngine.AI;
 /// stands, which telegraph is on the ground, and a predicted health bar that the next
 /// report replaces.
 /// </summary>
-public class BossController : MonoBehaviour
+public class BossController : MonoBehaviour, ICombatTarget
 {
     public MonsterData Data { get; private set; }
 
@@ -52,7 +74,20 @@ public class BossController : MonoBehaviour
     public double MaxHealth     => Fight?.BossMaxHealth ?? 0d;
     public double CurrentHealth => Fight?.BossHealth    ?? 0d;
 
-    public bool IsAlive => CurrentHealth > 0d && _state != State.Dead;
+    public bool IsAlive() => CurrentHealth > 0d && _state != State.Dead;
+
+    /// <summary>What a player would call him. See ICombatTarget.</summary>
+    public string TargetName => Data?.DisplayName ?? "Boss";
+
+    /// <summary>
+    /// What he turns aside.
+    ///
+    /// Read for the client's PREDICTION only. The server applies its own copy of this
+    /// same number from its own content when it prices the swing, and the prediction
+    /// is corrected within half a second either way -- so a player with a stale
+    /// download sees a health bar that twitches, not a boss they can out-damage.
+    /// </summary>
+    public float Armor => Data?.armor ?? 0f;
 
     /// <summary>0-1, for the health bar at the top of the screen.</summary>
     public float HealthFraction => Fight?.HealthFraction ?? 0f;
@@ -76,7 +111,6 @@ public class BossController : MonoBehaviour
     private Animator     _anim;
     private Transform    _player;
     private SpriteFacing _facing;
-    private WorldStatusBar _bar;
 
     private float _nextWaveAt;
 
@@ -185,6 +219,62 @@ public class BossController : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Gives the King legs.
+    ///
+    /// ══ WHY HE STOOD STILL ════════════════════════════════════════════════════
+    ///
+    /// Chase() has always been there, and it opens with a null check on an agent
+    /// nothing ever added. GoblinThroneSetup places a bare GameObject with a
+    /// BossController on it, and EnsureBody DESTROYS the agents that come in on the
+    /// donor rig -- correctly, because a second agent on the art subtree would fight
+    /// this one. So every frame of every fight, Chase looked at a null agent and
+    /// returned, and the King fought the entire encounter from one spot.
+    ///
+    /// It was invisible as a bug because the fight still worked: the telegraphs are
+    /// scheduled rather than positional, and the damage is the server's. A boss that
+    /// never moves is a boss you can stand behind, which is not a mechanic anybody
+    /// designed.
+    ///
+    /// Idempotent, and it warns rather than throwing when the arena has no NavMesh
+    /// under him -- a King who cannot path is still a King worth fighting, and losing
+    /// the whole encounter to a bake problem would be worse.
+    /// </summary>
+    private NavMeshAgent EnsureAgent()
+    {
+        var agent = GetComponent<NavMeshAgent>() ?? gameObject.AddComponent<NavMeshAgent>();
+
+        // A shade slower than the player, so he is a threat to stand near rather
+        // than something that outruns you across an open arena.
+        agent.speed          = 3.2f;
+        agent.angularSpeed   = 720f;
+        agent.acceleration   = 12f;
+        agent.radius         = 1.1f;
+        agent.height         = Mathf.Max(1f, SpumRig.MeasureCharacterHeight(transform));
+
+        // He must not be shoved. An agent that avoids the player would let somebody
+        // walk the King into a corner, and the arena is deliberately open.
+        agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+        agent.stoppingDistance      = Mathf.Max(1f, Data?.attackRange ?? 3f) * 0.8f;
+
+        if (!agent.isOnNavMesh)
+        {
+            // Placed slightly off the mesh by the recipe, or the arena was never
+            // baked. Snapped rather than abandoned.
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 8f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+            else
+            {
+                Debug.LogWarning($"[Boss] {name} is not on a NavMesh and cannot move. " +
+                                 "Rebake the arena — the fight will run, but he will stand still.");
+            }
+        }
+
+        return agent;
+    }
+
     private void Start()
     {
         // ══ THERE IS EXACTLY ONE KING ═════════════════════════════════════════
@@ -223,7 +313,7 @@ public class BossController : MonoBehaviour
 
         EnsureBody();
 
-        _agent  = GetComponent<NavMeshAgent>();
+        _agent  = EnsureAgent();
         _anim   = GetComponentInChildren<Animator>();
         _facing = SpriteFacing.Attach(gameObject);
 
@@ -239,8 +329,6 @@ public class BossController : MonoBehaviour
         // the phase and the enrage clock -- all of which are what a boss fight is
         // actually about. It existed the whole time and nothing had ever created it;
         // GameHUD does now.
-
-        if (_bar != null) _bar.AutoHide = false;
 
         var player = GameObject.Find("PlayerCharacter");
         if (player != null) _player = player.transform;
@@ -275,21 +363,89 @@ public class BossController : MonoBehaviour
         // thought so would be a King anybody could fell.
         Fight.Finished += Ended;
 
+        // ══ CLAIM THE UNLOCK BEFORE ASKING TO FIGHT ══════════════════════════
+        //
+        // The unlock used to be granted only by BossPortalController, on the way
+        // through the stone. That was fine while the stone was the only way in, and it
+        // stopped being true the moment a group could be CALLED here: three people
+        // arrive in the arena having never touched the portal, engage, and are told
+        // the throne is sealed by a server that would happily have unlocked it if
+        // anybody had asked.
+        //
+        // Asked here instead, which is the one place every arrival passes through
+        // whatever route brought them. It grants nothing on its own -- the server
+        // still counts the kills, and somebody who followed the group in without their
+        // own thousand is still refused, which is the point.
+        await ClaimTheGateAsync();
+
         var started = await Fight.EngageAsync(Data?.id ?? "goblin_king");
 
         if (started == null)
         {
             _state = State.Dead;   // inert, not dying: nothing happens and nothing counts
 
-            if (_bar != null) _bar.gameObject.SetActive(false);
             return;
         }
 
-        _state          = State.Waiting;
-        _phaseStartedAt = Time.time;
+        _state = State.Waiting;
+
+        // ══ A LATECOMER PICKS THE TIMELINE UP WHERE IT IS ═════════════════════
+        //
+        // Not at the start of it. Somebody joining a fight ninety seconds in used to
+        // be handed cast zero of phase zero and telegraph the opening cleave at a King
+        // who was two phases past it -- two people in one arena dodging different
+        // fights.
+        //
+        // Anchored to the server's own elapsed, so the schedule this client walks is
+        // the schedule everybody else is already walking. RunSchedule catches up in a
+        // loop rather than an if, so the casts that are already behind are consumed on
+        // the first frame instead of firing one per frame for the next minute.
+        //
+        // Exact while the fight is in its first phase, which is the case that matters:
+        // any later phase re-anchors the moment the server confirms it, which is
+        // within half a second of arriving.
+        _phaseStartedAt = Time.time - (float)started.elapsedSeconds;
         _nextCast       = 0;
 
-        GameEvents.FireBossEngaged(Data?.DisplayName ?? "Boss", (float)MaxHealth);
+        // ══ AND DOES NOT REPLAY THE NINETY SECONDS IT MISSED ══════════════════
+        //
+        // RunSchedule consumes every cast that is due in a WHILE loop -- correct for a
+        // frame hitch, catastrophic for a ninety-second offset, which would fire
+        // thirty telegraphs in one frame and land all of them on the person who just
+        // walked in. Wound forward silently instead.
+        SkipCastsBefore((float)started.elapsedSeconds);
+
+
+        // The clock as the SERVER has it, not as the content file describes it.
+        // Somebody joining a fight two minutes in has three minutes left, and a bar
+        // that started them at five would be counting down to the wrong moment.
+        GameEvents.FireBossEngaged(Data?.DisplayName ?? "Boss", (float)MaxHealth,
+                                   Fight.EnrageRemaining);
+    }
+
+    /// <summary>
+    /// Asks the server to open the gate for whoever just walked in.
+    ///
+    /// Quiet about refusals: EngageAsync is a heartbeat later and says the same thing
+    /// with the numbers attached, so complaining here would be the same bad news
+    /// twice.
+    /// </summary>
+    private static async Awaitable ClaimTheGateAsync()
+    {
+        if (!IdleExplorers.Backend.ServerState.IsAuthoritative) return;
+
+        string characterId = IdleExplorers.Backend.ServerState.CharacterId;
+
+        if (string.IsNullOrEmpty(characterId)) return;
+
+        try
+        {
+            await IdleExplorers.Backend.GameBackend.Current.UnlockBossAsync(characterId);
+        }
+        catch (IdleExplorers.Backend.BackendException e)
+        {
+            Debug.Log($"[Boss] The gate did not open: {e.Message}");
+        }
     }
 
     // ── The fight ─────────────────────────────────────────────────────────────
@@ -330,9 +486,6 @@ public class BossController : MonoBehaviour
         Chase(distance);
         RunSchedule();
         MaybeSpawnAdds();
-
-        if (_bar != null)
-            _bar.Set(CurrentHealth, MaxHealth, NumberFormatter.Format((long)CurrentHealth));
     }
 
     /// <summary>
@@ -422,6 +575,22 @@ public class BossController : MonoBehaviour
             Cast(casts[_nextCast]);
             _nextCast++;
         }
+    }
+
+    /// <summary>
+    /// Winds the phase schedule forward past everything that has already happened.
+    ///
+    /// For somebody joining a fight in progress. Silent by design: these attacks were
+    /// made against the people who were here, and re-drawing them would be a boss
+    /// hitting a newcomer for the whole history of a fight they arrived at the end of.
+    /// </summary>
+    private void SkipCastsBefore(float seconds)
+    {
+        if (seconds <= 0f || Fight == null) return;
+
+        var casts = Fight.CastsFor(Fight.PhaseIndex);
+
+        while (_nextCast < casts.Length && casts[_nextCast].atSeconds <= seconds) _nextCast++;
     }
 
     /// <summary>
@@ -573,7 +742,7 @@ public class BossController : MonoBehaviour
 
     public void TakeDamage(double amount, bool wasCrit)
     {
-        if (!IsAlive || Fight == null) return;
+        if (!IsAlive() || Fight == null) return;
 
         double before = Fight.BossHealth;
 

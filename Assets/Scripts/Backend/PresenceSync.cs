@@ -149,6 +149,18 @@ namespace IdleExplorers.Backend
                 Reconcile(rig, seen.others);
                 Speak(rig, seen.chat);
 
+                // ══ AND THE GROUP ═════════════════════════════════════════════
+                //
+                // Raised rather than acted on. This file knows how to READ the world;
+                // what a throne call means is the group panel and the countdown
+                // modal is business, and putting either here would make a transport
+                // file responsible for a piece of UI.
+                //
+                // Fired even when there is no party, because "you are no longer in a
+                // group" is news the panel has to hear too.
+                GameEvents.FirePartyChanged(seen.party);
+
+
                 // The world, from the same answer. MonsterSync draws it; this file
                 // stays the one place that talks to the presence endpoint, so a
                 // socket later replaces exactly one file.

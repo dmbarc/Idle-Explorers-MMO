@@ -136,6 +136,11 @@ namespace IdleExplorers.Backend
         public Awaitable<PartySnapshot> FormPartyAsync(string characterId)  => Completed(Alone());
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) => Completed(Alone());
 
+        // Nobody to call. Offline is one player by definition, and a countdown to
+        // travel somewhere you can already walk to would be a modal with no purpose.
+        public Awaitable<PartySnapshot> CallPartyAsync(string characterId, string mapId,
+                                                       string monsterId) => Completed(Alone());
+
         public Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId) =>
             Completed(Alone());
 
@@ -177,6 +182,19 @@ namespace IdleExplorers.Backend
 
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             Completed(LootClaim.Nothing);
+
+        // There is no encounter row offline, so there is nothing to walk out of --
+        // and saying "left" would make the client think it had closed something.
+        public Awaitable<FleeResult> FleeBossAsync(string characterId) =>
+            Completed(new FleeResult { left = false, ended = false });
+
+        // Rolling against yourself is not a mechanic.
+        public Awaitable<LootRollList> GetLootRollsAsync(string characterId) =>
+            Completed(new LootRollList { rolls = System.Array.Empty<LootRollOffer>() });
+
+        public Awaitable<LootRollAnswer> AnswerLootRollAsync(string characterId, string rollId,
+                                                             string choice) =>
+            Completed(new LootRollAnswer { answered = false, settled = true });
 
         // ══ THE LOCAL MANAGERS ALREADY DO ALL OF THIS ═════════════════════════
         //

@@ -177,6 +177,29 @@ public class BossPortalController : MonoBehaviour
     /// </summary>
     public async Awaitable<bool> TryEnterAsync(IGameBackend backend, string characterId)
     {
+        if (!await TryOpenAsync(backend, characterId)) return false;
+
+        if (string.IsNullOrEmpty(destinationMapId))
+        {
+            GameEvents.FireToast("The way is open, but the throne is not built yet.", ChatTone.Info);
+            return false;
+        }
+
+        GameManager.Zone?.EnterMap(destinationMapId);
+        return true;
+    }
+
+    /// <summary>
+    /// Asks the server whether this character may go through, and grants the unlock
+    /// if they may. Does not travel.
+    ///
+    /// Split out from TryEnterAsync because a GROUP needs the question without the
+    /// answer: whoever is standing in the portal has to know the way is open for them
+    /// before calling three other people to it, and then travel with everybody else at
+    /// the end of the countdown rather than immediately.
+    /// </summary>
+    public async Awaitable<bool> TryOpenAsync(IGameBackend backend, string characterId)
+    {
         if (backend == null || string.IsNullOrEmpty(characterId)) return false;
 
         try
@@ -209,13 +232,6 @@ public class BossPortalController : MonoBehaviour
             return false;
         }
 
-        if (string.IsNullOrEmpty(destinationMapId))
-        {
-            GameEvents.FireToast("The way is open, but the throne is not built yet.", ChatTone.Info);
-            return false;
-        }
-
-        GameManager.Zone?.EnterMap(destinationMapId);
         return true;
     }
 }

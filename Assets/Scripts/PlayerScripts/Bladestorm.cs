@@ -109,7 +109,7 @@ public class Bladestorm : MonoBehaviour
         // enemy it was dropped by the King to fight would be a strange weapon.
         foreach (var boss in Object.FindObjectsByType<BossController>(FindObjectsInactive.Exclude))
         {
-            if (boss == null || !boss.IsAlive) continue;
+            if (boss == null || !boss.IsAlive()) continue;
 
             var at = new Ground(boss.transform.position.x, boss.transform.position.z);
             if (!area.Contains(at)) continue;

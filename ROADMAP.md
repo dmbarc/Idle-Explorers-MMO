@@ -40,7 +40,7 @@ deployment message — it reports the preview alias, not whether production serv
 ### Test suites
 
 ```bash
-bash Tools/check.sh     # everything: 1315 standalone + 236 rules + 10 content + 84 db + 215 API
+bash Tools/check.sh     # everything: 1876 standalone + 250 rules + 10 content + 84 db + 244 API
 bash Tools/verify/verify.sh   # client compile only, ~40s — use this while iterating
 ```
 
@@ -146,13 +146,67 @@ tests' rows.
 **Rule: give each test its own map id / scope the query to its own actors.** Isolation
 by construction beats cleanup that can be skipped.
 
-### 2.7 Tooling traps in this repo
+### 2.7 Nothing closed the row
+
+The boss looked broken five different ways in one playtest — the King could not be
+targeted, walking in did nothing for the second player, there was no way out, and the
+fight was invisible to everyone but whoever got there first.
+
+Four of the five were the same fact: **an encounter row that nothing ever closed.**
+Dying did not end an encounter. Nor did closing the tab, nor walking out of the arena
+— the fail condition is the enrage clock, so the server had no reason to think
+anything had happened. The row stayed live with the player's name on it, and every
+engage after that was refused 409 for five minutes. From inside the client that reads
+as an arena with no boss in it: engage fails, BossController never starts, and there
+are no telegraphs, no health bar, and nothing to hit.
+
+**Rule: for every state a request can enter, name the request that leaves it.** If
+there is no answer, the state is a trap, and the symptom will appear somewhere that
+looks nothing like the cause.
+
+### 2.8 Two loops that never met
+
+`PlayerController` held its target as a `MonsterController`. `BossController` is
+deliberately not one. So there was no path from a click, from auto-mode, or from any
+single-target ability to a boss — the King stood in his arena throwing cones at
+somebody who could only watch. It compiled, and every method involved was correct.
+
+The tell was already in the codebase: `Bladestorm` had a second loop bolted on beside
+the first, sweeping `BossController` separately, because somebody had hit this once
+and fixed it locally.
+
+**Rule: a second loop over a parallel type is a missing abstraction, not a fix.** The
+next feature will not remember to write itself twice.
+
+### 2.9 The break-verification clobbered the work
+
+Verifying checks by breaking them used `git checkout --` to restore. Three of the
+files were **new and therefore untracked**, so the checkout errored, restored nothing,
+and nine deliberate breaks stacked on top of each other before anybody noticed. Two
+separate sessions have now lost uncommitted work to `git checkout`.
+
+**Rule: restore from a copy taken before the break, never from git.** `git checkout`
+knows nothing about work that is not committed, and that is exactly what is at risk.
+
+### 2.10 Tooling traps in this repo
 
 - Bash heredocs eat one backslash level; then Python reads `\b` as a backspace. **Never
   put regex escapes in a heredoc.** Write them via the `Write` tool, or as named
   constants in the C# file.
 - `git add -A Assets` sweeps in the entire Kenney pack and times out. Stage named files.
 - `perl` eats `$"` when splicing C#.
+- A background `check.sh` reading files that a foreground break-verification is
+  editing produces a failure that is real, reproducible and entirely imaginary. **Do
+  not run the suite and the break loop at the same time.**
+- A break loop also leaves a **stale incremental build** behind: the next `check.sh`
+  reported a rules test failing against source that was demonstrably correct.
+  `dotnet build --no-incremental` cleared it. **After breaking things on purpose,
+  force a rebuild before believing the next red.**
+- `ScalarAsync<DateTimeOffset?>` throws on a `timestamptz`: Npgsql hands back a
+  `DateTime` and `Convert.ChangeType` refuses it. Read timestamps through a reader.
+- Npgsql allows **one open reader per connection**. A method-scoped `await using var`
+  on a command keeps its reader alive until the method returns, so adding any second
+  query below it turns every call into a 500. Brace the first read.
 
 ---
 

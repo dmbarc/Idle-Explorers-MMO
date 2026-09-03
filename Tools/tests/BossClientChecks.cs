@@ -138,7 +138,208 @@ namespace IdleExplorersTests
 
             SpawnerRefusesBosses(check, root);
             ExitPortalIsReachable(check, root);
+
+            TheKingIsAnEnemyYouCanFight(check, root);
+            ThereIsAWayOutThatIsNotDying(check, root);
+            AGroupCanDoBothTogether(check, root);
         }
+
+        /// <summary>
+        /// The five things a playtest found wrong with the King, each pinned here.
+        ///
+        /// ══ WHY SOURCE CHECKS FOR THESE ═══════════════════════════════════════
+        ///
+        /// Because four of the five are WIRING, and wiring is exactly what a compiler
+        /// is happy about and a test suite does not reach. BossController compiled
+        /// perfectly while being untargetable, immobile and inescapable: every method
+        /// involved existed, every one of them was correct, and nothing called them.
+        ///
+        /// This project has a name for that failure -- "built and never called" -- and
+        /// it has cost four playtests. These are the lines that would have caught it.
+        /// </summary>
+        private static void TheKingIsAnEnemyYouCanFight(Action<bool, string> check, string root)
+        {
+            string boss   = Strip(Read(root, "Assets/Scripts/PlayerScripts/BossController.cs"));
+            string player = Strip(Read(root, "Assets/Scripts/PlayerScripts/PlayerController.cs"));
+
+            check(File.Exists(Path.Combine(root, "Assets/Scripts/PlayerScripts/ICombatTarget.cs")),
+                  "ICombatTarget exists -- the one thing a monster and a boss share");
+
+            // ── He is a target at all ─────────────────────────────────────────
+            //
+            // He was not. PlayerController held its target as a MonsterController and
+            // a boss deliberately is not one, so there was no path from a click, from
+            // auto-mode or from an ability to the King. He stood in his arena throwing
+            // cones at somebody who could only watch.
+            check(Regex.IsMatch(boss, @"class BossController\s*:\s*MonoBehaviour\s*,\s*ICombatTarget"),
+                  "BossController is something the player can point at");
+
+            check(Regex.IsMatch(player, @"private ICombatTarget currentTarget"),
+                  "the player's target is the interface, not the monster type");
+
+            // ── Every route to a target reaches him ───────────────────────────
+            //
+            // Three separate routes, checked separately, because they are three
+            // separate lines and the bug was that all three named one concrete type.
+            string click = Body(player, "private void HandleMouseClick()");
+
+            check(click.Length > 0, "PlayerController.HandleMouseClick is where it is expected to be");
+            check(click.Contains("GetComponentInParent<BossController>"),
+                  "clicking the King selects him");
+
+            string best = Body(player, "private ICombatTarget GetBestMonster()");
+
+            check(best.Length > 0, "PlayerController.GetBestMonster is where it is expected to be");
+            check(best.Contains("FindObjectsByType<BossController>"),
+                  "auto-mode considers the King -- an arena with only a boss in it read as empty");
+
+            string miss = Body(player, "private void FindNearMiss(");
+
+            check(miss.Length > 0, "PlayerController.FindNearMiss is where it is expected to be");
+            check(miss.Contains("GetComponentInParent<BossController>"),
+                  "click-assist brushes past him too, or he is harder to hit than a goblin");
+
+            // ── And he can walk ───────────────────────────────────────────────
+            //
+            // Chase() has always existed and opens with a null check on an agent
+            // nothing ever added: the recipe places a bare GameObject, and EnsureBody
+            // destroys the agents that arrive on the donor rig. So the King fought
+            // every encounter from one spot.
+            check(boss.Contains("EnsureAgent"), "the King is given a NavMeshAgent");
+
+            string start = Body(boss, "private void Start()");
+
+            check(start.Contains("EnsureAgent()"),
+                  "and given it on the way in, not in a method nothing calls");
+
+            string update = Body(boss, "private void Update()");
+
+            check(update.Contains("Chase("), "and the fight actually moves him");
+
+            // ── A latecomer does not replay the fight ─────────────────────────
+            //
+            // RunSchedule consumes every due cast in a while loop, which is right for a
+            // frame hitch and catastrophic for somebody joining ninety seconds in --
+            // thirty telegraphs in one frame, all landing on the person who just
+            // arrived.
+            check(boss.Contains("SkipCastsBefore"),
+                  "a joiner winds past the casts that already happened rather than replaying them");
+
+            string begin = Body(boss, "private async void Begin()");
+
+            check(begin.Contains("SkipCastsBefore("),
+                  "and winds past them at engage, which is the only moment it can");
+
+            check(begin.Contains("ClaimTheGateAsync"),
+                  "arriving claims the gate -- a called group never touched the portal");
+        }
+
+        /// <summary>
+        /// There is a way out that is not dying.
+        ///
+        /// ══ WHY THIS IS TWO CHECKS AND NOT ONE ════════════════════════════════
+        ///
+        /// Because moving the player is the easy half and the half that does not
+        /// matter. Walking out leaves a live encounter row behind, and until that row
+        /// is closed the server refuses every future engage as "already fighting" --
+        /// which, from inside the client, is an arena with no boss in it.
+        ///
+        /// An exit that travelled without telling the server would have fixed the room
+        /// and kept the lockout, and it would have looked completely correct.
+        /// </summary>
+        private static void ThereIsAWayOutThatIsNotDying(Action<bool, string> check, string root)
+        {
+            string leave = Strip(Read(root, "Assets/Scripts/UI/Core/LeaveRoomButton.cs"));
+
+            check(leave.Length > 0, "LeaveRoomButton.cs is where it is expected to be");
+            if (leave.Length == 0) return;
+
+            check(leave.Contains("FleeBossAsync"), "leaving tells the server the fight is over for you");
+            check(leave.Contains("EnterMap"),      "and then actually moves you");
+
+            check(leave.Contains("portalOnly"),
+                  "it appears in a room you were let into, which is the map's own word for it");
+
+            // Built and never called, for the fifth time. The button is created by the
+            // HUD or it does not exist.
+            string hud = Strip(Read(root, "Assets/Scripts/UI/Screens/GameHUD.cs"));
+
+            check(hud.Contains("LeaveRoomButton.Attach"),
+                  "the HUD builds it -- a button nothing constructs is not an exit");
+
+            // ── Dying closes the fight too ────────────────────────────────────
+            //
+            // Nothing did. The fail condition is the enrage clock, so the server had no
+            // idea the player had fallen over, and the row stayed live with their name
+            // on it. That single open row is most of what "the boss is broken" meant.
+            string player = Strip(Read(root, "Assets/Scripts/PlayerScripts/PlayerController.cs"));
+
+            // ══ THE CALL SITE, NOT THE METHOD ═════════════════════════════════
+            //
+            // The first version of this looked for the NAME, and the name is in the
+            // file whether or not anything invokes it -- which is the "built and never
+            // called" trap the check exists to catch, reproduced inside the check
+            // itself. It passed with the call deleted.
+            check(Count(player, "LeaveEncounterQuietly") >= 2,
+                  "dying in a boss room closes the encounter behind you -- the method " +
+                  "exists AND something calls it");
+        }
+
+        /// <summary>
+        /// The group goes in together, and argues about the loot afterwards.
+        ///
+        /// Both arrive on the presence poll rather than on polls of their own -- which
+        /// is the property worth protecting, because the obvious implementation of
+        /// each is a timer, and three timers per client is how a 300-player idle game
+        /// becomes a chat server.
+        /// </summary>
+        private static void AGroupCanDoBothTogether(Action<bool, string> check, string root)
+        {
+            string call = Strip(Read(root, "Assets/Scripts/UI/Screens/ThroneCallModal.cs"));
+            string roll = Strip(Read(root, "Assets/Scripts/UI/Screens/LootRollModal.cs"));
+
+            check(call.Length > 0, "ThroneCallModal.cs is where it is expected to be");
+            check(roll.Length > 0, "LootRollModal.cs is where it is expected to be");
+
+            if (call.Length == 0 || roll.Length == 0) return;
+
+            // ── The call ──────────────────────────────────────────────────────
+            check(call.Contains("OnPartyChanged"),
+                  "the countdown arrives on the party poll, which every client already does");
+
+            // ══ IN BOTH PLACES ════════════════════════════════════════════════
+            //
+            // Twice, and the count matters. The dialog tick consults it, and so does
+            // the poll handler -- because a client whose tab was suspended through the
+            // whole countdown never sees the dialog at all, and would be the one person
+            // left behind. Checking for the word alone passed with the tick removed,
+            // which is exactly the half a watching player experiences.
+            check(Count(call, "travelNow") >= 2,
+                  "the server's go-now is honoured both while watching the countdown " +
+                  "and by a client that missed it entirely");
+
+            check(call.Contains("_handledToken"),
+                  "a call is remembered once -- otherwise declining is asked again every poll");
+
+            string presence = Strip(Read(root, "Assets/Scripts/Backend/PresenceSync.cs"));
+
+            check(presence.Contains("FirePartyChanged"),
+                  "and something actually raises it");
+
+            // ── The rolls ─────────────────────────────────────────────────────
+            check(roll.Contains("AnswerLootRollAsync"),
+                  "a choice reaches the server");
+
+            check(!Regex.IsMatch(roll, @"Random\.(Range|value)|UnityEngine\.Random"),
+                  "the client does not roll its own dice -- the number comes back from the server");
+
+            check(roll.Contains("OnBossDefeated"),
+                  "the window opens off the boss dying rather than a poll running all session");
+
+            foreach (string choice in new[] { "LootRoll.Need", "LootRoll.Greed", "LootRoll.Pass" })
+                check(roll.Contains(choice), $"the window offers {choice} from the shared rules");
+        }
+
 
         /// <summary>
         /// One Goblin King, not a field of them.
@@ -240,6 +441,27 @@ namespace IdleExplorersTests
             source = Regex.Replace(source, @"^\s*//.*$",  "", RegexOptions.Multiline);
 
             return source;
+        }
+
+        /// <summary>
+        /// How many times a fragment appears.
+        ///
+        /// Because "the file mentions it" is the weakest possible check and this
+        /// project has been fooled by it repeatedly: a declaration and a call site read
+        /// identically to Contains, so a check for the name passes on a method nothing
+        /// invokes.
+        /// </summary>
+        private static int Count(string haystack, string needle)
+        {
+            int found = 0;
+
+            for (int at = haystack.IndexOf(needle, StringComparison.Ordinal); at >= 0;
+                 at = haystack.IndexOf(needle, at + needle.Length, StringComparison.Ordinal))
+            {
+                found++;
+            }
+
+            return found;
         }
 
         private static string Read(string root, string relative)

@@ -238,6 +238,18 @@ public static class SocialEndpoints
                 others = others.ToArray(),
                 chat   = chat.ToArray(),
 
+                // ══ AND THE GROUP, ON THE SAME POLL ══════════════════════════
+                //
+                // Because a call to the throne has to reach three people who are not
+                // looking at the group panel -- that is the whole point of it -- and
+                // the only thing every client does on a timer is this. A second poll
+                // for the party would be one more request per player per two seconds
+                // to deliver something that fits in the answer already being sent.
+                //
+                // Null when they are not grouped, which is the common case and costs
+                // four bytes.
+                party = await DescribeAsync(connection, characterId, now, http.RequestAborted),
+
                 monsters = monsters.Select(m => new
                 {
                     id          = m.Id,
@@ -260,7 +272,7 @@ public static class SocialEndpoints
 
         // What group am I in, if any.
         group.MapGet("/{characterId:guid}", async Task<IResult> (
-            HttpContext http, Caller caller, Db db, Guid characterId) =>
+            HttpContext http, Caller caller, Db db, IGameClock clock, Guid characterId) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
@@ -270,12 +282,12 @@ public static class SocialEndpoints
 
             await using var connection = await db.OpenAsync(http.RequestAborted);
 
-            return Results.Ok(await DescribeAsync(connection, characterId, http.RequestAborted));
+            return Results.Ok(await DescribeAsync(connection, characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted));
         });
 
         // Start one, or return the one already joined.
         group.MapPost("/{characterId:guid}", async Task<IResult> (
-            HttpContext http, Caller caller, Db db, Guid characterId) =>
+            HttpContext http, Caller caller, Db db, IGameClock clock, Guid characterId) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
@@ -300,13 +312,14 @@ public static class SocialEndpoints
                         tx, partyId, characterId);
                 }
 
-                return Results.Ok(await DescribeAsync(connection, characterId, http.RequestAborted, tx));
+                return Results.Ok(await DescribeAsync(connection, characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted, tx));
             }, http.RequestAborted);
         });
 
         // Join somebody else's.
         group.MapPost("/{characterId:guid}/join/{leaderId:guid}", async Task<IResult> (
-            HttpContext http, Caller caller, Db db, Guid characterId, Guid leaderId) =>
+            HttpContext http, Caller caller, Db db, IGameClock clock,
+            Guid characterId, Guid leaderId) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
@@ -344,7 +357,7 @@ public static class SocialEndpoints
                 Guid? mine = await PartyOfAsync(connection, tx, characterId, http.RequestAborted);
 
                 if (mine == partyId)
-                    return Results.Ok(await DescribeAsync(connection, characterId, http.RequestAborted, tx));
+                    return Results.Ok(await DescribeAsync(connection, characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted, tx));
 
                 if (mine is not null)
                 {
@@ -370,13 +383,13 @@ public static class SocialEndpoints
                     "insert into party_member (party_id, character_id) values ($1, $2);",
                     tx, partyId.Value, characterId);
 
-                return Results.Ok(await DescribeAsync(connection, characterId, http.RequestAborted, tx));
+                return Results.Ok(await DescribeAsync(connection, characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted, tx));
             }, http.RequestAborted);
         });
 
         // Leave. Deleting the last member takes the party with it.
         group.MapDelete("/{characterId:guid}", async Task<IResult> (
-            HttpContext http, Caller caller, Db db, Guid characterId) =>
+            HttpContext http, Caller caller, Db db, IGameClock clock, Guid characterId) =>
         {
             Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
             if (accountId is null) return Results.Unauthorized();
@@ -420,7 +433,88 @@ public static class SocialEndpoints
                         tx, partyId.Value, characterId);
                 }
 
-                return Results.Ok(await DescribeAsync(connection, characterId, http.RequestAborted, tx));
+                return Results.Ok(await DescribeAsync(connection, characterId, await clock.NowAsync(http.RequestAborted), http.RequestAborted, tx));
+            }, http.RequestAborted);
+        });
+
+        // ── Calling the group through a door ──────────────────────────────────
+        //
+        // ══ WHY THIS IS A ROW AND NOT A MESSAGE ═══════════════════════════════
+        //
+        // There is no socket -- Unity WebGL has none -- so nothing can be PUSHED to
+        // the other three. What there is, already, is a party row every client reads
+        // every two seconds. Writing the call there means it reaches everybody on a
+        // poll that was happening anyway, with no new endpoint for them to watch.
+        //
+        // The instant matters more than it looks: every client counts down to the SAME
+        // stored moment, so four people arrive together however far apart their clocks
+        // are and however late one of their polls was. A countdown each client started
+        // for itself would drift by exactly the poll it arrived on.
+        //
+        // ══ AND WHY ANY MEMBER MAY RAISE ONE ══════════════════════════════════
+        //
+        // Not just the leader. Leadership here is a tie-break for who inherits the
+        // group, not a rank, and the person who happens to be standing in the portal
+        // is the person who should be able to say "we are going in".
+        group.MapPost("/{characterId:guid}/call", async Task<IResult> (
+            HttpContext http, Caller caller, Db db, IGameClock clock, Guid characterId,
+            [FromBody] CallRequest? request) =>
+        {
+            Guid? accountId = await caller.AccountIdAsync(http.User, http.RequestAborted);
+            if (accountId is null) return Results.Unauthorized();
+
+            if (!await caller.OwnsCharacterAsync(accountId.Value, characterId, http.RequestAborted))
+                return NotYours();
+
+            string mapId = request?.MapId ?? "";
+
+            if (string.IsNullOrWhiteSpace(mapId))
+            {
+                return Results.Problem(
+                    title:      "nowhere to go",
+                    detail:     "A call needs a map to call the group to.",
+                    statusCode: StatusCodes.Status400BadRequest);
+            }
+
+            DateTimeOffset now = await clock.NowAsync(http.RequestAborted);
+
+            return await db.InCharacterTransactionAsync<IResult>(characterId, async (connection, tx) =>
+            {
+                Guid? partyId = await PartyOfAsync(connection, tx, characterId, http.RequestAborted);
+
+                if (partyId is null)
+                {
+                    return Results.Problem(
+                        title:      "no group",
+                        detail:     "You are not in a group to call.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
+                // ══ A LIVE CALL IS NOT REPLACED ═══════════════════════════════
+                //
+                // Two members pressing the portal within a second of each other must
+                // not restart the countdown -- which, pressed enough times, is a
+                // countdown that never reaches zero. The second press finds the first
+                // call and joins it, the same way forming a group twice forms one
+                // group.
+                // Asked through the same reader the clients use, rather than re-deriving
+                // "is there a call" from the raw column here. One definition of live,
+                // in one place -- the two drifting would mean a countdown the group can
+                // see and the server does not believe in.
+                object? live = await CallAsync(connection, tx, partyId.Value, now, http.RequestAborted);
+
+                if (live is null)
+                {
+                    await connection.ExecuteAsync(
+                        """
+                        update party
+                           set call_map_id = $2, call_monster_id = $3, call_at = $4, called_by = $5
+                         where id = $1;
+                        """,
+                        tx, partyId.Value, mapId, request?.MonsterId ?? "", now, characterId);
+                }
+
+                return Results.Ok(await DescribeAsync(connection, characterId, now, http.RequestAborted, tx));
             }, http.RequestAborted);
         });
     }
@@ -442,6 +536,7 @@ public static class SocialEndpoints
     /// </summary>
     private static async Task<object> DescribeAsync(Npgsql.NpgsqlConnection connection,
                                                     Guid characterId,
+                                                    DateTimeOffset now,
                                                     CancellationToken cancellation,
                                                     Npgsql.NpgsqlTransaction? tx = null)
     {
@@ -455,7 +550,13 @@ public static class SocialEndpoints
 
         var members = new List<object>();
 
-        await using var command = connection.Sql(
+        // ══ SCOPED, BECAUSE THE CALL IS READ AFTERWARDS ═══════════════════════
+        //
+        // Npgsql allows one open reader per connection. This used to be a method-scoped
+        // "await using", which kept the reader alive until the method returned -- and
+        // the moment a second query was added below, every party read answered 500.
+        // The braces are the fix and they are load-bearing.
+        await using (var command = connection.Sql(
             """
             select c.id, c.name, c.class_id, c.xp
               from party_member m
@@ -463,22 +564,25 @@ public static class SocialEndpoints
              where m.party_id = $1
              order by m.joined_at;
             """,
-            tx, partyId.Value);
-
-        await using var reader = await command.ExecuteReaderAsync(cancellation);
-
-        while (await reader.ReadAsync(cancellation))
+            tx, partyId.Value))
         {
-            long xp = reader.GetInt64(3);
+            await using var reader = await command.ExecuteReaderAsync(cancellation);
 
-            members.Add(new
+            while (await reader.ReadAsync(cancellation))
             {
-                characterId = reader.GetGuid(0),
-                name        = reader.GetString(1),
-                classId     = reader.GetString(2),
-                level       = IdleExplorers.Rules.Levelling.CharacterLevel(xp),
-            });
+                long xp = reader.GetInt64(3);
+
+                members.Add(new
+                {
+                    characterId = reader.GetGuid(0),
+                    name        = reader.GetString(1),
+                    classId     = reader.GetString(2),
+                    level       = IdleExplorers.Rules.Levelling.CharacterLevel(xp),
+                });
+            }
         }
+
+        object? call = await CallAsync(connection, tx, partyId.Value, now, cancellation);
 
         return new
         {
@@ -486,6 +590,71 @@ public static class SocialEndpoints
             leaderCharacterId = (Guid?)leader,
             members           = members.ToArray(),
             maxMembers        = IdleExplorers.Rules.Party.MaxMembers,
+
+            // Rides along with the roster rather than living behind an endpoint of
+            // its own, because the roster is already polled every two seconds and a
+            // call nobody is watching for is a call nobody hears.
+            call,
+        };
+    }
+
+    /// <summary>
+    /// The group being called somewhere, or null.
+    ///
+    /// ══ WHY THE CLOCK IS THE DATABASE'S ═══════════════════════════════════════
+    ///
+    /// Because four clients counting down to the same moment is the entire point, and
+    /// the only clock all four can agree on is the one that stored it. Sending an
+    /// absolute timestamp and letting each client subtract its own now() would put the
+    /// group back out of step by however wrong somebody's system clock is -- which,
+    /// on a browser, is a number nobody controls.
+    ///
+    /// So the server sends SECONDS REMAINING, computed where the row lives.
+    /// </summary>
+    private static async Task<object?> CallAsync(Npgsql.NpgsqlConnection connection,
+                                                 Npgsql.NpgsqlTransaction? tx,
+                                                 Guid partyId,
+                                                 DateTimeOffset now,
+                                                 CancellationToken cancellation)
+    {
+        await using var command = connection.Sql(
+            """
+            select call_map_id, call_monster_id, called_by, call_at
+              from party
+             where id = $1 and call_at is not null;
+            """,
+            tx, partyId);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellation);
+
+        if (!await reader.ReadAsync(cancellation)) return null;
+
+        var raisedAt = reader.GetFieldValue<DateTimeOffset>(3);
+
+        double since = (now - raisedAt).TotalSeconds;
+
+        // A stale row is not a call. Left visible it would be a portal countdown that
+        // had already finished, reappearing every time somebody opened the panel.
+        if (!IdleExplorers.Rules.ThroneCall.IsLive(since)) return null;
+
+        return new
+        {
+            // ══ WHY A CALL HAS A NAME ═════════════════════════════════════════
+            //
+            // Because a client has to be able to say "I have already dealt with THIS
+            // one". Without it, a player who declined would be asked again on the next
+            // poll, for ever, and a player who accepted and then walked back out of
+            // the arena would be dragged straight back in by a call that is still
+            // technically live. The instant it was raised is the only identity it
+            // needs, and it is already stored.
+            callToken   = raisedAt.ToUnixTimeMilliseconds().ToString(),
+
+            mapId       = reader.IsDBNull(0) ? "" : reader.GetString(0),
+            monsterId   = reader.IsDBNull(1) ? "" : reader.GetString(1),
+            calledBy    = reader.IsDBNull(2) ? (Guid?)null : reader.GetGuid(2),
+
+            secondsLeft = IdleExplorers.Rules.ThroneCall.Remaining(since),
+            travelNow   = IdleExplorers.Rules.ThroneCall.ShouldTravel(since),
         };
     }
 
@@ -504,4 +673,7 @@ public static class SocialEndpoints
     /// sentence a moment later, and would let a client report one without the other.
     /// </summary>
     public sealed record PresenceRequest(string? MapId, float X, float Z, string? Say);
+
+    /// <summary>Where the group is being called, and which boss is waiting there.</summary>
+    public sealed record CallRequest(string? MapId, string? MonsterId);
 }

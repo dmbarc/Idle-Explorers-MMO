@@ -106,6 +106,16 @@ namespace IdleExplorers.Backend
         Awaitable<PartySnapshot> LeavePartyAsync(string characterId);
 
         /// <summary>
+        /// Calls the whole group to a map, after a countdown everybody can see.
+        ///
+        /// Raised by whoever is standing in the door. The countdown is stored once on
+        /// the server so four clients count to the same instant rather than to four
+        /// slightly different ones, and it comes back on the ordinary party read --
+        /// which is already polled, so nobody needs a second thing to watch.
+        /// </summary>
+        Awaitable<PartySnapshot> CallPartyAsync(string characterId, string mapId, string monsterId);
+
+        /// <summary>
         /// Consumes an item whose effect the SERVER owns, and applies it.
         ///
         /// Only mystic gems today. The seconds come from the server's own catalogue,
@@ -209,6 +219,31 @@ namespace IdleExplorers.Backend
 
         /// <summary>Ask the server how it went. It decides, from its own health value.</summary>
         Awaitable<EncounterResult> ResolveBossAsync(string characterId);
+
+        /// <summary>
+        /// Walks out of a fight without finishing it.
+        ///
+        /// Not the same as resolving: this removes ONE fighter, and the encounter ends
+        /// only if it removed the last. One person leaving a four-person fight must not
+        /// end it for the other three.
+        ///
+        /// Without it, leaving the arena left a live encounter row behind -- and the
+        /// server then refused every future engage as "already fighting", which is
+        /// what made the King look absent to anybody who had ever walked out or died.
+        /// </summary>
+        Awaitable<FleeResult> FleeBossAsync(string characterId);
+
+        /// <summary>What the group is still rolling for, and what this player already said.</summary>
+        Awaitable<LootRollList> GetLootRollsAsync(string characterId);
+
+        /// <summary>
+        /// Need, greed or pass on one drop.
+        ///
+        /// A word, never a number. The die is rolled on the server from the fight's own
+        /// seed, so it can be re-derived later rather than taken on trust -- and so a
+        /// client cannot roll itself a hundred.
+        /// </summary>
+        Awaitable<LootRollAnswer> AnswerLootRollAsync(string characterId, string rollId, string choice);
 
         /// <summary>Move earned loot from pending into the bag and the wallet.</summary>
         Awaitable<LootClaim> ClaimLootAsync(string characterId);
@@ -401,6 +436,15 @@ namespace IdleExplorers.Backend
         /// asking it three ways would be three times the round trips for one answer.
         /// </summary>
         public WorldMonster[] monsters;
+
+        /// <summary>
+        /// The group, on the same poll, for the same reason the monsters are.
+        ///
+        /// It carries the CALL, which is the part that could not live behind the group
+        /// panel: a call to the throne has to reach three people who are not looking at
+        /// that panel, and this is the only thing every client asks for on a timer.
+        /// </summary>
+        public PartySnapshot  party;
     }
 
     /// <summary>
@@ -490,8 +534,100 @@ namespace IdleExplorers.Backend
         public PartyMember[] members;
         public int           maxMembers;
 
+        /// <summary>
+        /// The group being called somewhere, or null.
+        ///
+        /// Rides along with the roster because the roster is already read every two
+        /// seconds. A call behind its own endpoint would be a second poll to deliver
+        /// something that has to arrive on the first one anyway.
+        /// </summary>
+        public PartyCall     call;
+
         public bool Exists => !string.IsNullOrEmpty(partyId);
         public int  Count  => members?.Length ?? 0;
+
+        /// <summary>True when there is a call worth showing a countdown for.</summary>
+        public bool HasCall => call != null && !string.IsNullOrEmpty(call.callToken);
+    }
+
+    /// <summary>
+    /// "We are going in."
+    ///
+    /// ══ WHY SECONDS AND NOT A TIMESTAMP ═══════════════════════════════════════
+    ///
+    /// Because a browser's clock is a number nobody controls, and four people arriving
+    /// together is the entire point. The server computes the remainder where the row
+    /// lives, and the client counts down from what it was handed -- so being wrong is
+    /// bounded by how long the poll took rather than by how wrong somebody's laptop is.
+    /// </summary>
+    [Serializable]
+    public class PartyCall
+    {
+        /// <summary>
+        /// Which call this is.
+        ///
+        /// A client remembers the last token it acted on, so declining does not get
+        /// asked again on the next poll -- and so somebody who went in, walked back
+        /// out and is standing in the camp is not dragged straight back through the
+        /// door by a call that is technically still live.
+        /// </summary>
+        public string callToken;
+
+        public string mapId;
+        public string monsterId;
+        public string calledBy;
+
+        public double secondsLeft;
+
+        /// <summary>The count has finished. Whoever has not declined travels now.</summary>
+        public bool   travelNow;
+    }
+
+    /// <summary>What leaving a fight did. Both false means there was nothing to leave.</summary>
+    [Serializable]
+    public class FleeResult
+    {
+        public bool left;
+
+        /// <summary>True when this was the last fighter and the encounter closed.</summary>
+        public bool ended;
+    }
+
+    /// <summary>One contested drop, as one member of the group sees it.</summary>
+    [Serializable]
+    public class LootRollOffer
+    {
+        public string rollId;
+        public string itemId;
+        public long   quantity;
+
+        public double secondsLeft;
+
+        /// <summary>Empty until this player answers. Their own answer only, never anybody else's.</summary>
+        public string myChoice;
+
+        /// <summary>What they rolled, once they have. Zero before that.</summary>
+        public int    myRoll;
+
+        public bool Answered => !string.IsNullOrEmpty(myChoice);
+    }
+
+    [Serializable]
+    public class LootRollList
+    {
+        public LootRollOffer[] rolls;
+
+        public int Count => rolls?.Length ?? 0;
+    }
+
+    [Serializable]
+    public class LootRollAnswer
+    {
+        /// <summary>False when the answer arrived after the roll had already been decided.</summary>
+        public bool answered;
+
+        public int  roll;
+        public bool settled;
     }
 
     [Serializable]

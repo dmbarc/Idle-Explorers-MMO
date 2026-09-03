@@ -55,6 +55,13 @@ public class CharacterManager : MonoBehaviour
         // adopted by nothing and the map stands empty until the second.
         MonsterSync.Attach(gameObject);
 
+        // And the group, which arrives in the same answer as well. A throne call has
+        // to reach somebody who is not looking at the group panel -- that is the whole
+        // reason it exists -- so the listener is hooked here, once, for the life of
+        // the session rather than for the life of a screen.
+        ThroneCallModal.Listen();
+        LootRollModal.Listen();
+
         // And the reporter. Attached LAST but hooking the whole process: its error
         // handler is Application.logMessageReceived, which catches an exception
         // wherever it was thrown -- including inside Unity's own systems and inside

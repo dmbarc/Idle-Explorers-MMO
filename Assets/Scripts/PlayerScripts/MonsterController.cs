@@ -2,8 +2,11 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class MonsterController : MonoBehaviour
+public class MonsterController : MonoBehaviour, ICombatTarget
 {
+    /// <summary>What a player would call it. See ICombatTarget.</summary>
+    public string TargetName => _data != null ? _data.DisplayName : name;
+
     private Transform    player;
     private SpriteFacing _facing;
     private PlayerController playerController;  // cached — avoids GetComponent every frame

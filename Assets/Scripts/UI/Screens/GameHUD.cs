@@ -193,6 +193,12 @@ public class GameHUD : UIScreen
         UIFactory.Button(navStack.transform, "SHP", () => GameManager.UI?.Push<ShopPanel>(), width: 54f);
         UIFactory.Button(navStack.transform, "MRG", () => GameEvents.FireToast("Merge board — coming in Phase 5"), width: 54f);
         UIFactory.Button(navStack.transform, "MAP", () => GameManager.UI?.Push<TravelPanel>(), width: 54f);
+
+        // Hidden everywhere except a room you were let into. See LeaveRoomButton --
+        // the throne had no exit at all short of dying, and the MAP button beside it
+        // deliberately refuses to list a portalOnly map, so this is the only way out.
+        LeaveRoomButton.Attach(navStack.transform);
+
     }
 
     /// <summary>

@@ -71,7 +71,7 @@ public class PlayerController : MonoBehaviour
     public float CurrentStamina => currentStamina;
     public float MaxStamina     => maxStamina;
 
-    private MonsterController currentTarget;
+    private ICombatTarget currentTarget;
 
     /// <summary>
     /// The last enemy this character engaged, kept after the target is dropped.
@@ -87,7 +87,7 @@ public class PlayerController : MonoBehaviour
     /// still alive and still in the scene. Nothing else reads this: auto-attack must
     /// keep using currentTarget, or clearing the target would stop meaning anything.
     /// </summary>
-    private MonsterController _lastEngaged;
+    private ICombatTarget _lastEngaged;
 
     /// <summary>
     /// Who a hotbar ability should hit: the current target, or the last one engaged.
@@ -95,7 +95,7 @@ public class PlayerController : MonoBehaviour
     /// Null once they are dead or destroyed, which is when "No target" is the honest
     /// answer rather than a nuisance.
     /// </summary>
-    private MonsterController AbilityTarget
+    private ICombatTarget AbilityTarget
     {
         get
         {
@@ -334,11 +334,11 @@ public class PlayerController : MonoBehaviour
     /// this, one monster stranded on unwalkable ground holds auto-mode hostage forever
     /// — which is exactly what "always go to the enemy" would otherwise guarantee.
     /// </summary>
-    private readonly Dictionary<MonsterController, float> _skipUntil = new();
+    private readonly Dictionary<ICombatTarget, float> _skipUntil = new();
 
     private void FindBestAutoTarget()
     {
-        MonsterController bestMonster = GetBestMonster();
+        ICombatTarget bestMonster = GetBestMonster();
         DropPickup        bestItem    = GetClosestReachableItem();
 
         // Monsters win ties: loot is not going anywhere, and the item is usually
@@ -364,27 +364,43 @@ public class PlayerController : MonoBehaviour
     /// silently, which is the single biggest reason auto-mode "found no target" in a
     /// scene visibly full of them.
     /// </summary>
-    private MonsterController GetBestMonster()
+    private ICombatTarget GetBestMonster()
     {
-        MonsterController best     = null;
-        int               bestTier = -1;
-        float             bestDist = float.MaxValue;
+        ICombatTarget best     = null;
+        int           bestTier = -1;
+        float         bestDist = float.MaxValue;
 
         _pathScratch ??= new NavMeshPath();
 
-        foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+        void Consider(ICombatTarget candidate)
         {
-            if (m == null || !m.IsAlive()) continue;
-            if (_skipUntil.TryGetValue(m, out float until) && Time.time < until) continue;
+            if (candidate == null || !candidate.IsAlive()) return;
+            if (_skipUntil.TryGetValue(candidate, out float until) && Time.time < until) return;
 
-            float dist = Vector3.Distance(transform.position, m.transform.position);
-            int   tier = ReachabilityTier(m.transform.position);
+            float dist = Vector3.Distance(transform.position, candidate.transform.position);
+            int   tier = ReachabilityTier(candidate.transform.position);
 
             if (tier > bestTier || (tier == bestTier && dist < bestDist))
             {
-                bestTier = tier; bestDist = dist; best = m;
+                bestTier = tier; bestDist = dist; best = candidate;
             }
         }
+
+        foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+            Consider(m);
+
+        // ══ AND THE KING ══════════════════════════════════════════════════════
+        //
+        // Two sweeps rather than one because FindObjectsByType needs a concrete
+        // component type, and a boss is deliberately not a MonsterController.
+        //
+        // This line is why auto-mode could not fight the boss. It is also, less
+        // obviously, why a player who walked into the arena and pressed nothing stood
+        // there being cleaved: auto-mode looked for something to fight, found no
+        // MonsterController in a room whose only occupant is a BossController, and
+        // concluded the arena was empty.
+        foreach (var boss in Object.FindObjectsByType<BossController>(FindObjectsInactive.Exclude))
+            Consider(boss);
 
         if (best == null) return null;
 
@@ -400,6 +416,7 @@ public class PlayerController : MonoBehaviour
 
         return best;
     }
+
 
     /// <summary>
     /// 2 = a complete path exists, 1 = only a partial one, 0 = none at all.
@@ -432,7 +449,7 @@ public class PlayerController : MonoBehaviour
     /// making progress, so auto-mode moves on to something it can actually reach and
     /// tries this one again later rather than writing it off permanently.
     /// </summary>
-    private void SkipMonster(MonsterController monster)
+    private void SkipMonster(ICombatTarget monster)
     {
         if (monster == null) return;
         _skipUntil[monster] = Time.time + UnreachableCooldown;
@@ -441,7 +458,7 @@ public class PlayerController : MonoBehaviour
         // does not accumulate one dictionary slot per corpse.
         if (_skipUntil.Count > 32)
         {
-            var stale = new List<MonsterController>();
+            var stale = new List<ICombatTarget>();
             foreach (var kvp in _skipUntil)
                 if (kvp.Key == null || Time.time > kvp.Value) stale.Add(kvp.Key);
             foreach (var key in stale) _skipUntil.Remove(key);
@@ -595,7 +612,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    private void SwitchToMonster(MonsterController newTarget)
+    private void SwitchToMonster(ICombatTarget newTarget)
     {
         currentItemTarget = null;
         ClearNodeTarget();
@@ -697,7 +714,12 @@ public class PlayerController : MonoBehaviour
                 if (lifesteal > 0f) Heal(dealt * lifesteal);
 
                 ItemEffectResolver.Fire("onHit", null);
-                SetBonusResolver.OnDamageDealt(this, struck, dealt);
+                // Cast rather than widened: every set bonus that fires from a hit
+                // does something TO a monster -- throws a piece at it to be picked
+                // back up, siphons its durability, chains to its neighbours. None of
+                // those have a meaning against a boss who drops nothing on the floor
+                // and has no neighbours, so the King simply is not one of them.
+                SetBonusResolver.OnDamageDealt(this, struck as MonsterController, dealt);
             }
             return;
         }
@@ -713,7 +735,7 @@ public class PlayerController : MonoBehaviour
         }
         else if (Time.time - _lastProgressAt > StuckTimeout)
         {
-            Debug.Log($"[PlayerController] Cannot reach {currentTarget.name} " +
+            Debug.Log($"[PlayerController] Cannot reach {currentTarget.TargetName} " +
                       $"({dist:0.#} units away) — trying something else.");
             SkipMonster(currentTarget);
             ClearCombatTarget();
@@ -852,6 +874,31 @@ public class PlayerController : MonoBehaviour
     /// </summary>
     private const float ClickAssistRadius = 0.6f;
 
+    /// <summary>
+    /// Tells the server this character is out of whatever fight it was in.
+    ///
+    /// Quiet on purpose. The player has just died and is being moved; a toast saying
+    /// the encounter could not be closed would be noise about a row they will never
+    /// see, and the row expires at enrage regardless.
+    /// </summary>
+    private static async void LeaveEncounterQuietly()
+    {
+        if (!IdleExplorers.Backend.ServerState.IsAuthoritative) return;
+
+        string characterId = IdleExplorers.Backend.ServerState.CharacterId;
+
+        if (string.IsNullOrEmpty(characterId)) return;
+
+        try
+        {
+            await IdleExplorers.Backend.GameBackend.Current.FleeBossAsync(characterId);
+        }
+        catch (IdleExplorers.Backend.BackendException e)
+        {
+            Debug.LogWarning($"[PlayerController] Could not close the encounter: {e.Message}");
+        }
+    }
+
     private void HandleMouseClick()
     {
         if (Mouse.current == null || Camera.main == null) return;
@@ -928,8 +975,20 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        var monster = hit.collider.GetComponentInParent<MonsterController>();
-        var node    = hit.collider.GetComponentInParent<SkillNodeController>();
+        // ══ THE BOSS IS SOMETHING YOU CAN CLICK ══════════════════════════════
+        //
+        // He was not. Every branch above and below reads a specific component off
+        // whatever the ray hit, and BossController was not one of them -- so clicking
+        // the Goblin King fell all the way through to the "bare ground" case at the
+        // bottom and ordered the player to WALK to where he was standing.
+        //
+        // Taken before the monster lookup for no reason other than that he is the only
+        // thing in his arena; the two can never both match.
+        ICombatTarget monster = hit.collider.GetComponentInParent<BossController>();
+
+        monster ??= hit.collider.GetComponentInParent<MonsterController>();
+
+        var node = hit.collider.GetComponentInParent<SkillNodeController>();
 
         // Only when the ray found bare ground. A near miss on a goblin is a click on
         // the goblin; a click on the goblin's rock is a click on the rock.
@@ -968,7 +1027,7 @@ public class PlayerController : MonoBehaviour
     /// SphereCastAll rather than SphereCast, because the first thing a fattened ray
     /// touches on the way to a goblin is usually the ground it is standing on.
     /// </summary>
-    private void FindNearMiss(Ray ray, out MonsterController monster, out SkillNodeController node)
+    private void FindNearMiss(Ray ray, out ICombatTarget monster, out SkillNodeController node)
     {
         monster = null;
         node    = null;
@@ -978,7 +1037,13 @@ public class PlayerController : MonoBehaviour
 
         foreach (var candidate in hits)
         {
-            var m = candidate.collider.GetComponentInParent<MonsterController>();
+            // The boss first, for the same reason as above: he is alone in his room,
+            // and a click-assist that could brush past him would be a click-assist
+            // that makes the King harder to hit than a goblin.
+            ICombatTarget m = candidate.collider.GetComponentInParent<BossController>();
+
+            m ??= candidate.collider.GetComponentInParent<MonsterController>();
+
             var n = candidate.collider.GetComponentInParent<SkillNodeController>();
             if (m == null && n == null) continue;
 
@@ -1267,6 +1332,20 @@ public class PlayerController : MonoBehaviour
 
             GameEvents.OnPlayerHealthChanged?.Invoke(currentHealthPoints, maxHealthPoints);
             GameEvents.FireToast("You wake up outside the throne.", ChatTone.Warning);
+
+            // ══ AND THE FIGHT IS CLOSED BEHIND YOU ════════════════════════════
+            //
+            // Dying did not end the encounter. Nothing did -- the fail condition is
+            // the enrage clock, so the server had no idea the player had fallen over,
+            // and the row stayed live with their name on it. Every engage after that
+            // was refused as "already fighting" until the clock ran out, which from
+            // inside the client is an arena with no boss, no telegraphs and nothing to
+            // hit. That one open row is most of what "the boss is broken" meant.
+            //
+            // Fire and forget: the travel below must not wait on a round trip, and a
+            // failure costs a stale row that expires on its own rather than a player
+            // stuck standing in a throne room.
+            LeaveEncounterQuietly();
 
             GameManager.Zone?.EnterMap(GameManager.StartingMapId);
             return;
@@ -1683,7 +1762,7 @@ public class PlayerController : MonoBehaviour
             case "damage":
             {
                 // The last enemy engaged, when nothing is selected -- see AbilityTarget.
-                MonsterController victim = AbilityTarget;
+                ICombatTarget victim = AbilityTarget;
 
                 if (victim == null)
                 {
@@ -1702,7 +1781,7 @@ public class PlayerController : MonoBehaviour
                 for (int i = 0; i < strikes && currentTarget != null && currentTarget.IsAlive(); i++)
                 {
                     double blow = AttackDamage * power;
-                    currentTarget.TakeDamage(blow);
+                    currentTarget.TakeDamage(blow, false);
                     dealt += blow;
                 }
 
@@ -1716,13 +1795,25 @@ public class PlayerController : MonoBehaviour
             case "aoe":
             {
                 int hits = 0;
-                foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+
+                void Sweep(ICombatTarget victim)
                 {
-                    if (!m.IsAlive()) continue;
-                    if (Vector3.Distance(transform.position, m.transform.position) > ability.aoeRadius) continue;
-                    m.TakeDamage(AttackDamage * power);
+                    if (victim == null || !victim.IsAlive()) return;
+                    if (Vector3.Distance(transform.position, victim.transform.position) > ability.aoeRadius) return;
+
+                    victim.TakeDamage(AttackDamage * power, false);
                     hits++;
                 }
+
+                foreach (var m in Object.FindObjectsByType<MonsterController>(FindObjectsInactive.Exclude))
+                    Sweep(m);
+
+                // A whirlwind that hit everything in the arena except the only thing in
+                // it would be a strange ability. Bladestorm already sweeps bosses; this
+                // was the branch that did not.
+                foreach (var boss in Object.FindObjectsByType<BossController>(FindObjectsInactive.Exclude))
+                    Sweep(boss);
+
                 if (hits == 0) { Explain("Nothing in range."); return false; }
                 return true;
             }
@@ -1871,7 +1962,7 @@ public class PlayerController : MonoBehaviour
     /// between the character's minimum and maximum hit, can crit, and is reduced by
     /// the target's armour.
     /// </summary>
-    private double StrikeMonster(MonsterController target)
+    private double StrikeMonster(ICombatTarget target)
     {
         if (target == null) return 0d;
 
@@ -1914,7 +2005,7 @@ public class PlayerController : MonoBehaviour
     /// The return value is what was fired, for the caller's lifesteal and logging.
     /// Nothing has actually landed yet.
     /// </summary>
-    private double FireVolley(MonsterController target, DamageProfile profile, int shots)
+    private double FireVolley(ICombatTarget target, DamageProfile profile, int shots)
     {
         double armour = StatBlock.DamageThrough(target.Armor);
         double total  = 0d;

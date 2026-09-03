@@ -187,6 +187,43 @@ public class PortalGroupModal : UIScreen
 
         Say("Opening the way…");
 
+        // ══ A GROUP GOES IN TOGETHER ══════════════════════════════════════════
+        //
+        // Pressing this used to take exactly one person through, and the other three
+        // stood in the camp watching them vanish -- so four people fighting a
+        // four-person boss had to count down out loud in chat and all click the same
+        // stone within a second of each other.
+        //
+        // Now it raises a CALL: everybody in the group sees the same countdown and can
+        // step out of it. See ThroneCallModal for why it is an offer rather than a
+        // teleport.
+        //
+        // The gate is still checked per person, at engage, by the server. Being called
+        // through a door is not the same as being allowed through it, and somebody
+        // who followed the group in without their own thousand kills is refused there
+        // -- which is the right place for it, because it is the only place that
+        // cannot be got round.
+        PartySnapshot party = await ServerState.GetPartyAsync();
+
+        if (party != null && party.Count > 1)
+        {
+            // Asked first, and its answer is what decides. A call that pulled three
+            // people into an arena the caller could not enter would be a group
+            // teleport with no boss at the end of it.
+            bool open = await Target.TryOpenAsync(GameBackend.Current, ServerState.CharacterId);
+
+            if (!open) { Say(""); return; }
+
+            await ServerState.CallPartyAsync(Target.destinationMapId, Target.gateMonsterId);
+
+            Say("The group has been called.");
+
+            // Left open deliberately: the countdown appears over the top of it, and
+            // popping this as well would take two screens away at once for a player
+            // who has not decided anything yet.
+            return;
+        }
+
         // The gate is checked by the SERVER inside this call. The count drawn above is
         // a mirror and could be behind; the refusal that matters comes from there.
         bool entered = await Target.TryEnterAsync(GameBackend.Current, ServerState.CharacterId);

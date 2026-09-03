@@ -199,6 +199,17 @@ public class GroupEncounterTests(ApiFixture api)
     ///
     /// Read from the participants rather than from the party, because the party is
     /// what it is NOW and the fight is what it WAS.
+    ///
+    /// ══ WHAT "PAID" MEANS FOR A GROUP ═════════════════════════════════════════
+    ///
+    /// Experience, in full, to everybody -- splitting it would make a group strictly
+    /// worse than soloing for anybody who could manage it.
+    ///
+    /// Items, ONCE, put up for a roll. This test used to assert that the second
+    /// fighter had loot waiting, and that assertion was the old bug written down: the
+    /// fight rolled its whole table separately for each of them, so four people
+    /// killing the King produced four Goblin Spears and the rarest thing in the game
+    /// was the one everybody had by the second clear.
     /// </summary>
     [SkippableFact]
     public async Task EverybodyWhoFoughtIsRewarded()
@@ -233,9 +244,14 @@ public class GroupEncounterTests(ApiFixture api)
 
         Assert.True(done.GetProperty("won").GetBoolean(), "the group did not manage to kill it");
 
-        // The one who never pressed resolve still has loot waiting and experience paid.
-        Assert.True(await PendingCount(b) > 0L, "the second fighter got no loot");
-        Assert.True(await XpOf(b) > beforeB,    "the second fighter got no experience");
+        // The one who never pressed resolve has experience paid...
+        Assert.True(await XpOf(b) > beforeB, "the second fighter got no experience");
+
+        // ...and a share of the argument, rather than a private copy of the drops.
+        Assert.True(await OpenRolls(a) > 0L, "a group kill offered nothing to roll for");
+
+        Assert.Equal(0L, await PendingCount(a));
+        Assert.Equal(0L, await PendingCount(b));
     }
 
     /// <summary>
@@ -378,4 +394,12 @@ public class GroupEncounterTests(ApiFixture api)
 
     private Task<long> XpOf(Guid character) => Scalar(
         "select xp from character where id = $1;", character);
+
+    /// <summary>Contested drops from the fight this character was in.</summary>
+    private Task<long> OpenRolls(Guid character) => Scalar(
+        """
+        select count(*) from loot_roll r
+        join encounter_participant p on p.encounter_id = r.encounter_id
+        where p.character_id = $1;
+        """, character);
 }

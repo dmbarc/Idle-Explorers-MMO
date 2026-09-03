@@ -119,6 +119,9 @@ namespace IdleExplorers.Backend
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
             _remote.LeavePartyAsync(characterId);
 
+        public Awaitable<PartySnapshot> CallPartyAsync(string characterId, string mapId, string monsterId) =>
+            _remote.CallPartyAsync(characterId, mapId, monsterId);
+
         public async Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z)
         {
             await _local.SaveLocationAsync(characterId, mapId, x, z);
@@ -255,6 +258,16 @@ namespace IdleExplorers.Backend
 
         public Awaitable<EncounterResult> ResolveBossAsync(string characterId) =>
             _remote.ResolveBossAsync(characterId);
+
+        public Awaitable<FleeResult> FleeBossAsync(string characterId) =>
+            _remote.FleeBossAsync(characterId);
+
+        public Awaitable<LootRollList> GetLootRollsAsync(string characterId) =>
+            _remote.GetLootRollsAsync(characterId);
+
+        public Awaitable<LootRollAnswer> AnswerLootRollAsync(string characterId, string rollId,
+                                                             string choice) =>
+            _remote.AnswerLootRollAsync(characterId, rollId, choice);
 
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             _remote.ClaimLootAsync(characterId);

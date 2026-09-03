@@ -101,6 +101,10 @@ namespace IdleExplorers.Backend
         public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
             SendAsync<PartySnapshot>("DELETE", $"/party/{characterId}", null);
 
+        public Awaitable<PartySnapshot> CallPartyAsync(string characterId, string mapId, string monsterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}/call",
+                                     new CallBody { mapId = mapId, monsterId = monsterId });
+
         public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
             PostAsync<UseItemResult>($"/activity/{characterId}/use", new ItemBody { itemId = itemId });
 
@@ -179,6 +183,17 @@ namespace IdleExplorers.Backend
 
         public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
             PostAsync<LootClaim>($"/encounter/{characterId}/loot", null);
+
+        public Awaitable<FleeResult> FleeBossAsync(string characterId) =>
+            PostAsync<FleeResult>($"/encounter/{characterId}/flee", null);
+
+        public Awaitable<LootRollList> GetLootRollsAsync(string characterId) =>
+            GetAsync<LootRollList>($"/encounter/{characterId}/rolls");
+
+        public Awaitable<LootRollAnswer> AnswerLootRollAsync(string characterId, string rollId,
+                                                             string choice) =>
+            PostAsync<LootRollAnswer>($"/encounter/{characterId}/rolls/{rollId}",
+                                      new ChoiceBody { choice = choice });
 
         public Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId) =>
             PostAsync<CharacterSnapshot>($"/equipment/{characterId}/equip",
@@ -366,6 +381,8 @@ namespace IdleExplorers.Backend
         [Serializable] private class NodeBody            { public string nodeId; }
         [Serializable] private class RecipeBody          { public string recipeId; }
         [Serializable] private class MonsterBody         { public string monsterId; }
+        [Serializable] private class CallBody            { public string mapId; public string monsterId; }
+        [Serializable] private class ChoiceBody          { public string choice; }
         [Serializable] private class GradesBody          { public string[] grades; }
         [Serializable] private class EquipBody           { public string itemId; public string slotId; }
         [Serializable] private class SlotBody            { public string slotId; }

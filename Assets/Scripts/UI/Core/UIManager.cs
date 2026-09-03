@@ -172,6 +172,20 @@ public class UIManager : MonoBehaviour
         return screen;
     }
 
+    /// <summary>
+    /// Whether a screen of this kind is on the stack.
+    ///
+    /// For the callers that are told to open something by an EVENT rather than by a
+    /// keypress -- a group call arriving on a poll -- and must not stack a second copy
+    /// of it on the next poll two seconds later.
+    /// </summary>
+    public bool IsOpen<T>() where T : UIScreen
+    {
+        foreach (var screen in _screenStack) if (screen is T) return true;
+
+        return false;
+    }
+
     public void Pop()
     {
         if (_screenStack.Count == 0) return;

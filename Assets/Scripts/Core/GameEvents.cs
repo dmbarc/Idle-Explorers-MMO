@@ -95,8 +95,25 @@ public static class GameEvents
     // the top of the screen, phases with names, and a clock -- none of which a goblin
     // has, and all of which the HUD needs told rather than polled for.
 
-    /// <summary>A boss fight began. (displayName, maxHealth)</summary>
-    public static Action<string, float>   OnBossEngaged;
+    /// <summary>
+    /// A boss fight began. (displayName, maxHealth, secondsUntilEnrage)
+    ///
+    /// The clock is carried rather than looked up, because a player who JOINED a
+    /// fight already in progress has less of it left than the content file says. The
+    /// bar used to read the monster catalogue and start a fresh five minutes for
+    /// everybody, so the third person through the door watched a countdown that had
+    /// nothing to do with the one the fight was actually running on.
+    /// </summary>
+    public static Action<string, float, float> OnBossEngaged;
+
+    /// <summary>
+    /// The group changed, or a call was raised in it. Null when ungrouped.
+    ///
+    /// Raised off the presence poll, which is the only thing every client does on a
+    /// timer -- so a call reaches somebody who is not looking at the group panel,
+    /// which is the entire reason the call exists.
+    /// </summary>
+    public static Action<IdleExplorers.Backend.PartySnapshot> OnPartyChanged;
 
     /// <summary>Its health moved. (fraction 0-1)</summary>
     public static Action<float>           OnBossHealthChanged;
@@ -156,7 +173,11 @@ public static class GameEvents
 
     public static void FireMonsterKilled(string monsterId)           => OnMonsterKilled?.Invoke(monsterId);
 
-    public static void FireBossEngaged(string name, float maxHealth)  => OnBossEngaged?.Invoke(name, maxHealth);
+    public static void FireBossEngaged(string name, float maxHealth, float enrageSeconds)
+        => OnBossEngaged?.Invoke(name, maxHealth, enrageSeconds);
+
+    public static void FirePartyChanged(IdleExplorers.Backend.PartySnapshot party)
+        => OnPartyChanged?.Invoke(party);
     public static void FireBossHealthChanged(float fraction)          => OnBossHealthChanged?.Invoke(fraction);
     public static void FireBossPhaseChanged(string phase, float hp)   => OnBossPhaseChanged?.Invoke(phase, hp);
     public static void FireBossDefeated(string monsterId)             => OnBossDefeated?.Invoke(monsterId);
@@ -218,6 +239,7 @@ public static class GameEvents
         OnMonsterKilled          = null;
         OnKillCountChanged       = null;
         OnBossEngaged            = null;
+        OnPartyChanged           = null;
         OnBossHealthChanged      = null;
         OnBossPhaseChanged       = null;
         OnBossDefeated           = null;

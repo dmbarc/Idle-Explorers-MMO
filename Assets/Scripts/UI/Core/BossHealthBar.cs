@@ -67,7 +67,7 @@ public class BossHealthBar : MonoBehaviour
 
     // ── Reacting ──────────────────────────────────────────────────────────────
 
-    private void OnEngaged(string bossName, float maxHealth)
+    private void OnEngaged(string bossName, float maxHealth, float enrageSeconds)
     {
         Build();
 
@@ -76,10 +76,15 @@ public class BossHealthBar : MonoBehaviour
         _value      = 1f;
         _chipValue  = 1f;
 
+        // ══ THE CLOCK IS THE FIGHT'S, NOT THE CATALOGUE'S ═══════════════════
+        //
+        // This used to read enrageSeconds out of the monster file and start a fresh
+        // countdown. That is right for whoever opened the door and wrong for everybody
+        // who followed them in: a group fight has ONE clock, and the third person
+        // through it has however much of it is left, not all of it.
+        _enrageEndsAt = enrageSeconds > 0f ? Time.time + enrageSeconds : -1f;
+
         var monster = GameManager.Content?.GetMonster(GameManager.Zone?.CurrentMap?.defaultMonsterId);
-        _enrageEndsAt = monster is { enrageSeconds: > 0f }
-            ? Time.time + monster.enrageSeconds
-            : -1f;
 
         BuildPips(monster);
 

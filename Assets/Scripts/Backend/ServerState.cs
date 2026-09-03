@@ -594,6 +594,17 @@ namespace IdleExplorers.Backend
             backend => backend.LeavePartyAsync(CharacterId));
 
         /// <summary>
+        /// Calls the group to a map, after a countdown everybody in it can see.
+        ///
+        /// The answer is the party as it now stands, with the call on it -- but nobody
+        /// waits for that answer to act: every client, including this one, learns about
+        /// the call on the presence poll, so all four count down to the same stored
+        /// moment rather than to whenever their own request happened to return.
+        /// </summary>
+        public static async Awaitable<PartySnapshot> CallPartyAsync(string mapId, string monsterId) =>
+            await PartyCallAsync(backend => backend.CallPartyAsync(CharacterId, mapId, monsterId));
+
+        /// <summary>
         /// One shape for all four, so the refusal handling is written once.
         ///
         /// Returns null on a refusal, having already said why. "Group is full" and

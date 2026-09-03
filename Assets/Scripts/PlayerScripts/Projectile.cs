@@ -46,7 +46,7 @@ public class Projectile : MonoBehaviour
 
     private const float Size = 0.28f;
 
-    private MonsterController _target;
+    private ICombatTarget _target;
     private double            _damage;
     private bool              _wasCrit;
     private float             _bornAt;
@@ -63,7 +63,7 @@ public class Projectile : MonoBehaviour
     /// Sideways offset for a multi-shot fan, in metres at the muzzle. The Trisong Bow
     /// fires three, and three arrows on identical paths read as one arrow.
     /// </param>
-    public static Projectile Launch(Vector3 from, MonsterController target,
+    public static Projectile Launch(Vector3 from, ICombatTarget target,
                                     double damage, bool wasCrit, float spread = 0f)
     {
         if (target == null) return null;
