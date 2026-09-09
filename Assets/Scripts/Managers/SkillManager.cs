@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Manages all 13 skill levels and XP for the active character.
@@ -16,35 +17,58 @@ public class SkillManager : MonoBehaviour
         var ch = CharacterManager.Current;
         if (ch == null) return;
 
-        if (!ch.skillXP.ContainsKey(skillId))    ch.skillXP[skillId]    = 0;
-        if (!ch.skillLevels.ContainsKey(skillId)) ch.skillLevels[skillId] = 1;
+        // Talent XP bonus is applied here, at the single choke point every source of
+        // skill XP passes through — live gathering, crafting, combat and offline
+        // accrual alike. Applying it at the call sites would mean finding all of them
+        // again every time a new one appears.
+        float xpMultiplier = TalentManager.Multiplier(TalentManager.SkillXpPercent);
 
-        ch.skillXP[skillId] += amount;
+        // Class affinity for THIS skill. A Warrior smiths faster than a Sorcerer does,
+        // and with cross-speccing a Warrior/Tinkerer smiths faster than either — which
+        // is the point of letting affinities stack.
+        xpMultiplier *= GameManager.Stats?.SkillMultiplier(skillId) ?? 1f;
+
+        // Momentum: the reward for staying on one thing rather than flitting between
+        // them. Zero for the first minutes after a switch, full after ten.
+        xpMultiplier *= 1f + (GameManager.Activity?.MomentumBonus ?? 0f);
+
+        if (xpMultiplier > 1f) amount = (long)(amount * xpMultiplier);
+
+        var progress = ch.GetOrCreateSkill(skillId);
+        progress.xp += amount;
         GameEvents.OnSkillXPGained?.Invoke(skillId, amount);
 
-        int newLevel = XPToSkillLevel(ch.skillXP[skillId]);
-        if (newLevel > ch.skillLevels[skillId])
+        // Character XP is a quarter of ALL skill XP, from every skill.
+        //
+        // It used to come from combat kills alone, granted at the two places kills are
+        // awarded. A character who mined, fished and cooked exclusively therefore
+        // stayed at level 1 for as long as they played — which, now that talent points
+        // come from character level, would have meant an entire playstyle never
+        // earning a single talent point. One rule, applied wherever skill XP lands.
+        GameManager.Character?.AddXP(Levelling.CharacterXpFromSkillXp(amount));
+
+        int newLevel = XPToSkillLevel(progress.xp);
+        if (newLevel > progress.level)
         {
-            int old = ch.skillLevels[skillId];
-            ch.skillLevels[skillId] = newLevel;
+            int old = progress.level;
+            progress.level = newLevel;
             GameEvents.OnSkillLevelUp?.Invoke(skillId, newLevel);
-            GameEvents.FireToast($"⬆ {SkillDisplayName(skillId)}: {old} → {newLevel}");
+            GameManager.Audio?.Play(Sfx.SkillUp);
+            GameEvents.FireToast($"⬆ {SkillDisplayName(skillId)}: {old} → {newLevel}", ChatTone.Good);
             CheckMilestones(skillId, old, newLevel);
         }
     }
 
     public int GetSkillLevel(string skillId)
     {
-        var ch = CharacterManager.Current;
-        if (ch == null) return 1;
-        return ch.skillLevels.TryGetValue(skillId, out int lvl) ? lvl : 1;
+        var progress = CharacterManager.Current?.GetSkill(skillId);
+        return progress?.level ?? 1;
     }
 
     public long GetSkillXP(string skillId)
     {
-        var ch = CharacterManager.Current;
-        if (ch == null) return 0;
-        return ch.skillXP.TryGetValue(skillId, out long xp) ? xp : 0;
+        var progress = CharacterManager.Current?.GetSkill(skillId);
+        return progress?.xp ?? 0;
     }
 
     public long XPToNextSkillLevel(string skillId)
@@ -54,19 +78,15 @@ public class SkillManager : MonoBehaviour
         return SkillLevelToXP(current + 1) - GetSkillXP(skillId);
     }
 
-    // ── XP Table (skill-specific, 1–999) ─────────────────────────────────────
-    // Same formula as CharacterManager but for skill levels:
-    // XP for level L ≈ L^2 * 100 (roughly OSRS-like but for 999 cap)
-    public static int XPToSkillLevel(long totalXP)
-    {
-        return Mathf.Clamp(1 + Mathf.FloorToInt(Mathf.Sqrt(totalXP / 100f)), 1, 999);
-    }
+    // ── XP table ──────────────────────────────────────────────────────────────
+    //
+    // Same shape as the character curve with a different divisor, and both now live
+    // in the shared rules tree. They were two copies in two files, which is how the
+    // divisors came to differ by accident before the difference was deliberate.
 
-    public static long SkillLevelToXP(int level)
-    {
-        level = Mathf.Clamp(level, 1, 999);
-        return (long)(level - 1) * (level - 1) * 100;
-    }
+    public static int XPToSkillLevel(long totalXP) => Levelling.SkillLevel(totalXP);
+
+    public static long SkillLevelToXP(int level) => Levelling.SkillXpFor(level);
 
     // ── Milestones ────────────────────────────────────────────────────────────
     private void CheckMilestones(string skillId, int oldLevel, int newLevel)
@@ -94,6 +114,6 @@ public class SkillManager : MonoBehaviour
     private string SkillDisplayName(string skillId)
     {
         var data = GameManager.Content?.GetSkill(skillId);
-        return data?.displayName ?? skillId;
+        return data?.DisplayName ?? skillId;
     }
 }

@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IdleExplorers.Rules/IdleExplorers.Rules.csproj" />
+    <Project Path="src/IdleExplorers.Content/IdleExplorers.Content.csproj" />
+    <Project Path="src/IdleExplorers.Api/IdleExplorers.Api.csproj" />
+    <Project Path="src/IdleExplorers.LoadSim/IdleExplorers.LoadSim.csproj" />
+    <Project Path="src/IdleExplorers.Tools/IdleExplorers.Tools.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IdleExplorers.Rules.Tests/IdleExplorers.Rules.Tests.csproj" />
+    <Project Path="tests/IdleExplorers.Content.Tests/IdleExplorers.Content.Tests.csproj" />
+    <Project Path="tests/IdleExplorers.Database.Tests/IdleExplorers.Database.Tests.csproj" />
+    <Project Path="tests/IdleExplorers.Api.Tests/IdleExplorers.Api.Tests.csproj" />
+  </Folder>
+</Solution>

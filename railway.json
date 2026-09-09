@@ -1,0 +1,112 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+
+  "//deprecation": [
+    "Railway calls this Config as Code and says it is deprecated in favour of",
+    "Infrastructure as Code (.railway/railway.ts), with these files working until",
+    "2026-12-01.",
+    "",
+    "NOT MIGRATED, deliberately. The TypeScript format has no documented field for a",
+    "Dockerfile path -- its `build` option is a build COMMAND -- and `railway config",
+    "migrate` confirms it: the generated file comments dockerfilePath and builder out",
+    "rather than translating them. Migrating today would silently lose the one setting",
+    "this project cannot do without, because the build context has to be the repo root.",
+    "",
+    "TODO(before 2026-12-01): migrate once the IaC reference documents a Dockerfile",
+    "path, or move the whole build to a prebuilt image pushed to a registry, which the",
+    "IaC format does support through `source`."
+  ],
+
+  "build": {
+    "builder": "DOCKERFILE",
+
+    "//dockerfilePath": [
+      "Relative to the REPOSITORY ROOT, which is also the build context.",
+      "",
+      "The Dockerfile copies Assets/Scripts/Rules and Assets/StreamingAssets, both of",
+      "which live outside server/. So the context has to be the root, and this file",
+      "sits at the root so Railway uses the root. Moving either one breaks the build",
+      "with a COPY error naming a path that plainly exists.",
+      "",
+      "The previous host's config got this wrong in exactly that way."
+    ],
+    "dockerfilePath": "server/Dockerfile"
+  },
+
+  "deploy": {
+    "//numReplicas": [
+      "ONE, deliberately and permanently.",
+      "",
+      "A single small machine serves three hundred players of an idle game",
+      "comfortably -- measured, 763 requests a second with a settle p99 of 61ms. More",
+      "replicas would also multiply the bill, which is the thing this whole host",
+      "choice exists to keep predictable."
+    ],
+    "numReplicas": 1,
+
+    "//healthcheckPath": [
+      "/readyz touches the database, so it answers the question the platform is",
+      "actually asking: should traffic be routed here. /healthz is liveness only and",
+      "is what the container's own HEALTHCHECK uses -- a server that cannot reach",
+      "Postgres is still alive, and restarting it would turn a database blip into a",
+      "restart loop."
+    ],
+    "healthcheckPath": "/readyz",
+    "healthcheckTimeout": 30,
+
+    "//restartPolicyType": [
+      "Restart on failure, but bounded. An unbounded retry against a misconfiguration",
+      "-- a bad connection string, a missing JWT secret -- is a container that burns",
+      "compute forever while never becoming healthy, and compute is billed."
+    ],
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10,
+
+    "//region": [
+      "US East (Virginia), because Supabase is in AWS us-east-2 (Ohio).",
+      "",
+      "The service defaulted to EU West, which puts the Atlantic between the API and",
+      "its database: roughly 85ms per query instead of 10-15. Settlement issues several",
+      "queries per request, so that is the difference between a snappy API and a",
+      "sluggish one on every single call -- and it would have looked like slow code",
+      "rather than a misplaced container.",
+      "",
+      "Pinned here rather than left as a dashboard setting so it survives the service",
+      "being recreated, and so the reason travels with the value."
+    ],
+    "region": "us-east4-eqdc4a",
+
+    "//ipv6EgressEnabled": [
+      "Supabase direct connections are IPv6-ONLY on projects created after early 2024.",
+      "db.<ref>.supabase.co has an AAAA record and no A record at all, so a container",
+      "without IPv6 egress fails instantly with network-unreachable -- which presents",
+      "as a health check failing in under two milliseconds, far too fast to look like",
+      "a network problem and easy to mistake for a crash.",
+      "",
+      "The fallback, if a platform cannot do IPv6, is Supabase's pooler in SESSION mode",
+      "at aws-0-<region>.pooler.supabase.com:5432 with the username postgres.<ref>.",
+      "Session mode, not transaction mode on 6543: settlement holds a transaction open",
+      "across several statements and takes row locks, which transaction pooling breaks."
+    ],
+    "ipv6EgressEnabled": true,
+
+    "//multiRegionConfig": [
+      "THIS is what actually places the service. `region` above does not.",
+      "",
+      "The service was created in EU West, which set multiRegionConfig to ams, and",
+      "that field takes precedence -- so `region: us-east4-eqdc4a` was accepted,",
+      "written into the manifest, and ignored on every deploy. The container kept",
+      "running in Amsterdam with the config insisting otherwise.",
+      "",
+      "Both are set, and to the same place, because a config that disagrees with",
+      "itself is how this went unnoticed in the first place.",
+      "",
+      "Verified by reading the DEPLOYED manifest, not by reading this file. A check",
+      "that the config says us-east is not a check that the container is in us-east,",
+      "which is precisely the mistake that let it sit in the wrong hemisphere."
+    ],
+    "multiRegionConfig": {
+      "us-east4-eqdc4a": { "numReplicas": 1 }
+    }
+  }
+}

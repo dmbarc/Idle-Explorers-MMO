@@ -1,0 +1,23 @@
+[
+  { "classIds": ["warrior", "sorcerer"],  "name": "Paladin",        "description": "Steel that prays, and is answered." },
+  { "classIds": ["warrior", "ranger"],    "name": "Vanguard",       "description": "First through the door and first to see the trap." },
+  { "classIds": ["warrior", "tinkerer"],  "name": "Juggernaut",     "description": "Armor with opinions and a maintenance schedule." },
+  { "classIds": ["warrior", "specter"],   "name": "Revenant",       "description": "Refuses to fall, and has stopped being asked to." },
+  { "classIds": ["ranger", "sorcerer"],   "name": "Arcane Archer",  "description": "Every arrow arrives already having been somewhere else." },
+  { "classIds": ["ranger", "tinkerer"],   "name": "Trapper",        "description": "The fight was over before either of you arrived." },
+  { "classIds": ["ranger", "specter"],    "name": "Nightstalker",   "description": "You will hear the bowstring. That is all you will hear." },
+  { "classIds": ["sorcerer", "tinkerer"], "name": "Artificer",      "description": "Magic, but with a parts list and a warranty." },
+  { "classIds": ["sorcerer", "specter"],  "name": "Necromancer",    "description": "Extremely popular with a very specific demographic." },
+  { "classIds": ["tinkerer", "specter"],  "name": "Soulsmith",      "description": "Fits ghosts with hardware. Nobody asked it to." },
+
+  { "classIds": ["warrior", "ranger", "sorcerer"],   "name": "Battle Sage",    "description": "Three answers to every question, all of them loud." },
+  { "classIds": ["warrior", "ranger", "tinkerer"],   "name": "Warden",         "description": "Holds ground, watches the treeline, repairs the fence." },
+  { "classIds": ["warrior", "ranger", "specter"],    "name": "Doomhunter",     "description": "Tracks it, corners it, and outlasts it." },
+  { "classIds": ["warrior", "sorcerer", "tinkerer"], "name": "Runeforged",     "description": "Hammered, enchanted, and then hammered again." },
+  { "classIds": ["warrior", "sorcerer", "specter"],  "name": "Death Knight",   "description": "The oath outlived the knight who swore it." },
+  { "classIds": ["warrior", "tinkerer", "specter"],  "name": "Bonewright",     "description": "Builds things out of what is left over." },
+  { "classIds": ["ranger", "sorcerer", "tinkerer"],  "name": "Wayfinder",      "description": "Has been everywhere and taken notes on all of it." },
+  { "classIds": ["ranger", "sorcerer", "specter"],   "name": "Veilstalker",    "description": "Walks between, and hunts on both sides." },
+  { "classIds": ["ranger", "tinkerer", "specter"],   "name": "Grave Warden",   "description": "Keeps the quiet places quiet." },
+  { "classIds": ["sorcerer", "tinkerer", "specter"], "name": "Aethermancer",   "description": "Treats the boundary between worlds as an engineering problem." }
+]

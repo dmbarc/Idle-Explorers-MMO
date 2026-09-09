@@ -1,0 +1,503 @@
+using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+
+/// <summary>
+/// Builds Assets/Resources/IconLibrary.asset by matching item and skill ids to
+/// sprites already imported in the art packs.
+///
+/// The mapping is by sprite file name rather than by path, so re-importing or
+/// moving a pack does not break it. Ids with no sensible match are left out on
+/// purpose — they fall back to generated placeholder icons at runtime.
+///
+/// Menu: Idle Explorers → Rebuild Icon Library
+/// </summary>
+public static class IconLibrarySetup
+{
+    private const string ASSET_PATH = "Assets/Resources/IconLibrary.asset";
+
+    /// <summary>itemId → sprite file name (no extension), best available match.</summary>
+    /// <summary>
+    /// itemId → sprite file name. EVERY id maps to a DISTINCT sprite; the rebuild
+    /// fails loudly if two ever collide.
+    ///
+    /// Kenney's Voxel Pack leads for resources and weapons — it is the only pack with
+    /// real ore chunks, and its blocky look matches the Kenney low-poly models used
+    /// for the world. Painted packs under Assets/Imports fill what it lacks (ingots,
+    /// jewellery, cooked dishes), since Kenney has no art for those at all.
+    /// </summary>
+    private static readonly Dictionary<string, string> ItemIconNames = new()
+    {
+        // Currency
+        { "coins",         "gold_coins_many" },
+
+        // Relic coins were shop-only until the Goblin King started dropping them, and
+        // a shop balance is a number rather than an item — so they had never needed an
+        // icon. As a drop they appear in a loot list like anything else.
+        { "relic_coins",   "silver_coins_many" },
+
+        // Ores — rough mineral chunks, NOT ingots. Every ore used to share one iron
+        // ingot graphic, which made them indistinguishable and, worse, made raw ore
+        // look like the smelted bar it is supposed to become.
+        { "copper_ore",    "ore_ruby" },
+        { "tin_ore",       "ore_silver" },
+        { "iron_ore",      "ore_iron" },
+        { "coal",          "ore_coal" },
+        { "mithril_ore",   "ore_emerald" },
+        { "gold_ore",      "ore_gold" },
+
+        // Bars — these ARE ingots, which is the whole point of smelting.
+        // Bars. Only two real ingot-stack icons exist across every pack in the
+        // project, so they go to the two metals whose colour they actually match —
+        // tin is silvery, copper is warm — and the rest borrow smithing-adjacent art.
+        { "tin_bar",       "silver_bars" },
+        { "copper_bar",    "gold_bars_three" },
+        { "bronze_bar",    "BlackSmith_Cooling_Barrel" },
+        { "iron_bar",      "stone_blocks_grey" },
+
+        // Wood
+        { "normal_logs",   "wood_log" },
+        { "oak_logs",      "wood_logs_three" },
+        { "willow_logs",   "wood_log_single_birch" },
+
+        // Raw fish. All three previously shared "Pike_1" — a pike POLEARM from the
+        // weapons folder, which is why shrimp looked like a spear.
+        { "raw_shrimp",    "fish_orange" },
+        { "raw_trout",     "fish_green" },
+        { "raw_lobster",   "fish_red" },
+
+        // Cooked food
+        { "shrimp",        "fish_cooked" },
+        { "gritty_shrimp", "fish_orange_skeleton" },   // cooked over tin ore; it did not survive
+        { "trout",         "Potato_Fish_Bowl" },
+        { "lobster",       "Wine_and_Meat" },
+
+        // Combat drops. Five of these had no mapping at all and fell through to
+        // generated placeholders.
+        { "bones",         "bone_white" },
+        { "skull",         "bone_skull" },
+        { "bramble_thorn", "twig_green" },
+        { "hollowcap",     "mushroom_big_red" },
+        { "troll_hide",    "Wool" },
+        { "dragon_bones",  "Skull" },
+        { "dragon_scale",  "Diamond" },
+
+        // Weapons
+        { "iron_sword",    "sword_iron" },
+        { "magic_staff",   "weapon_staff" },
+
+        // ── The class weapons ─────────────────────────────────────────────────
+        //
+        // One per class, forged at the anvil and wearable only by the class it
+        // belongs to. They are the first weapons in the game that draw on the rig,
+        // so the icon and the worn art are two different pictures of the same thing
+        // and both have to be right.
+        { "bulwark_cleaver", "weapon_longsword" },
+        { "windcut_bow",     "weapon_bow_arrow" },
+        { "emberward_rod",   "Hand Scepter 1-0" },
+        { "piston_maul",     "weapon_hammer" },
+        { "grave_pike",      "weapon_spear" },
+
+        // ── The shopkeeper's potions ──────────────────────────────────────────
+        //
+        // Bought with gold rather than relic coins, which makes them the first thing
+        // in the game a player can spend their farming on.
+        { "draught_of_fury",      "Potion" },
+        { "draught_of_swiftness", "flask_half" },
+        { "draught_of_vigour",    "flask_full" },
+        { "kingsbane_tonic",      "bottle_standard_blue" },
+
+        // ── The Goblin King's drops ───────────────────────────────────────────
+        //
+        // Every one of these drew a generated placeholder, which is the worst thing
+        // for the ONE loot table in the game somebody has to earn: a thousand kills, a
+        // five-minute enrage clock, and the reward is a grey square.
+        { "kings_crown",       "crown_gold" },
+        { "goblin_spear",      "weapon_pole" },
+        { "trisong_bow",       "weapon_bow" },
+        { "goblin_slasher",    "weapon_sword" },
+        { "goblin_smasher",    "shield_straight" },
+        { "goblin_destroyer",  "weapon_axe_double" },
+
+        // The project owns no boot or shoe sprite at all — checked, not assumed.
+        // A silver dash at least reads as speed.
+        { "swiftstride_boots", "arrowSilver_right" },   // TODO(art): actual boots
+
+        // Not a King drop, but the last equippable item still on a placeholder.
+        { "tin_buckler",       "shield_curved" },
+
+
+        // ── Bones into weapons ────────────────────────────────────────────────
+        //
+        // Goblins drop bones and nothing consumed them, so a camp farmer ended up
+        // with thousands of an item that did nothing. These are that pile.
+        { "bonecarver",    "sword_bronze" },
+        { "gravewarden",   "New_Shield_01" },
+        { "marrow_reaver", "axe_bronze" },
+
+        // ── The starter sets ──────────────────────────────────────────────────
+        //
+        // Three shapes shared across five classes. The sets are one crude look
+        // wearing five different names, and the project owns exactly six clothing
+        // sprites of which five are already spoken for -- so these are silhouettes
+        // rather than garments, and honestly labelled as placeholders.
+        //
+        // What actually matters here is the WORN art, which they now have: a new
+        // character was being dressed by the server and still looked naked.
+        { "starter_warrior_tunic",            "character" },   // TODO(art)
+        { "starter_warrior_trews",            "pawn" },   // TODO(art)
+        { "starter_warrior_shoes",            "token" },   // TODO(art)
+        { "starter_ranger_tunic",             "character" },   // TODO(art)
+        { "starter_ranger_trews",             "pawn" },   // TODO(art)
+        { "starter_ranger_shoes",             "token" },   // TODO(art)
+        { "starter_sorcerer_tunic",           "character" },   // TODO(art)
+        { "starter_sorcerer_trews",           "pawn" },   // TODO(art)
+        { "starter_sorcerer_shoes",           "token" },   // TODO(art)
+        { "starter_tinkerer_tunic",           "character" },   // TODO(art)
+        { "starter_tinkerer_trews",           "pawn" },   // TODO(art)
+        { "starter_tinkerer_shoes",           "token" },   // TODO(art)
+        { "starter_specter_tunic",            "character" },   // TODO(art)
+        { "starter_specter_trews",            "pawn" },   // TODO(art)
+        { "starter_specter_shoes",            "token" },   // TODO(art)
+
+        // Arcane
+        { "chaos_rune",    "runeBlack_slab_012" },
+        { "death_rune",    "runeBlack_slab_026" },
+        { "faint_residue", "SoulFragment" },
+        { "proving_hammer",    "Hammer_1" },
+        { "shifting_sigil","runeBlack_slab_017" },
+        { "resetting_draught", "bottle_standard_green" },
+        { "mirror_of_faces",   "Witch 1-0" },
+
+        // Mystic Gems, escalating by container so the tier reads at a glance in the
+        // shop and the bag: one stone, a bag, a bucket, a barrel, a chest.
+        { "mystic_gem",          "ore_diamond" },
+        { "mystic_gem_medium",   "Bag ColorD" },
+        { "mystic_gem_large",    "Bucket ColorD" },
+        { "mystic_gem_massive",  "Barrel ColorD" },
+        { "mystic_gem_gigantic", "Chest ColorD" },
+
+        // Equipment. Kenney has no armour or jewellery icons in any pack, so these
+        // come from the painted Imports sets.
+        { "iron_helm",           "Helmet_1" },
+        { "travelers_cape",      "cape_hood_darkyellow" },
+        { "bronze_platebody",    "Weapon_Armor" },
+        { "linen_shirt",         "Hat" },
+        { "leather_gloves",      "pouch_leather_small" },
+        { "guild_tabard",        "shield_basic_metal" },   // heraldry
+        { "emberlight_aura",     "Fire" },
+        { "ring_of_the_glutton", "ring_gold_magic" },
+        { "stormcallers_band",   "TheRing" },
+        { "miners_charm",        "necklace_silver_red" },
+        { "pendant_of_vigor",    "Heart" },
+        { "whetstone_trinket",   "Tools_Misc" },
+        { "swiftness_trinket",   "Feathers" },
+        { "campfire_sprite",     "animal-fox" },           // Kenney Cube Pets preview
+
+        // ── The shop's cosmetics ──────────────────────────────────────────────
+        //
+        // Every one of these drew a generated placeholder, which is the worst thing a
+        // PREMIUM item can look like: the shop was asking for relic coins in exchange
+        // for a grey square.
+        //
+        // ── ONLY SPRITES RESOLVE HERE ─────────────────────────────────────────
+        //
+        // The obvious picks were the Cartoon FX aura graphics, which are the textures
+        // the aura effects themselves use. They do not work: particle textures are
+        // imported as plain Texture2D, and this table can only bind SPRITES. The first
+        // attempt named five of them and Populate reported all five unmatched, which
+        // is exactly the placeholder it was meant to remove.
+        //
+        // So these come from packs already imported as sprites. Worth remembering
+        // before reaching for the visually perfect file again.
+        { "starlit_aura",        "MagicEssence" },
+        { "gilded_aura",         "Gold01" },
+
+        // ── Three approximations, marked as such ──────────────────────────────
+        //
+        // The project owns exactly ONE cape sprite and travelers_cape already has it,
+        // and the invariant this table enforces is that no two ids share an icon --
+        // which is what stopped ore and fish both being a polearm.
+        //
+        // These have better silhouettes than a grey square and are not final art.
+        // Replacing them is a one-line change each.
+        // The SPUM cloth sheets were tried and do not bind either: they are multi-sprite
+        // atlases, and this table resolves single sprites by asset name. Two dead ends
+        // for the same reason, which is why both are written down.
+        { "spectral_veil",       "LightWizard" },          // TODO(art): something ghostly
+        // "flag" was the original pick and never bound: every flag.png in the project
+        // is a plain texture, so this drew a placeholder from the day it was written
+        // and nothing said so. CosmeticChecks is what finally noticed.
+        { "wanderers_cape",      "flag_triangle" },        // TODO(art): a real cape
+        { "heralds_tabard",      "Scroll" },               // TODO(art): heraldry
+        { "festival_shirt",      "Hat 1-1" },              // TODO(art): as linen_shirt, a hat stands in
+
+        // ── The anvil's cosmetics ─────────────────────────────────────────────
+        //
+        // The other half of the same gap. These four are CRAFTED rather than bought,
+        // which made them easy to miss when the shop's six were fixed -- and a player
+        // who spends 1,500 bronze bars on a grey square has been treated worse than
+        // one who spent relic coins on it.
+        //
+        // Same two dead ends apply as above and are not worth rediscovering: the
+        // Cartoon FX aura textures are plain Texture2Ds, and the SPUM cloth sheets
+        // are multi-sprite atlases. Neither binds here.
+        { "smiths_apron",        "armor_icon" },           // a chest piece; closest thing to an apron
+        { "tinplate_tabard",     "banner_hanging" },       // a hanging panel of cloth
+        { "chainlink_drape",     "banner_classic_curtain" },
+        { "emberforge_aura",     "campfire" },             // TODO(art): embers, not a camp fire
+    };
+
+    /// <summary>skillId → sprite file name. All 13 skills, not just the 8 that had icons.</summary>
+    private static readonly Dictionary<string, string> SkillIconNames = new()
+    {
+        { "mining",       "pickaxe_basic" },
+        { "woodcutting",  "Wood_Pile_1" },
+        { "fishing",      "fish_green" },
+        { "cooking",      "Frying_Pan" },
+        { "smithing",     "Hammer_1" },
+        { "gleaning",     "Talisman_1" },
+        { "fabrication",  "Tools_Misc" },
+        { "combat",       "sword_basic_blue" },
+
+        // These six are defined in skill_data.json and had no icon at all
+        { "negotiation",  "scroll_map2" },
+        { "infusion",     "bottle_standard_blue" },
+        { "chronicle",    "book_closed_red" },
+        { "spectralwork", "bone_skull" },
+        { "brokerage",    "pouch_leather_small" },
+        { "convergence",  "gem_diamond_red" },
+    };
+
+    /// <summary>
+    /// abilityId → sprite file name, mostly from the QS hand-painted pack.
+    /// Unmapped abilities show their name alone, which is why this returns null
+    /// rather than a placeholder.
+    /// </summary>
+    /// <summary>
+    /// classId -> sprite file name. Shown beside the character name on the HUD in
+    /// place of the class name, so each has to be recognisable at 32 pixels and
+    /// unmistakable for its neighbours.
+    /// </summary>
+    private static readonly Dictionary<string, string> ClassIconNames = new()
+    {
+        { "warrior",  "shield_basic_metal" },
+        { "ranger",   "bow_wood1" },
+        { "sorcerer", "book_closed_red" },
+        { "tinkerer", "pickaxe_basic" },
+        { "specter",  "bone_skull" },
+    };
+
+    private static readonly Dictionary<string, string> AbilityIconNames = new()
+    {
+        // Warrior
+        { "cleave",          "Simple Sickle 1-0" },
+        { "shield_bash",     "shield_basic_metal" },
+        { "battlecry",       "Life Steal 1-1" },
+        { "reckless_strike", "sword_basic4_blue" },
+
+        // Ranger
+        { "rapid_shot",      "Arrows 1-0" },
+        { "marked_target",   "Arrows 1-1" },
+        { "barrage",         "bow_wood1" },
+        { "evasion_roll",    "leafs_long" },
+
+        // Sorcerer
+        { "fireball",        "Explosion 1-0" },
+        { "frost_nova",      "Meteor 1-2" },
+        { "arcane_surge",    "Hand Scepter 1-0" },
+        { "blink",           "Candle 1-0" },
+
+        // Tinkerer
+        { "deploy_turret",   "Canon" },
+        { "smoke_bomb",      "Evil Pumpkin 1-1" },
+        { "overclock",       "Hand Scepter 1-1" },
+        { "salvage_strike",  "pickaxe_basic" },
+
+        // Specter
+
+        // ── The ten abilities the reworked trees added ────────────────────────
+        { "earthshaker",       "exploding" },
+        { "last_stand",        "award" },
+        { "piercing_volley",   "dice_sword" },
+        { "wind_step",         "spinner" },
+        { "chain_lightning",   "Meteor 1-0" },
+        { "time_warp",         "hourglass" },
+        { "scrap_swarm",       "Spider 1-2" },
+        { "concussive_blast",  "hexagon" },
+        { "grave_chill",       "skull" },
+        { "spirit_walk",       "Witch 1-1" },
+
+        { "spectral_strike", "Hand Scepter 1-0-1" },
+        { "phase_shift",     "Grave 1-0" },
+        { "haunt",           "bone_skull" },
+        { "soul_drain",      "Life Steal 1-0" },
+    };
+
+    [MenuItem("Idle Explorers/Rebuild Icon Library")]
+    public static void Rebuild()
+    {
+        const string resourcesDir = "Assets/Resources";
+        if (!Directory.Exists(resourcesDir)) Directory.CreateDirectory(resourcesDir);
+
+        var library = AssetDatabase.LoadAssetAtPath<IconLibrary>(ASSET_PATH);
+        bool isNew = library == null;
+        if (isNew) library = ScriptableObject.CreateInstance<IconLibrary>();
+
+        library.itemIcons.Clear();
+        library.skillIcons.Clear();
+        library.abilityIcons.Clear();
+        library.classIcons.Clear();
+
+        int itemsFound     = Populate(ItemIconNames,    library.itemIcons,    "item");
+        int skillsFound    = Populate(SkillIconNames,   library.skillIcons,   "skill");
+        int abilitiesFound = Populate(AbilityIconNames, library.abilityIcons, "ability");
+        int classesFound   = Populate(ClassIconNames,   library.classIcons,   "class");
+
+        if (isNew) AssetDatabase.CreateAsset(library, ASSET_PATH);
+        else       EditorUtility.SetDirty(library);
+
+        library.InvalidateCache();
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        Debug.Log($"[IconLibrary] {itemsFound}/{ItemIconNames.Count} item icons, " +
+                  $"{skillsFound}/{SkillIconNames.Count} skill icons, " +
+                  $"{abilitiesFound}/{AbilityIconNames.Count} ability icons, " +
+                  $"{classesFound}/{ClassIconNames.Count} class icons → {ASSET_PATH}");
+
+        ReportUncoveredItems();
+    }
+
+    /// <summary>
+    /// Names every item in item_data.json that has neither its own iconAddress nor an
+    /// entry in the table above, and will therefore draw a generated placeholder.
+    ///
+    /// Populate() can only complain about mappings it HAS that failed to resolve. An
+    /// item nobody ever added to the table is invisible to it — which is the same
+    /// silent gap that let ore and fish share a polearm icon for a whole phase. A
+    /// placeholder is a legitimate choice; not knowing you shipped one is not.
+    /// </summary>
+    private static void ReportUncoveredItems()
+    {
+        string path = "Assets/StreamingAssets/item_data.json";
+        if (!File.Exists(path)) return;
+
+        string raw = File.ReadAllText(path).Trim();
+        if (!raw.StartsWith("[")) return;
+
+        var parsed = JsonUtility.FromJson<ItemFile>("{\"items\":" + raw + "}");
+        if (parsed?.items == null) return;
+
+        var uncovered = new List<string>();
+        foreach (var item in parsed.items)
+        {
+            if (item == null || string.IsNullOrEmpty(item.id)) continue;
+            if (!string.IsNullOrEmpty(item.iconAddress)) continue;   // loads its own art
+            if (ItemIconNames.ContainsKey(item.id))      continue;   // mapped above
+
+            uncovered.Add(item.id);
+        }
+
+        if (uncovered.Count == 0)
+        {
+            Debug.Log("[IconLibrary] Every item has real art.");
+            return;
+        }
+
+        Debug.LogWarning($"[IconLibrary] {uncovered.Count} item(s) have no art and will draw a " +
+                         $"generated placeholder: {string.Join(", ", uncovered)}");
+    }
+
+    [System.Serializable] private class ItemFile  { public ItemStub[] items; }
+    [System.Serializable] private class ItemStub  { public string id; public string iconAddress; }
+
+    /// <summary>
+    /// Whether this item has art waiting for it in the library.
+    ///
+    /// ══ WHY A METHOD AND NOT THE DICTIONARY ═══════════════════════════════════
+    ///
+    /// The authoring window needs one answer: will this item draw something. Exposing
+    /// ItemIconNames would hand it the mapping, and a caller holding a mapping ends up
+    /// reading a sprite name out of it, or worse writing one in -- and the invariant
+    /// this file enforces, that every id maps to a DISTINCT sprite, lives in the
+    /// rebuild rather than in the dictionary.
+    ///
+    /// A question, then, rather than the data behind it.
+    ///
+    /// ══ WHY IT CHECKS THE SPRITE AND NOT JUST THE KEY ═════════════════════════
+    ///
+    /// Because an entry naming a sprite that is not in the project is exactly as blank
+    /// in the inventory as no entry at all, and the rebuild already reports those as
+    /// missing. Answering "yes" for an id whose art was deleted would send an author
+    /// away satisfied with an item that draws a placeholder.
+    /// </summary>
+    internal static bool HasIconFor(string itemId)
+    {
+        if (string.IsNullOrWhiteSpace(itemId)) return false;
+
+        if (!ItemIconNames.TryGetValue(itemId, out string spriteName)) return false;
+
+        return FindSprite(spriteName) != null;
+    }
+
+    private static int Populate(Dictionary<string, string> source, List<IconLibrary.Entry> target, string kind)
+    {
+        int found = 0;
+
+        // Two ids resolving to the same sprite is how "a unique icon per item" quietly
+        // decays back into shared art as content grows. Surface it rather than
+        // discovering it in a playtest.
+        var usedSprites = new Dictionary<Sprite, string>();
+        var missing     = new List<string>();
+
+        foreach (var pair in source)
+        {
+            var sprite = FindSprite(pair.Value);
+            if (sprite == null)
+            {
+                missing.Add($"{pair.Key} → '{pair.Value}'");
+                continue;
+            }
+
+            if (usedSprites.TryGetValue(sprite, out string owner))
+                Debug.LogWarning($"[IconLibrary] {kind} '{pair.Key}' shares sprite '{pair.Value}' with '{owner}'.");
+            else
+                usedSprites[sprite] = pair.Key;
+
+            target.Add(new IconLibrary.Entry { id = pair.Key, sprite = sprite });
+            found++;
+        }
+
+        if (missing.Count > 0)
+        {
+            // Loud, because a silent fallback to placeholders is exactly what made the
+            // first art pass look like it had done nothing.
+            Debug.LogWarning($"[IconLibrary] {missing.Count} {kind} icon(s) unmatched, falling back to " +
+                             $"placeholders: {string.Join(", ", missing)}\n" +
+                             "If these are Kenney sprites, run 'Idle Explorers → Import Art As Sprites' first — " +
+                             "Kenney PNGs import as plain textures and are invisible to a t:Sprite search.");
+        }
+
+        return found;
+    }
+
+    /// <summary>Finds a Sprite asset by file name anywhere under Assets.</summary>
+    private static Sprite FindSprite(string fileName)
+    {
+        // Quoted: several names contain spaces ("Magic Egg"), and unquoted they would
+        // be searched as separate terms.
+        foreach (var guid in AssetDatabase.FindAssets($"\"{fileName}\" t:Sprite"))
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            if (!string.Equals(Path.GetFileNameWithoutExtension(path), fileName,
+                               System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (sprite != null) return sprite;
+        }
+        return null;
+    }
+}

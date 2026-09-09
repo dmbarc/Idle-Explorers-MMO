@@ -1,74 +1,269 @@
 using System;
+using UnityEngine;
 
 /// <summary>
 /// Central static event bus. All systems fire and listen here — no direct references needed.
 /// Usage: GameEvents.OnItemPickedUp?.Invoke("iron_ore", 1500);
+///
+/// These are plain static Action fields rather than C# events on purpose: an `event`
+/// can only be invoked from inside its declaring type, which would force a Fire*
+/// helper for every single one. The trade-off is that any caller could reassign a
+/// delegate instead of subscribing — always use += / -=, never =.
 /// </summary>
 public static class GameEvents
 {
     // ── Account & Character ──────────────────────────────────────────────────
-    public static event Action<AccountData>     OnAccountLoaded;
-    public static event Action<CharacterData>   OnCharacterSelected;
-    public static event Action<CharacterData>   OnCharacterCreated;
-    public static event Action<int>             OnAccountLevelUp;       // new level
-    public static event Action<int>             OnCharacterLevelUp;     // new level
+    public static Action<AccountData>     OnAccountLoaded;
+    public static Action<CharacterData>   OnCharacterSelected;
+    public static Action<CharacterData>   OnCharacterCreated;
+    public static Action<int>             OnAccountLevelUp;       // new level
+    public static Action<int>             OnCharacterLevelUp;     // new level
+
+    /// <summary>
+    /// Character XP landed. Fired by CharacterManager.AddXP, which is fed a quarter
+    /// of ALL skill XP -- so this arrives while mining as readily as while fighting.
+    /// Without it the XP bar would only move on level-up, the one moment it is least
+    /// useful.
+    /// </summary>
+    public static Action<long>            OnCharacterXPGained;    // amount
+
+    /// <summary>
+    /// A character was added, renamed or removed. Exists because overlays (the rename
+    /// modal) never trigger OnHide/OnResume on the screen below, so character select
+    /// has no lifecycle hook telling it a card went stale.
+    /// </summary>
+    public static Action                  OnCharacterRosterChanged;
 
     // ── Skills ───────────────────────────────────────────────────────────────
-    public static event Action<string, int>     OnSkillLevelUp;         // skillId, newLevel
-    public static event Action<string, long>    OnSkillXPGained;        // skillId, amount
-    public static event Action<string, int>     OnMilestoneUnlocked;    // skillId, milestone (99/200/etc)
+    public static Action<string, int>     OnSkillLevelUp;         // skillId, newLevel
+    public static Action<string, long>    OnSkillXPGained;        // skillId, amount
+    public static Action<string, int>     OnMilestoneUnlocked;    // skillId, milestone (99/200/etc)
 
     // ── Activity (AFK / current action) ──────────────────────────────────────
-    public static event Action<SkillActivityData>   OnActivityChanged;
-    public static event Action<long>                OnAFKRewardsCollected;  // total gold value
+    public static Action<SkillActivityData>   OnActivityChanged;
+    public static Action<long>                OnAFKRewardsCollected;  // elapsed seconds
 
     // ── Items & Loot ─────────────────────────────────────────────────────────
-    public static event Action<string, long>    OnItemPickedUp;         // itemId, quantity
-    public static event Action<int>             OnInventorySlotChanged; // slotIndex
-    public static event Action                  OnInventoryChanged;     // full refresh
+    public static Action<string, long>    OnItemPickedUp;         // itemId, quantity
+    public static Action<int>             OnInventorySlotChanged; // slotIndex
+    public static Action                  OnInventoryChanged;     // full refresh
+    public static Action                  OnBankChanged;          // account bank, full refresh
+    public static Action                  OnEquipmentChanged;     // worn gear changed
+    public static Action                  OnTalentsChanged;       // a point was spent or refunded
+    public static Action<string>          OnClassChanged;         // new classId
+
+    /// <summary>A worn item's durability changed, or a piece broke or was repaired.</summary>
+    public static Action                  OnDurabilityChanged;
+
+    /// <summary>Auto-mode was switched on or off.</summary>
+    public static Action<bool>            OnAutoModeChanged;
+
+    /// <summary>The character's body, hair, eyes or held weapon changed.</summary>
+    public static Action                  OnAppearanceChanged;
+
+    /// <summary>Something feeding the stat block changed, so displays should re-read it.</summary>
+    public static Action                  OnStatsChanged;
+
+    /// <summary>An ability was moved onto, off, or between action bar slots.</summary>
+    public static Action                  OnHotbarChanged;
 
     // ── Merge Board ──────────────────────────────────────────────────────────
-    public static event Action<int>             OnMergeSlotChanged;     // slotIndex
-    public static event Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
+    public static Action<int>             OnMergeSlotChanged;     // slotIndex
+    public static Action<string, string>  OnMergeCompleted;       // fromItemId, toItemId
 
     // ── World / Zones ─────────────────────────────────────────────────────────
-    public static event Action<string>          OnMapEntered;           // mapId
-    public static event Action<string>          OnZoneEntered;          // zoneId
-    public static event Action<string>          OnSkillNodeInteracted;  // nodeId
+    public static Action<string>          OnMapEntered;           // mapId
+    public static Action<string>          OnZoneEntered;          // zoneId
+    public static Action<string>          OnSkillNodeInteracted;  // nodeId
 
     // ── Combat ───────────────────────────────────────────────────────────────
-    public static event Action<string>          OnMonsterKilled;        // monsterId
-    public static event Action<double>          OnPlayerDamageTaken;
+    public static Action<string>          OnMonsterKilled;        // monsterId
+
+    /// <summary>
+    /// A monster's ACTIVE kill count moved. (monsterId, newActiveTotal)
+    ///
+    /// Separate from OnMonsterKilled because the two answer different questions: one
+    /// says a goblin died, the other says how many have. The portal needs the second
+    /// and would otherwise have to count them itself, which is how a second tally
+    /// starts existing.
+    /// </summary>
+    public static Action<string, long>    OnKillCountChanged;
+
+    // ── Boss encounters ───────────────────────────────────────────────────────
+    //
+    // Separate from the ordinary monster events because a boss has a health bar at
+    // the top of the screen, phases with names, and a clock -- none of which a goblin
+    // has, and all of which the HUD needs told rather than polled for.
+
+    /// <summary>
+    /// A boss fight began. (displayName, maxHealth, secondsUntilEnrage)
+    ///
+    /// The clock is carried rather than looked up, because a player who JOINED a
+    /// fight already in progress has less of it left than the content file says. The
+    /// bar used to read the monster catalogue and start a fresh five minutes for
+    /// everybody, so the third person through the door watched a countdown that had
+    /// nothing to do with the one the fight was actually running on.
+    /// </summary>
+    public static Action<string, float, float> OnBossEngaged;
+
+    /// <summary>
+    /// The group changed, or a call was raised in it. Null when ungrouped.
+    ///
+    /// Raised off the presence poll, which is the only thing every client does on a
+    /// timer -- so a call reaches somebody who is not looking at the group panel,
+    /// which is the entire reason the call exists.
+    /// </summary>
+    public static Action<IdleExplorers.Backend.PartySnapshot> OnPartyChanged;
+
+    /// <summary>Its health moved. (fraction 0-1)</summary>
+    public static Action<float>           OnBossHealthChanged;
+
+    /// <summary>It entered a new phase. (phaseName, healthFraction)</summary>
+    public static Action<string, float>   OnBossPhaseChanged;
+
+    /// <summary>It died. (monsterId)</summary>
+    public static Action<string>          OnBossDefeated;
+
+    /// <summary>The enrage timer ran out. The fight is lost.</summary>
+    public static Action                  OnBossEnraged;
+    public static Action<double>          OnPlayerDamageTaken;
+    public static Action<double, double>  OnPlayerHealthChanged;  // current, max
+
+    /// <summary>current mana, max mana, current stamina, max stamina.</summary>
+    public static Action<float, float, float, float> OnPlayerResourcesChanged;
+    public static Action                  OnPlayerDied;
 
     // ── Economy ──────────────────────────────────────────────────────────────
-    public static event Action<long>            OnCoinsChanged;         // new total
-    public static event Action                  OnAuctionListingPosted;
-    public static event Action<string>          OnAuctionListingSold;   // listingId
+    public static Action<long>            OnCoinsChanged;         // new total
+    public static Action<long>            OnRelicCoinsChanged;    // new account-wide total
+    public static Action                  OnAuctionListingPosted;
+    public static Action<string>          OnAuctionListingSold;   // listingId
 
     // ── Social ───────────────────────────────────────────────────────────────
-    public static event Action<string>          OnFriendRequestReceived;    // fromAccountId
-    public static event Action<string>          OnFriendRequestAccepted;
-    public static event Action<GuildData>       OnGuildUpdated;
+    public static Action<string>          OnFriendRequestReceived;    // fromAccountId
+    public static Action<string>          OnFriendRequestAccepted;
+    public static Action<GuildData>       OnGuildUpdated;
 
     // ── Collection ────────────────────────────────────────────────────────────
-    public static event Action<string>          OnSpiritCollected;      // spiritId
-    public static event Action<string>          OnRelicCollected;       // relicId
-    public static event Action<string>          OnWardrobeItemUnlocked; // wardrobeId
+    public static Action<string>          OnSpiritCollected;      // spiritId
+    public static Action<string>          OnRelicCollected;       // relicId
+    public static Action<string>          OnWardrobeItemUnlocked; // wardrobeId
 
     // ── UI ────────────────────────────────────────────────────────────────────
-    public static event Action<string>          OnToastRequested;       // message
-    public static event Action                  OnReturnToMainMenu;
+    public static Action<string, ChatTone> OnToastRequested;  // message, how it should read
+    public static Action                  OnReturnToMainMenu;
 
     // ── Ghost System ──────────────────────────────────────────────────────────
-    public static event Action<GhostSnapshot[]> OnGhostSnapshotsReceived;  // for current map
+    public static Action<GhostSnapshot[]> OnGhostSnapshotsReceived;  // for current map
 
     // ── Convenience fire helpers ──────────────────────────────────────────────
     public static void FireItemPickedUp(string itemId, long qty)     => OnItemPickedUp?.Invoke(itemId, qty);
     public static void FireInventoryChanged()                         => OnInventoryChanged?.Invoke();
     public static void FireSkillLevelUp(string skillId, int level)   => OnSkillLevelUp?.Invoke(skillId, level);
     public static void FireActivityChanged(SkillActivityData data)   => OnActivityChanged?.Invoke(data);
-    public static void FireToast(string message)                     => OnToastRequested?.Invoke(message);
+    /// <summary>
+    /// A line for the player to read. The tone decides its colour, and — while the
+    /// chat window is up — whether it is worth interrupting them for at all.
+    ///
+    /// Info is the default because most callers are stating a fact rather than
+    /// delivering news, and a wall of green congratulation reads as noise.
+    /// </summary>
+    public static void FireToast(string message, ChatTone tone = ChatTone.Info)
+        => OnToastRequested?.Invoke(message, tone);
+
     public static void FireMonsterKilled(string monsterId)           => OnMonsterKilled?.Invoke(monsterId);
+
+    public static void FireBossEngaged(string name, float maxHealth, float enrageSeconds)
+        => OnBossEngaged?.Invoke(name, maxHealth, enrageSeconds);
+
+    public static void FirePartyChanged(IdleExplorers.Backend.PartySnapshot party)
+        => OnPartyChanged?.Invoke(party);
+    public static void FireBossHealthChanged(float fraction)          => OnBossHealthChanged?.Invoke(fraction);
+    public static void FireBossPhaseChanged(string phase, float hp)   => OnBossPhaseChanged?.Invoke(phase, hp);
+    public static void FireBossDefeated(string monsterId)             => OnBossDefeated?.Invoke(monsterId);
+    public static void FireBossEnraged()                              => OnBossEnraged?.Invoke();
     public static void FireMapEntered(string mapId)                  => OnMapEntered?.Invoke(mapId);
     public static void FireMergeCompleted(string from, string to)    => OnMergeCompleted?.Invoke(from, to);
+
+    // ── Domain reload guard ───────────────────────────────────────────────────
+    /// <summary>
+    /// Static delegates survive between play sessions when Fast Enter Play Mode is on
+    /// (domain reload disabled), which silently accumulates duplicate handlers —
+    /// every toast fires twice, then three times, then four. Clearing them here on
+    /// subsystem registration makes each play session start from a clean bus.
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        OnAccountLoaded          = null;
+        OnCharacterSelected      = null;
+        OnCharacterCreated       = null;
+        OnAccountLevelUp         = null;
+        OnCharacterLevelUp       = null;
+        OnCharacterXPGained      = null;
+        OnCharacterRosterChanged = null;
+
+        OnSkillLevelUp           = null;
+        OnSkillXPGained          = null;
+        OnMilestoneUnlocked      = null;
+
+        OnActivityChanged        = null;
+        OnAFKRewardsCollected    = null;
+
+        OnItemPickedUp           = null;
+        OnInventorySlotChanged   = null;
+        OnInventoryChanged       = null;
+        OnBankChanged            = null;
+        OnEquipmentChanged       = null;
+
+        // These four were missed when they were added, so with Fast Enter Play Mode
+        // their handlers survived between sessions and accumulated — the talent badge
+        // refreshing four times, the auto indicator fighting itself. Every new event
+        // belongs here.
+        OnTalentsChanged         = null;
+        OnClassChanged           = null;
+        OnDurabilityChanged      = null;
+        OnAutoModeChanged        = null;
+        OnAppearanceChanged      = null;
+        OnStatsChanged           = null;
+        OnHotbarChanged          = null;
+        OnRelicCoinsChanged      = null;
+
+        OnMergeSlotChanged       = null;
+        OnMergeCompleted         = null;
+
+        OnMapEntered             = null;
+        OnZoneEntered            = null;
+        OnSkillNodeInteracted    = null;
+
+        OnMonsterKilled          = null;
+        OnKillCountChanged       = null;
+        OnBossEngaged            = null;
+        OnPartyChanged           = null;
+        OnBossHealthChanged      = null;
+        OnBossPhaseChanged       = null;
+        OnBossDefeated           = null;
+        OnBossEnraged            = null;
+        OnPlayerDamageTaken      = null;
+        OnPlayerHealthChanged    = null;
+        OnPlayerResourcesChanged = null;
+        OnPlayerDied             = null;
+
+        OnCoinsChanged           = null;
+        OnAuctionListingPosted   = null;
+        OnAuctionListingSold     = null;
+
+        OnFriendRequestReceived  = null;
+        OnFriendRequestAccepted  = null;
+        OnGuildUpdated           = null;
+
+        OnSpiritCollected        = null;
+        OnRelicCollected         = null;
+        OnWardrobeItemUnlocked   = null;
+
+        OnToastRequested         = null;
+        OnReturnToMainMenu       = null;
+
+        OnGhostSnapshotsReceived = null;
+    }
 }

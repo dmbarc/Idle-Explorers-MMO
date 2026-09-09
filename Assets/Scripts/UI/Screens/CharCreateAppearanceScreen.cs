@@ -1,79 +1,48 @@
+using TMPro;
 using UnityEngine;
 
 /// <summary>
-/// Screen 6 of character creation: appearance customisation.
-/// Phase 1: placeholder sliders. Phase 2: SPUM live preview + full colour/part pickers.
+/// Screen 6 of character creation: what the character looks like.
+///
+/// This was a mockup for the whole life of the project — its "← Prev / Next →" rows
+/// were Labels rather than Buttons, the class had no fields at all, and the preview
+/// was a panel containing the text "(Phase 2: SPUM live appearance here)". Nothing it
+/// showed was connected to anything, and SpumSaveData was written all-zero and read
+/// by nothing.
+///
+/// The editor itself lives in AppearanceEditor so the barber item can reopen exactly
+/// this, rather than a second implementation offering a different set of hairstyles.
 /// </summary>
 public class CharCreateAppearanceScreen : UIScreen
 {
+    /// <summary>The preview and every row read the pending look, so it rebuilds per visit.</summary>
+    public override bool RebuildOnShow => true;
+
     public override void Build()
     {
-        UIFactory.Panel(transform, "Bg", UIManager.Theme.panelBg, true);
+        var theme = UIManager.Theme;
 
-        // Title
-        var title = UIFactory.Label(transform, "CUSTOMISE APPEARANCE", UIManager.Theme.fontSizeTitle,
-                                     UIManager.Theme.accentGold, TMPro.TextAlignmentOptions.Center);
-        var titleRt = title.GetComponent<RectTransform>();
-        titleRt.anchorMin = new Vector2(0.05f, 0.88f);
-        titleRt.anchorMax = new Vector2(0.95f, 0.97f);
-        titleRt.offsetMin = titleRt.offsetMax = Vector2.zero;
+        UIFactory.Panel(transform, "Bg", theme.panelBg, true);
 
-        // Preview placeholder (Phase 2: SPUM live preview)
-        var previewPanel = UIFactory.Panel(transform, "SPUMPreview", UIManager.Theme.cardBg, false);
-        var previewRt = previewPanel.GetComponent<RectTransform>();
-        previewRt.anchorMin = new Vector2(0.05f, 0.20f);
-        previewRt.anchorMax = new Vector2(0.45f, 0.85f);
-        previewRt.offsetMin = previewRt.offsetMax = Vector2.zero;
+        var title = UIFactory.Label(transform, "CUSTOMIZE APPEARANCE", theme.fontSizeTitle,
+                                     theme.accentGold, TextAlignmentOptions.Center);
+        UIFactory.At(title, 0.05f, 0.90f, 0.95f, 0.98f);
 
-        UIFactory.Label(previewPanel.transform,
-                         "Character Preview\n\n(Phase 2: SPUM live appearance here)",
-                         UIManager.Theme.fontSizeSmall, UIManager.Theme.textDisabled,
-                         TMPro.TextAlignmentOptions.Center);
+        var hint = UIFactory.Label(transform,
+                                    "You can change all of this later with a Mirror of Faces.",
+                                    theme.fontSizeSmall, theme.textSecondary, TextAlignmentOptions.Center);
+        UIFactory.At(hint, 0.15f, 0.855f, 0.85f, 0.895f);
 
-        // Controls placeholder
-        var controlsPanel = UIFactory.Panel(transform, "Controls", UIManager.Theme.cardBg, false);
-        var controlsRt = controlsPanel.GetComponent<RectTransform>();
-        controlsRt.anchorMin = new Vector2(0.50f, 0.20f);
-        controlsRt.anchorMax = new Vector2(0.95f, 0.85f);
-        controlsRt.offsetMin = controlsRt.offsetMax = Vector2.zero;
+        // Edits CharCreateState.PendingSpum in place, which is what
+        // CharCreateConfirmScreen writes onto the new character.
+        CharCreateState.PendingSpum ??= SpumAppearance.Default();
+        AppearanceEditor.Build(transform, CharCreateState.PendingSpum, 0.06f, 0.16f, 0.94f, 0.845f);
 
-        var vstack = UIFactory.VStack(controlsPanel.transform, UIManager.Theme.spacing * 2, true, "Controls");
-        UIFactory.FillParent(vstack.GetComponent<RectTransform>());
+        var backBtn = UIFactory.Button(transform, "← BACK", () => GameManager.UI?.Pop(), width: 0f);
+        UIFactory.At(backBtn, 0.33f, 0.05f, 0.47f, 0.12f);
 
-        UIFactory.Label(vstack.transform, "Hair Style", UIManager.Theme.fontSizeSmall,
-                         UIManager.Theme.textSecondary, TMPro.TextAlignmentOptions.Left);
-        UIFactory.Label(vstack.transform, "← Prev    [Style 1]    Next →", UIManager.Theme.fontSizeBody,
-                         UIManager.Theme.textPrimary, TMPro.TextAlignmentOptions.Center);
-
-        UIFactory.HorizontalDivider(vstack.transform);
-
-        UIFactory.Label(vstack.transform, "Body Type", UIManager.Theme.fontSizeSmall,
-                         UIManager.Theme.textSecondary, TMPro.TextAlignmentOptions.Left);
-        UIFactory.Label(vstack.transform, "← Prev    [Type 1]    Next →", UIManager.Theme.fontSizeBody,
-                         UIManager.Theme.textPrimary, TMPro.TextAlignmentOptions.Center);
-
-        UIFactory.HorizontalDivider(vstack.transform);
-
-        UIFactory.Label(vstack.transform, "Phase 2: Full SPUM colour pickers", UIManager.Theme.fontSizeLabel,
-                         UIManager.Theme.textDisabled, TMPro.TextAlignmentOptions.Center);
-
-        // Navigation
-        var backBtn = UIFactory.Button(transform, "← BACK", () => GameManager.UI?.Pop(), 150f);
-        var backRt = backBtn.GetComponent<RectTransform>();
-        backRt.anchorMin = new Vector2(0.3f, 0.04f);
-        backRt.anchorMax = new Vector2(0.3f, 0.04f);
-        backRt.anchoredPosition = Vector2.zero;
-        backRt.sizeDelta = new Vector2(150f, UIManager.Theme.buttonHeight);
-
-        var nextBtn = UIFactory.Button(transform, "NEXT →", () =>
-        {
-            // Appearance data stored in CharCreateState.PendingSpum (Phase 2)
-            GameManager.UI?.Push<CharCreateConfirmScreen>();
-        }, 200f);
-        var nextRt = nextBtn.GetComponent<RectTransform>();
-        nextRt.anchorMin = new Vector2(0.65f, 0.04f);
-        nextRt.anchorMax = new Vector2(0.65f, 0.04f);
-        nextRt.anchoredPosition = Vector2.zero;
-        nextRt.sizeDelta = new Vector2(200f, UIManager.Theme.buttonHeight);
+        var nextBtn = UIFactory.Button(transform, "NEXT →",
+                                        () => GameManager.UI?.Push<CharCreateConfirmScreen>(), width: 0f);
+        UIFactory.At(nextBtn, 0.53f, 0.05f, 0.67f, 0.12f);
     }
 }

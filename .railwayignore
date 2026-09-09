@@ -1,0 +1,50 @@
+# What Railway must not upload.
+#
+# == WHY THIS EXISTS ALONGSIDE .dockerignore ===================================
+#
+# Two different steps read two different files. .dockerignore governs what goes into
+# the image once the build starts; .railwayignore governs what gets UPLOADED to
+# Railway in the first place.
+#
+# Without this file, `railway up` tars the entire working tree -- which here is about
+# 1.2 GB of Kenney art, a Unity Library/ cache and the whole of .git, none of which the
+# Dockerfile so much as looks at. That is a slow upload on every deploy, for nothing.
+#
+# == KEEP IN STEP WITH .dockerignore ===========================================
+#
+# Every rule below is also in .dockerignore, and SecurityChecks asserts that. They can
+# legitimately diverge -- the upload could exclude more than the build does -- but a
+# rule that exists only in the build is a file being uploaded for no reason, and a rule
+# that exists only here is a file the build expects and cannot find.
+#
+# What the Dockerfile actually needs is small: server/, Assets/Scripts/Rules/ and
+# Assets/StreamingAssets/.
+
+**/bin/
+**/obj/
+Tools/verify/build/
+Library/
+Temp/
+Logs/
+UserSettings/
+obj/
+*.csproj.user
+*.sln
+*.slnx.user
+Assets/Kenney Game Assets All-in-1 3.7.0/
+Assets/JMO Assets/
+Assets/Imports/
+Assets/Scenes/
+Assets/Prefabs/
+Assets/Materials/
+Assets/Shaders/
+Assets/Resources/
+Assets/TextMesh Pro/
+Assets/UnityTechnologies/
+Assets/Fantasy Wooden GUI  Free/
+Assets/*Music*/
+Assets/*.meta
+server/supabase/.branches/
+server/supabase/.temp/
+.git/
+.github/

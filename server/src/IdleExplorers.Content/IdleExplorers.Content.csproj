@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reads the twelve StreamingAssets files into the shared catalogue.
+
+    Server-side only, and deliberately so: this is the half of content handling the
+    two hosts cannot share, because Unity has no filesystem on the web and fetches
+    the same files over HTTP instead. What both DO share is what happens next -
+    GameContent, in the rules tree, indexes and validates whatever either one parsed.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IdleExplorers.Rules/IdleExplorers.Rules.csproj" />
+  </ItemGroup>
+
+</Project>

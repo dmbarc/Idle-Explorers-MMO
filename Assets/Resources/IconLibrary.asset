@@ -1,0 +1,320 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a18dd8493b06a2a4998aa6907481aeda, type: 3}
+  m_Name: IconLibrary
+  m_EditorClassIdentifier: Assembly-CSharp::IconLibrary
+  itemIcons:
+  - id: coins
+    sprite: {fileID: 21300000, guid: 93b5b28db06f8d2439c780ec3aeb28d2, type: 3}
+  - id: relic_coins
+    sprite: {fileID: 21300000, guid: 401e0dc6359ba784fbe939a1148487cf, type: 3}
+  - id: copper_ore
+    sprite: {fileID: 21300000, guid: 36cc51f39c24a0842bfa1f31f573051a, type: 3}
+  - id: tin_ore
+    sprite: {fileID: 21300000, guid: b4aa99c3d4af0364a9d392b041eeb529, type: 3}
+  - id: iron_ore
+    sprite: {fileID: 21300000, guid: 2246cbdc9f4ff8a48a6165415bbe6d88, type: 3}
+  - id: coal
+    sprite: {fileID: 21300000, guid: 66d3efe4e14acef4aaef134e32b166ea, type: 3}
+  - id: mithril_ore
+    sprite: {fileID: 21300000, guid: 2ce7da85dc276b34ba096862da55f095, type: 3}
+  - id: gold_ore
+    sprite: {fileID: 21300000, guid: f3f026736dadd5645a6415249a8e819d, type: 3}
+  - id: tin_bar
+    sprite: {fileID: 21300000, guid: e78313c7d47aeb845aee79d5bc8d26c5, type: 3}
+  - id: copper_bar
+    sprite: {fileID: 21300000, guid: a0c46bd0ce09e0d479ad2962809f906f, type: 3}
+  - id: bronze_bar
+    sprite: {fileID: 21300000, guid: 2886f0f13da0f8f469bfb676e63460a1, type: 3}
+  - id: iron_bar
+    sprite: {fileID: 21300000, guid: 3edca54f1857b8e4ba720871e4d0f151, type: 3}
+  - id: normal_logs
+    sprite: {fileID: 21300000, guid: 65c59ccc59b5690458cb9e5324edc5dc, type: 3}
+  - id: oak_logs
+    sprite: {fileID: 21300000, guid: 63af52b5b92b10c4594f1085a1a0ab94, type: 3}
+  - id: willow_logs
+    sprite: {fileID: 21300000, guid: aa8016ffea155e94aa7ed0534e64d67b, type: 3}
+  - id: raw_shrimp
+    sprite: {fileID: 21300000, guid: e8f3fbfa850d0f9408753f84eaf9e549, type: 3}
+  - id: raw_trout
+    sprite: {fileID: 21300000, guid: b416145d20baa364598d07e1740ae2fb, type: 3}
+  - id: raw_lobster
+    sprite: {fileID: 21300000, guid: 01cfd3b002cbe3649bfc437248f3b16e, type: 3}
+  - id: shrimp
+    sprite: {fileID: 21300000, guid: d248e102cf2530b4b8264f3a244fec5b, type: 3}
+  - id: gritty_shrimp
+    sprite: {fileID: 21300000, guid: a513e8d39b1c801459da3ba6a2c712af, type: 3}
+  - id: trout
+    sprite: {fileID: 21300000, guid: 37b8fb50df5c6e4409ad404c1b8b33a0, type: 3}
+  - id: lobster
+    sprite: {fileID: 21300000, guid: 8a048c64900ed364793f8793d5f2d488, type: 3}
+  - id: bones
+    sprite: {fileID: 21300000, guid: b45939f11371c524684402713923fe54, type: 3}
+  - id: skull
+    sprite: {fileID: 21300000, guid: 1c728f7cc6548f24cadceb6478fa25cc, type: 3}
+  - id: bramble_thorn
+    sprite: {fileID: 21300000, guid: 4f83da16a2d475f42a8fb81cd908c3fd, type: 3}
+  - id: hollowcap
+    sprite: {fileID: 21300000, guid: 6270d46c6c1104b448fb5bac5bede74d, type: 3}
+  - id: troll_hide
+    sprite: {fileID: 21300000, guid: a88d5300df9790349866dcad93d3a1ea, type: 3}
+  - id: dragon_bones
+    sprite: {fileID: 21300000, guid: 1c84373cf4be81c44b97ce70ed9d78e6, type: 3}
+  - id: dragon_scale
+    sprite: {fileID: 21300000, guid: d9c7df35c6600dd42b897ce1d9ae898b, type: 3}
+  - id: iron_sword
+    sprite: {fileID: 21300000, guid: 7df1f2f736edcc34eb8d0095bfa78920, type: 3}
+  - id: magic_staff
+    sprite: {fileID: 21300000, guid: 71e4ddfd4c934ef41b11023fb19aa584, type: 3}
+  - id: bulwark_cleaver
+    sprite: {fileID: 21300000, guid: bcc300c5be9671842995d7b2ed871ccf, type: 3}
+  - id: windcut_bow
+    sprite: {fileID: 21300000, guid: 26a992dcc4ca3bc4698de01c5fc22f0a, type: 3}
+  - id: emberward_rod
+    sprite: {fileID: 21300000, guid: 9937a10511c0acd499c9037a93a7f0ea, type: 3}
+  - id: piston_maul
+    sprite: {fileID: 21300000, guid: 5346d4fc5f060cd4092110607b9c4c5c, type: 3}
+  - id: grave_pike
+    sprite: {fileID: 21300000, guid: 37ac2ccecea27ed4f9b1d04fbbebfaa1, type: 3}
+  - id: draught_of_fury
+    sprite: {fileID: 21300000, guid: db005d11213e5da47b9769c2e6c56eee, type: 3}
+  - id: draught_of_swiftness
+    sprite: {fileID: 21300000, guid: 6e4bed2a616a62e468dacdfe27dcb579, type: 3}
+  - id: draught_of_vigour
+    sprite: {fileID: 21300000, guid: 563cee1ccc508dd43b1852807ba99063, type: 3}
+  - id: kingsbane_tonic
+    sprite: {fileID: 21300000, guid: 10876d86c0d0c7948ab7c3f219be6325, type: 3}
+  - id: kings_crown
+    sprite: {fileID: 21300000, guid: 409f9bc68f7fc3646b5386b3fb9e2a3a, type: 3}
+  - id: goblin_spear
+    sprite: {fileID: 21300000, guid: d296faa1474b5294eba2c99ff8e4416a, type: 3}
+  - id: trisong_bow
+    sprite: {fileID: 21300000, guid: cc99b01cf00633f428cbdf85445f2182, type: 3}
+  - id: goblin_slasher
+    sprite: {fileID: 21300000, guid: 368371b8db0a71b498275e76991724d6, type: 3}
+  - id: goblin_smasher
+    sprite: {fileID: 21300000, guid: 83dbcbdfc0bf7f24582cc7367a61529c, type: 3}
+  - id: goblin_destroyer
+    sprite: {fileID: 21300000, guid: 70e699d298236f24e826ad2c048d60b8, type: 3}
+  - id: swiftstride_boots
+    sprite: {fileID: 21300000, guid: 7bba4e43f6206e1468ee47962f2babc2, type: 3}
+  - id: tin_buckler
+    sprite: {fileID: 21300000, guid: 58e0296901196f5448bc75b0332ee132, type: 3}
+  - id: bonecarver
+    sprite: {fileID: 21300000, guid: 027b0dcfd6cca18478c825d4f0d5878b, type: 3}
+  - id: gravewarden
+    sprite: {fileID: 21300000, guid: 3710a9b513cfe4549bbf0390faef38e0, type: 3}
+  - id: marrow_reaver
+    sprite: {fileID: 21300000, guid: 0626e4f7b3284c041953450ba7e112ef, type: 3}
+  - id: starter_warrior_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_warrior_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_warrior_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_ranger_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_ranger_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_ranger_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_sorcerer_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_sorcerer_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_sorcerer_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_tinkerer_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_tinkerer_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_tinkerer_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: starter_specter_tunic
+    sprite: {fileID: 21300000, guid: 502a5dff64bb38b42b9b8a2f4fe1d769, type: 3}
+  - id: starter_specter_trews
+    sprite: {fileID: 21300000, guid: 917cb073e2f119e48893d12b4dafefed, type: 3}
+  - id: starter_specter_shoes
+    sprite: {fileID: 21300000, guid: 8c0ec9f4556b42e47be44de42a345982, type: 3}
+  - id: chaos_rune
+    sprite: {fileID: 21300000, guid: aa2cbc0697e326144a59d8b719f7c3fe, type: 3}
+  - id: death_rune
+    sprite: {fileID: 21300000, guid: 831d0c813ec14b54ea6331985d17d570, type: 3}
+  - id: faint_residue
+    sprite: {fileID: 21300000, guid: ec6b13a5ffa52bc45b7eeb8e5f69c6a9, type: 3}
+  - id: proving_hammer
+    sprite: {fileID: 21300000, guid: dd0d69e664275f54eb9aaac1eece3b17, type: 3}
+  - id: shifting_sigil
+    sprite: {fileID: 21300000, guid: babfda65ca8ef764ab37052fc2772d9c, type: 3}
+  - id: resetting_draught
+    sprite: {fileID: 21300000, guid: 0edcb30428af9c34b9114c75ee984bf2, type: 3}
+  - id: mirror_of_faces
+    sprite: {fileID: 21300000, guid: 2e2bd4f0de44f89478e4911cf34c95d3, type: 3}
+  - id: mystic_gem
+    sprite: {fileID: 21300000, guid: fcf5efa52074735449c9dccdbd70f300, type: 3}
+  - id: mystic_gem_medium
+    sprite: {fileID: 21300000, guid: a2c6f36b0d75c784fbc16cba46b31048, type: 3}
+  - id: mystic_gem_large
+    sprite: {fileID: 21300000, guid: f0af6a2887e45514891548f112f06336, type: 3}
+  - id: mystic_gem_massive
+    sprite: {fileID: 21300000, guid: 65ef78b2ed911604bbf9c12b4d187101, type: 3}
+  - id: mystic_gem_gigantic
+    sprite: {fileID: 21300000, guid: 90d70a9a19ba926489291bdf7fb0730a, type: 3}
+  - id: iron_helm
+    sprite: {fileID: 21300000, guid: 524be1d22e72b084b984b429febbf26b, type: 3}
+  - id: travelers_cape
+    sprite: {fileID: 21300000, guid: 9d7e931295e92b8419dde467e5f709b8, type: 3}
+  - id: bronze_platebody
+    sprite: {fileID: 21300000, guid: e67051dce2141b448a47e3eb495f7971, type: 3}
+  - id: linen_shirt
+    sprite: {fileID: 21300000, guid: 5087bdcc637973d41abbd18802fb23d3, type: 3}
+  - id: leather_gloves
+    sprite: {fileID: 21300000, guid: 098c04e31cd452146be0441cc6f3ae86, type: 3}
+  - id: guild_tabard
+    sprite: {fileID: 21300000, guid: f270ae2815e437842921f264c20b5271, type: 3}
+  - id: emberlight_aura
+    sprite: {fileID: 21300000, guid: 80e159dab3e6f1142bc5062eb184ccaf, type: 3}
+  - id: ring_of_the_glutton
+    sprite: {fileID: 21300000, guid: a7fa02c269abaed47bd3a49986381846, type: 3}
+  - id: stormcallers_band
+    sprite: {fileID: 21300000, guid: ec3f5c9d06947e7458e9626551938feb, type: 3}
+  - id: miners_charm
+    sprite: {fileID: 21300000, guid: 8e859c149e0cd814ea9acc8581953bd6, type: 3}
+  - id: pendant_of_vigor
+    sprite: {fileID: 21300000, guid: 222d62d87db5931498bb85845842b0d3, type: 3}
+  - id: whetstone_trinket
+    sprite: {fileID: 21300000, guid: 9c9d61a25b330954db345a3bd8d9330a, type: 3}
+  - id: swiftness_trinket
+    sprite: {fileID: 21300000, guid: 980e145e7d6867f4eaaa70e90d0e928d, type: 3}
+  - id: campfire_sprite
+    sprite: {fileID: 21300000, guid: a9c3d064cb5e3e34298f99352759d275, type: 3}
+  - id: starlit_aura
+    sprite: {fileID: 21300000, guid: 8a14f58b4b600a24ab3fcf9cb3bc82fb, type: 3}
+  - id: gilded_aura
+    sprite: {fileID: 21300000, guid: 87850260d0f08224e887e1c55590c081, type: 3}
+  - id: spectral_veil
+    sprite: {fileID: 21300000, guid: 4836c09be31426e49b52ea966be0a3c8, type: 3}
+  - id: wanderers_cape
+    sprite: {fileID: 21300000, guid: ab44cc5472bea164b8aeb85a8bf88edf, type: 3}
+  - id: heralds_tabard
+    sprite: {fileID: 21300000, guid: 60dbf6a31ffde4645b0ff2a518c88795, type: 3}
+  - id: festival_shirt
+    sprite: {fileID: 21300000, guid: ea09d337c28a8bd48bd3a441a4d1974f, type: 3}
+  - id: smiths_apron
+    sprite: {fileID: 21300000, guid: d659f7396cd57754eba78763cf986c51, type: 3}
+  - id: tinplate_tabard
+    sprite: {fileID: 21300000, guid: 68369b918a7c2fd4dbb2dc8b4d1ad8e0, type: 3}
+  - id: chainlink_drape
+    sprite: {fileID: 21300000, guid: 44af07db46aaec446bd82ef9941a8eb8, type: 3}
+  - id: emberforge_aura
+    sprite: {fileID: 21300000, guid: 469029cfa99d4b5458b8248d2cdd1d77, type: 3}
+  skillIcons:
+  - id: mining
+    sprite: {fileID: 21300000, guid: b54b94da5cee5c046bf327246ac181e6, type: 3}
+  - id: woodcutting
+    sprite: {fileID: 21300000, guid: a382b2f39d423db488e7f2c718625b0e, type: 3}
+  - id: fishing
+    sprite: {fileID: 21300000, guid: b416145d20baa364598d07e1740ae2fb, type: 3}
+  - id: cooking
+    sprite: {fileID: 21300000, guid: d64e0a9d8e6f9f541bd9ae7384aa1215, type: 3}
+  - id: smithing
+    sprite: {fileID: 21300000, guid: dd0d69e664275f54eb9aaac1eece3b17, type: 3}
+  - id: gleaning
+    sprite: {fileID: 21300000, guid: 0dc929ba2b225f347a3a7c2783b9c4f4, type: 3}
+  - id: fabrication
+    sprite: {fileID: 21300000, guid: 9c9d61a25b330954db345a3bd8d9330a, type: 3}
+  - id: combat
+    sprite: {fileID: 21300000, guid: 08d5ec2d201ece949a5e428ba3ea0e63, type: 3}
+  - id: negotiation
+    sprite: {fileID: 21300000, guid: 0a4e4ed28cc111a418bd671fe19adab0, type: 3}
+  - id: infusion
+    sprite: {fileID: 21300000, guid: 10876d86c0d0c7948ab7c3f219be6325, type: 3}
+  - id: chronicle
+    sprite: {fileID: 21300000, guid: 01e77d20268c10549970c6e3787cd10e, type: 3}
+  - id: spectralwork
+    sprite: {fileID: 21300000, guid: 1c728f7cc6548f24cadceb6478fa25cc, type: 3}
+  - id: brokerage
+    sprite: {fileID: 21300000, guid: 098c04e31cd452146be0441cc6f3ae86, type: 3}
+  - id: convergence
+    sprite: {fileID: 21300000, guid: 1200fd4c89ff9654483fdc0805358f5e, type: 3}
+  abilityIcons:
+  - id: cleave
+    sprite: {fileID: 21300000, guid: 6f8cc175f5444ea42b9bc540ab72d27b, type: 3}
+  - id: shield_bash
+    sprite: {fileID: 21300000, guid: f270ae2815e437842921f264c20b5271, type: 3}
+  - id: battlecry
+    sprite: {fileID: 21300000, guid: a1bf967fe8ff15041b96200e52b73720, type: 3}
+  - id: reckless_strike
+    sprite: {fileID: 21300000, guid: a332f9cc2040f6042a04c65fa9e4a000, type: 3}
+  - id: rapid_shot
+    sprite: {fileID: 21300000, guid: e7627f355f13a424d8c4b1f8d5e7b9e6, type: 3}
+  - id: marked_target
+    sprite: {fileID: 21300000, guid: 06fd18faa147f3e4dbf4d6206ff581a6, type: 3}
+  - id: barrage
+    sprite: {fileID: 21300000, guid: 8f908a0041a1aee4c8b02d9449ebd224, type: 3}
+  - id: evasion_roll
+    sprite: {fileID: 21300000, guid: 17140e59711297c47b6438d2a2328e20, type: 3}
+  - id: fireball
+    sprite: {fileID: 21300000, guid: 15a4d1cfd67230641b3cb59a4e79a168, type: 3}
+  - id: frost_nova
+    sprite: {fileID: 21300000, guid: 54aea60722ef1b84f933174779cba376, type: 3}
+  - id: arcane_surge
+    sprite: {fileID: 21300000, guid: 9937a10511c0acd499c9037a93a7f0ea, type: 3}
+  - id: blink
+    sprite: {fileID: 21300000, guid: c92048a6604402c45ab6f114514b732d, type: 3}
+  - id: deploy_turret
+    sprite: {fileID: 21300000, guid: 8bfadec067237c04ab16144f6847e733, type: 3}
+  - id: smoke_bomb
+    sprite: {fileID: 21300000, guid: 23b8640f4ea5ea74592b0cfa4ed0d2e4, type: 3}
+  - id: overclock
+    sprite: {fileID: 21300000, guid: 76cd122226468be45b5867872e28f816, type: 3}
+  - id: salvage_strike
+    sprite: {fileID: 21300000, guid: b54b94da5cee5c046bf327246ac181e6, type: 3}
+  - id: earthshaker
+    sprite: {fileID: 21300000, guid: 3d58e07cb6b28e840ab8439bcddd47e9, type: 3}
+  - id: last_stand
+    sprite: {fileID: 21300000, guid: 77d881e451bba50468b3b22861c5a27e, type: 3}
+  - id: piercing_volley
+    sprite: {fileID: 21300000, guid: e3eea5105900c584193ae2f8fd9a36c9, type: 3}
+  - id: wind_step
+    sprite: {fileID: 21300000, guid: acc57c77134a4a44e8b5012728142cb9, type: 3}
+  - id: chain_lightning
+    sprite: {fileID: 21300000, guid: 5c56b7c5e21960c41bc7aac6366d655d, type: 3}
+  - id: time_warp
+    sprite: {fileID: 21300000, guid: 178542dd25344b14587107a91c1d65a2, type: 3}
+  - id: scrap_swarm
+    sprite: {fileID: 21300000, guid: 038586565664e6a4199dd01a5bfba398, type: 3}
+  - id: concussive_blast
+    sprite: {fileID: 21300000, guid: 69b0e562553e1044e99a82a1619b4b9a, type: 3}
+  - id: grave_chill
+    sprite: {fileID: 21300000, guid: 1c84373cf4be81c44b97ce70ed9d78e6, type: 3}
+  - id: spirit_walk
+    sprite: {fileID: 21300000, guid: 4c4b73e7694c0df4380603cef5f2173b, type: 3}
+  - id: spectral_strike
+    sprite: {fileID: 21300000, guid: 447c1db264f59444f9cb13fee59a250e, type: 3}
+  - id: phase_shift
+    sprite: {fileID: 21300000, guid: 31d7a78f4758ab14b9a06229bd96b0f3, type: 3}
+  - id: haunt
+    sprite: {fileID: 21300000, guid: 1c728f7cc6548f24cadceb6478fa25cc, type: 3}
+  - id: soul_drain
+    sprite: {fileID: 21300000, guid: 1568eebc9005b5a468fbd3ffcf21bcac, type: 3}
+  classIcons:
+  - id: warrior
+    sprite: {fileID: 21300000, guid: f270ae2815e437842921f264c20b5271, type: 3}
+  - id: ranger
+    sprite: {fileID: 21300000, guid: 8f908a0041a1aee4c8b02d9449ebd224, type: 3}
+  - id: sorcerer
+    sprite: {fileID: 21300000, guid: 01e77d20268c10549970c6e3787cd10e, type: 3}
+  - id: tinkerer
+    sprite: {fileID: 21300000, guid: b54b94da5cee5c046bf327246ac181e6, type: 3}
+  - id: specter
+    sprite: {fileID: 21300000, guid: 1c728f7cc6548f24cadceb6478fa25cc, type: 3}

@@ -1,0 +1,407 @@
+using System;
+using System.Text;
+using UnityEngine;
+using UnityEngine.Networking;
+
+namespace IdleExplorers.Backend
+{
+    /// <summary>
+    /// The real backend, over HTTP.
+    ///
+    /// ══ WHY UnityWebRequest AND NOT HttpClient ════════════════════════════════════
+    ///
+    /// Not preference. WebGL excludes System.Net entirely: HttpClient does not exist
+    /// in that build, and neither does ClientWebSocket. The WebSocket case is the nasty
+    /// one — it compiles and then hangs forever at runtime rather than failing — which
+    /// is why there is no realtime connection anywhere in this design.
+    ///
+    /// UnityWebRequest is the only transport on the web, so it is the transport
+    /// everywhere. One code path that works in three builds beats two that work in one
+    /// each.
+    ///
+    /// ══ EVERY MUTATION CARRIES A KEY ══════════════════════════════════════════════
+    ///
+    /// A fresh idempotency key per logical operation, reused across retries of that
+    /// same operation. That is the whole contract: the key identifies the INTENT, so
+    /// retrying with the same one is safe and retrying with a new one is a second
+    /// craft. Retry generates no new key for exactly that reason.
+    /// </summary>
+    public class ApiBackend : IGameBackend
+    {
+        private readonly string _baseUrl;
+        private readonly Func<string> _accessToken;
+
+        /// <summary>
+        /// How many times a transient failure is retried.
+        ///
+        /// Three, with a short backoff. A WebGL tab gets suspended mid-request whenever
+        /// a phone locks or a laptop lid closes, and the server sheds load as 503 under
+        /// a spike -- both are worth riding out silently rather than showing a player
+        /// an error for something that fixes itself.
+        /// </summary>
+        public const int MaxAttempts = 3;
+
+        /// <summary>Seconds before a request is given up on.</summary>
+        public const int TimeoutSeconds = 20;
+
+        public bool IsAvailable => !string.IsNullOrEmpty(_baseUrl);
+
+        /// <param name="baseUrl">Origin only, no trailing slash.</param>
+        /// <param name="accessToken">
+        /// Reads the current Supabase access token. A FUNCTION rather than a string,
+        /// because tokens expire and a backend holding a stale copy would start failing
+        /// an hour into a session with no way to recover.
+        /// </param>
+        public ApiBackend(string baseUrl, Func<string> accessToken)
+        {
+            _baseUrl     = (baseUrl ?? "").TrimEnd('/');
+            _accessToken = accessToken ?? (() => null);
+        }
+
+        // ── The calls ─────────────────────────────────────────────────────────
+
+        public Awaitable<AccountSnapshot> GetAccountAsync() =>
+            GetAsync<AccountSnapshot>("/account/");
+
+        public Awaitable<CharacterSnapshot> GetCharacterAsync(string characterId) =>
+            GetAsync<CharacterSnapshot>($"/character/{characterId}");
+
+        public async Awaitable AddClassAsync(string characterId, string classId) =>
+            await PostAsync<EmptyResponse>($"/character/{characterId}/class",
+                                           new ClassBody { classId = classId });
+
+        public async Awaitable SaveAppearanceAsync(string characterId, SpumSaveData appearance) =>
+            await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/appearance",
+                                           new AppearanceBody { appearance = appearance });
+
+        public Awaitable<PresenceSnapshot> ReportPresenceAsync(string characterId, string mapId,
+                                                               float x, float z, string say) =>
+            PostAsync<PresenceSnapshot>($"/presence/{characterId}",
+                                        new PresenceBody { mapId = mapId, x = x, z = z, say = say });
+
+        public Awaitable<StrikeResult> StrikeAsync(string characterId, string monsterId,
+                                                   double damage, double seconds) =>
+            PostAsync<StrikeResult>($"/world/{characterId}/strike",
+                                    new StrikeBody { monsterId = monsterId, damage = damage,
+                                                     seconds = seconds });
+
+        public Awaitable<Telemetry.Receipt> ReportTelemetryAsync(Telemetry.Event[] events) =>
+            PostAsync<Telemetry.Receipt>("/telemetry/",
+                                         new Telemetry.Batch { events = events });
+
+        public Awaitable<PartySnapshot> GetPartyAsync(string characterId) =>
+            GetAsync<PartySnapshot>($"/party/{characterId}");
+
+        public Awaitable<PartySnapshot> FormPartyAsync(string characterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}", null);
+
+        public Awaitable<PartySnapshot> JoinPartyAsync(string characterId, string leaderCharacterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}/join/{leaderCharacterId}", null);
+
+        public Awaitable<PartySnapshot> LeavePartyAsync(string characterId) =>
+            SendAsync<PartySnapshot>("DELETE", $"/party/{characterId}", null);
+
+        public Awaitable<PartySnapshot> CallPartyAsync(string characterId, string mapId, string monsterId) =>
+            PostAsync<PartySnapshot>($"/party/{characterId}/call",
+                                     new CallBody { mapId = mapId, monsterId = monsterId });
+
+        public Awaitable<UseItemResult> UseItemAsync(string characterId, string itemId) =>
+            PostAsync<UseItemResult>($"/activity/{characterId}/use", new ItemBody { itemId = itemId });
+
+        public Awaitable<TestGrantResult> GrantTestPackAsync(string packId) =>
+            PostAsync<TestGrantResult>("/shop/test-grant", new PackBody { packId = packId });
+
+        /// <summary>
+        /// The claim this client holds on the account, or empty before it has one.
+        ///
+        /// Static because it belongs to the PROCESS rather than to a backend instance:
+        /// swapping between shadow and live must not silently drop it and turn every
+        /// request into an unclaimed one.
+        /// </summary>
+        public static string SessionClaim { get; set; } = "";
+
+        public Awaitable<SessionClaimResult> ClaimSessionAsync() =>
+            PostAsync<SessionClaimResult>("/session/", null);
+
+        public async Awaitable ReleaseSessionAsync() =>
+            await SendAsync<EmptyResponse>("DELETE", "/session/", null);
+
+        public Awaitable<PurchaseResult> BuyProductAsync(string characterId, string productId) =>
+            PostAsync<PurchaseResult>($"/shop/{characterId}/buy",
+                                      new ProductBody { productId = productId });
+
+        public async Awaitable SaveLocationAsync(string characterId, string mapId, float x, float z) =>
+            await SendAsync<EmptyResponse>("PUT", $"/character/{characterId}/location",
+                                           new MapBody { mapId = mapId, x = x, z = z });
+
+        public Awaitable<CharacterSnapshot> CreateCharacterAsync(string name, string classId,
+                                                                 SpumSaveData appearance) =>
+            PostAsync<CharacterSnapshot>("/character/", new CreateCharacterBody
+            {
+                name       = name,
+                classId    = classId ?? "",
+
+                // Sent WITH the creation rather than saved after it. A second call
+                // that can fail on its own is a character created with a default face
+                // and no obvious way for the player to tell why.
+                appearance = appearance,
+            });
+
+        public Awaitable<ActivitySnapshot> SetGatheringAsync(string characterId, string nodeId) =>
+            PostAsync<ActivitySnapshot>($"/activity/{characterId}", new NodeBody { nodeId = nodeId });
+
+        public Awaitable<ActivitySnapshot> SetCraftingAsync(string characterId, string recipeId) =>
+            PostAsync<ActivitySnapshot>($"/activity/{characterId}/craft", new RecipeBody { recipeId = recipeId });
+
+        public Awaitable<ActivitySnapshot> SetFightingAsync(string characterId, string monsterId) =>
+            PostAsync<ActivitySnapshot>($"/activity/{characterId}/fight", new MonsterBody { monsterId = monsterId });
+
+        public Awaitable<SettlementSnapshot> StopActivityAsync(string characterId) =>
+            SendAsync<SettlementSnapshot>("DELETE", $"/activity/{characterId}", null);
+
+        public async Awaitable HeartbeatAsync(string characterId) =>
+            await PostAsync<EmptyResponse>($"/activity/{characterId}/beat", null);
+
+        public Awaitable<SettlementSnapshot> SettleAsync(string characterId) =>
+            PostAsync<SettlementSnapshot>($"/activity/{characterId}/settle", null);
+
+        public Awaitable<MinigameSnapshot> ReportMinigameAsync(string characterId, string[] grades) =>
+            PostAsync<MinigameSnapshot>($"/activity/{characterId}/minigame",
+                                        new GradesBody { grades = grades });
+
+        public Awaitable<EncounterSnapshot> EngageBossAsync(string characterId, string monsterId) =>
+            PostAsync<EncounterSnapshot>($"/encounter/{characterId}",
+                                         new MonsterBody { monsterId = monsterId });
+
+        public Awaitable<EncounterTick> ReportBossActionsAsync(string characterId,
+                                                               BossActionReport[] actions) =>
+            PostAsync<EncounterTick>($"/encounter/{characterId}/actions",
+                                     new ActionsBody { actions = actions });
+
+        public Awaitable<EncounterResult> ResolveBossAsync(string characterId) =>
+            PostAsync<EncounterResult>($"/encounter/{characterId}/resolve", null);
+
+        public Awaitable<LootClaim> ClaimLootAsync(string characterId) =>
+            PostAsync<LootClaim>($"/encounter/{characterId}/loot", null);
+
+        public Awaitable<FleeResult> FleeBossAsync(string characterId) =>
+            PostAsync<FleeResult>($"/encounter/{characterId}/flee", null);
+
+        public Awaitable<LootRollList> GetLootRollsAsync(string characterId) =>
+            GetAsync<LootRollList>($"/encounter/{characterId}/rolls");
+
+        public Awaitable<LootRollAnswer> AnswerLootRollAsync(string characterId, string rollId,
+                                                             string choice) =>
+            PostAsync<LootRollAnswer>($"/encounter/{characterId}/rolls/{rollId}",
+                                      new ChoiceBody { choice = choice });
+
+        public Awaitable<CharacterSnapshot> EquipAsync(string characterId, string itemId, string slotId) =>
+            PostAsync<CharacterSnapshot>($"/equipment/{characterId}/equip",
+                                         new EquipBody { itemId = itemId, slotId = slotId });
+
+        public Awaitable<CharacterSnapshot> UnequipAsync(string characterId, string slotId) =>
+            PostAsync<CharacterSnapshot>($"/equipment/{characterId}/unequip",
+                                         new SlotBody { slotId = slotId });
+
+        public Awaitable<BankMoveResult> DepositAsync(string characterId, string itemId, long quantity) =>
+            PostAsync<BankMoveResult>($"/bank/{characterId}/deposit",
+                                      new MoveBody { itemId = itemId, quantity = quantity });
+
+        public Awaitable<BankMoveResult> WithdrawAsync(string characterId, string itemId, long quantity) =>
+            PostAsync<BankMoveResult>($"/bank/{characterId}/withdraw",
+                                      new MoveBody { itemId = itemId, quantity = quantity });
+
+        public Awaitable<BankSnapshot> GetBankAsync() => GetAsync<BankSnapshot>("/bank/");
+
+        public Awaitable<TalentSnapshot> SpendTalentAsync(string characterId, string nodeId) =>
+            PostAsync<TalentSnapshot>($"/talent/{characterId}", new NodeIdBody { nodeId = nodeId });
+
+        public Awaitable<TalentSnapshot> GetTalentsAsync(string characterId) =>
+            GetAsync<TalentSnapshot>($"/talent/{characterId}");
+
+        public Awaitable<BossGateSnapshot> GetBossGateAsync(string characterId) =>
+            GetAsync<BossGateSnapshot>($"/boss/{characterId}/gate");
+
+        public Awaitable<BossGateSnapshot> UnlockBossAsync(string characterId) =>
+            PostAsync<BossGateSnapshot>($"/boss/{characterId}/unlock", null);
+
+        // ── Transport ─────────────────────────────────────────────────────────
+
+        private Awaitable<T> GetAsync<T>(string path) where T : class =>
+            SendAsync<T>(UnityWebRequest.kHttpVerbGET, path, null);
+
+        private Awaitable<T> PostAsync<T>(string path, object body) where T : class =>
+            SendAsync<T>(UnityWebRequest.kHttpVerbPOST, path, body);
+
+        /// <summary>
+        /// One logical operation, retried as needed.
+        ///
+        /// The idempotency key is generated ONCE, outside the retry loop. That is the
+        /// entire safety property: a retry carrying the same key is collapsed by the
+        /// server into the original, and a retry carrying a new one is a second craft.
+        /// </summary>
+        private async Awaitable<T> SendAsync<T>(string method, string path, object body)
+            where T : class
+        {
+            string requestId = Guid.NewGuid().ToString("N");
+            BackendException last = null;
+
+            for (int attempt = 1; attempt <= MaxAttempts; attempt++)
+            {
+                try
+                {
+                    return await AttemptAsync<T>(method, path, body, requestId);
+                }
+                catch (BackendException e) when (e.IsTransient && attempt < MaxAttempts)
+                {
+                    last = e;
+
+                    // Backing off rather than hammering. A server shedding load
+                    // recovers faster when the clients that were shed wait.
+                    await Awaitable.WaitForSecondsAsync(0.4f * attempt);
+                }
+            }
+
+            throw last ?? new BackendException(0, "unreachable", $"{method} {path} failed.");
+        }
+
+        private async Awaitable<T> AttemptAsync<T>(string method, string path, object body,
+                                                   string requestId) where T : class
+        {
+            using var request = new UnityWebRequest($"{_baseUrl}{path}", method)
+            {
+                downloadHandler = new DownloadHandlerBuffer(),
+                timeout         = TimeoutSeconds,
+            };
+
+            if (body != null)
+            {
+                byte[] payload = Encoding.UTF8.GetBytes(JsonUtility.ToJson(body));
+
+                request.uploadHandler = new UploadHandlerRaw(payload);
+                request.SetRequestHeader("Content-Type", "application/json");
+            }
+            else if (method != UnityWebRequest.kHttpVerbGET)
+            {
+                // An empty body still needs a content type, or some proxies will
+                // reject the request before it reaches the server.
+                request.uploadHandler = new UploadHandlerRaw(Array.Empty<byte>());
+                request.SetRequestHeader("Content-Type", "application/json");
+            }
+
+            string token = _accessToken();
+            if (!string.IsNullOrEmpty(token))
+                request.SetRequestHeader("Authorization", $"Bearer {token}");
+
+            // Every mutating request, always. The server refuses one without it, which
+            // is deliberate: a missing key is a client bug and should be loud.
+            if (method != UnityWebRequest.kHttpVerbGET)
+                request.SetRequestHeader("Idempotency-Key", requestId);
+
+            // ══ WHICH CLIENT THIS IS ═════════════════════════════════════════════
+            //
+            // The account can only be played in one place, and this is how the server
+            // tells the places apart. Sent on reads as well as writes -- it costs a
+            // header and means a displaced client is recognised whatever it does next.
+            if (!string.IsNullOrEmpty(SessionClaim))
+                request.SetRequestHeader("X-Idle-Session", SessionClaim);
+
+            await request.SendWebRequest();
+
+            long   status = request.responseCode;
+            string text   = request.downloadHandler?.text ?? "";
+
+            if (request.result != UnityWebRequest.Result.Success || status is < 200 or >= 300)
+                throw Failure(request, status, text);
+
+            if (typeof(T) == typeof(EmptyResponse)) return null;
+
+            if (string.IsNullOrWhiteSpace(text))
+                throw new BackendException((int)status, "empty response", $"{method} {path} returned nothing.");
+
+            try
+            {
+                return JsonUtility.FromJson<T>(text);
+            }
+            catch (Exception e)
+            {
+                // A parse failure here is almost always a shape mismatch between the
+                // server's JSON and the [Serializable] class -- most likely somebody
+                // returned a Dictionary, which JsonUtility reads as empty rather than
+                // as an error. Worth naming, because the symptom is a player being
+                // told they earned nothing.
+                throw new BackendException((int)status, "unreadable response",
+                                           $"{method} {path}: {e.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Turns a failed request into something with a title worth reading.
+        ///
+        /// The server answers problems as JSON with a title and detail, so those are
+        /// preferred over UnityWebRequest's own error string -- "HTTP/1.1 409 Conflict"
+        /// tells a player nothing, and "Both your hands are on that weapon" tells them
+        /// everything.
+        /// </summary>
+        private static BackendException Failure(UnityWebRequest request, long status, string text)
+        {
+            string title  = request.error ?? "request failed";
+            string detail = null;
+
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                try
+                {
+                    var problem = JsonUtility.FromJson<ProblemResponse>(text);
+
+                    if (problem != null && !string.IsNullOrEmpty(problem.title))
+                    {
+                        title  = problem.title;
+                        detail = problem.detail;
+                    }
+                }
+                catch (Exception)
+                {
+                    // Not a problem document. The status and Unity's own error still
+                    // say enough to act on.
+                }
+            }
+
+            return new BackendException((int)status, title, detail);
+        }
+
+        // ── Request bodies ────────────────────────────────────────────────────
+
+        [Serializable] private class CreateCharacterBody
+        {
+            public string       name;
+            public string       classId;
+            public SpumSaveData appearance;
+        }
+        [Serializable] private class NodeBody            { public string nodeId; }
+        [Serializable] private class RecipeBody          { public string recipeId; }
+        [Serializable] private class MonsterBody         { public string monsterId; }
+        [Serializable] private class CallBody            { public string mapId; public string monsterId; }
+        [Serializable] private class ChoiceBody          { public string choice; }
+        [Serializable] private class GradesBody          { public string[] grades; }
+        [Serializable] private class EquipBody           { public string itemId; public string slotId; }
+        [Serializable] private class SlotBody            { public string slotId; }
+        [Serializable] private class MoveBody            { public string itemId; public long quantity; }
+        [Serializable] private class NodeIdBody          { public string nodeId; }
+        [Serializable] private class ActionsBody         { public BossActionReport[] actions; }
+        [Serializable] private class AppearanceBody      { public SpumSaveData appearance; }
+        [Serializable] private class MapBody             { public string mapId; public float x; public float z; }
+        [Serializable] private class PackBody            { public string packId; }
+        [Serializable] private class ProductBody         { public string productId; }
+        [Serializable] private class ClassBody           { public string classId; }
+        [Serializable] private class ItemBody            { public string itemId; }
+        [Serializable] private class PresenceBody        { public string mapId; public float x; public float z; public string say; }
+
+        [Serializable] private class StrikeBody          { public string monsterId; public double damage; public double seconds; }
+
+        /// <summary>For calls whose answer nobody reads.</summary>
+        private sealed class EmptyResponse { }
+
+        [Serializable] private class ProblemResponse { public string title; public string detail; public int status; }
+    }
+}

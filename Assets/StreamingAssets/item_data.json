@@ -1,30 +1,2106 @@
 [
-  { "id": "coins",        "name": "Coins",          "description": "The realm's currency. Even the dying world still runs on coin.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "" },
-  { "id": "bones",        "name": "Bones",           "description": "Something used to live in these.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "skull",        "name": "Skull",           "description": "It's looking at you. Don't make it weird.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "copper_ore",   "name": "Copper Ore",      "description": "Unassuming. Unbothered. Already in a union.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
-  { "id": "tin_ore",      "name": "Tin Ore",         "description": "Copper's quiet neighbour.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "mining" },
-  { "id": "iron_ore",     "name": "Iron Ore",        "description": "Heavier than its problems.", "iconAddress": "", "stackable": true, "levelReq": 15, "sourceSkill": "mining" },
-  { "id": "coal",         "name": "Coal",            "description": "Compressed time and pressure, much like you.", "iconAddress": "", "stackable": true, "levelReq": 30, "sourceSkill": "mining" },
-  { "id": "mithril_ore",  "name": "Mithril Ore",     "description": "Glows faintly. Refuses to explain why.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "mining" },
-  { "id": "normal_logs",  "name": "Logs",            "description": "They were a tree. They're handling the change poorly.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "woodcutting" },
-  { "id": "oak_logs",     "name": "Oak Logs",        "description": "Denser. Grumpier. Still logs.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "woodcutting" },
-  { "id": "willow_logs",  "name": "Willow Logs",     "description": "Weep for them, or with them.", "iconAddress": "", "stackable": true, "levelReq": 30, "sourceSkill": "woodcutting" },
-  { "id": "raw_shrimp",   "name": "Raw Shrimp",      "description": "Furious about being caught. Too small to do anything about it.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "fishing" },
-  { "id": "raw_trout",    "name": "Raw Trout",       "description": "Put up a fight. Lost.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "fishing" },
-  { "id": "raw_lobster",  "name": "Raw Lobster",     "description": "Technically still defending itself.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "fishing" },
-  { "id": "shrimp",       "name": "Cooked Shrimp",   "description": "Heals 3 HP. Still furious, but compliant.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "cooking" },
-  { "id": "trout",        "name": "Cooked Trout",    "description": "Heals 10 HP.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "cooking" },
-  { "id": "lobster",      "name": "Cooked Lobster",  "description": "Heals 25 HP. The lobster has given up.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "cooking" },
-  { "id": "bronze_bar",   "name": "Bronze Bar",      "description": "Copper + tin, melted together in their shared grief.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "smithing" },
-  { "id": "iron_bar",     "name": "Iron Bar",        "description": "Forged. Dense. Dependable.", "iconAddress": "", "stackable": true, "levelReq": 15, "sourceSkill": "smithing" },
-  { "id": "chaos_rune",   "name": "Chaos Rune",      "description": "Vibrates anxiously even when nothing is happening.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "gleaning" },
-  { "id": "death_rune",   "name": "Death Rune",      "description": "Extremely calm about everything. Suspicious.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "gleaning" },
-  { "id": "magic_staff",  "name": "Magic Staff",     "description": "Still charged with something. Doesn't say what.", "iconAddress": "", "stackable": false, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "iron_sword",   "name": "Iron Sword",      "description": "Reliable. Won't start conversations.", "iconAddress": "", "stackable": false, "levelReq": 10, "sourceSkill": "smithing" },
-  { "id": "troll_hide",   "name": "Troll Hide",      "description": "Tough. Smells of bridge and regret.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "gold_ore",     "name": "Gold Ore",        "description": "Shiny. The trolls hoard it but never explain why.", "iconAddress": "", "stackable": true, "levelReq": 40, "sourceSkill": "mining" },
-  { "id": "dragon_bones", "name": "Dragon Bones",    "description": "Worth an incredible amount. Also weigh an incredible amount.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "dragon_scale", "name": "Dragon Scales",   "description": "Iridescent. The dragon didn't want to give them up.", "iconAddress": "", "stackable": true, "levelReq": 0, "sourceSkill": "combat" },
-  { "id": "faint_residue","name": "Faint Residue",   "description": "A trace of something that used to matter. You can feel it resisting.", "iconAddress": "", "stackable": true, "levelReq": 20, "sourceSkill": "gleaning" }
+  {
+    "id": "coins",
+    "name": "Coins",
+    "description": "The realm's currency. Even the dying world still runs on coin.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": ""
+  },
+  {
+    "id": "bones",
+    "name": "Bones",
+    "description": "Something used to live in these.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "bramble_thorn",
+    "name": "Bramble Thorn",
+    "description": "Still faintly warm. Best not to think about why.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "hollowcap",
+    "name": "Hollowcap",
+    "description": "A mushroom that grew far too well, like everything else down there.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "skull",
+    "name": "Skull",
+    "description": "It's looking at you. Don't make it weird.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "copper_ore",
+    "name": "Copper Ore",
+    "description": "Unassuming. Unbothered. Already in a union.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "tin_ore",
+    "name": "Tin Ore",
+    "description": "Copper's quiet neighbor.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "iron_ore",
+    "name": "Iron Ore",
+    "description": "Heavier than its problems.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 15,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "coal",
+    "name": "Coal",
+    "description": "Compressed time and pressure, much like you.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 30,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "mithril_ore",
+    "name": "Mithril Ore",
+    "description": "Glows faintly. Refuses to explain why.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 40,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "normal_logs",
+    "name": "Logs",
+    "description": "They were a tree. They're handling the change poorly.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "woodcutting"
+  },
+  {
+    "id": "oak_logs",
+    "name": "Oak Logs",
+    "description": "Denser. Grumpier. Still logs.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 20,
+    "sourceSkill": "woodcutting"
+  },
+  {
+    "id": "willow_logs",
+    "name": "Willow Logs",
+    "description": "Weep for them, or with them.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 30,
+    "sourceSkill": "woodcutting"
+  },
+  {
+    "id": "raw_shrimp",
+    "name": "Raw Shrimp",
+    "description": "Furious about being caught. Too small to do anything about it.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "fishing"
+  },
+  {
+    "id": "raw_trout",
+    "name": "Raw Trout",
+    "description": "Put up a fight. Lost.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 20,
+    "sourceSkill": "fishing"
+  },
+  {
+    "id": "raw_lobster",
+    "name": "Raw Lobster",
+    "description": "Technically still defending itself.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 40,
+    "sourceSkill": "fishing"
+  },
+  {
+    "id": "shrimp",
+    "name": "Cooked Shrimp",
+    "description": "Heals 3 HP. Still furious, but compliant.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "cooking",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "heal",
+        "chance": 1.0,
+        "magnitude": 3
+      }
+    ]
+  },
+  {
+    "id": "gritty_shrimp",
+    "name": "Gritty Shrimps",
+    "description": "Cooked over a tin-ore fire, which turned out to be exactly as advisable as it sounds.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "cooking",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "damageSelf",
+        "chance": 1.0,
+        "magnitude": 10
+      }
+    ]
+  },
+  {
+    "id": "trout",
+    "name": "Cooked Trout",
+    "description": "Heals 10 HP.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 20,
+    "sourceSkill": "cooking",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "heal",
+        "chance": 1.0,
+        "magnitude": 10
+      }
+    ]
+  },
+  {
+    "id": "lobster",
+    "name": "Cooked Lobster",
+    "description": "Heals 25 HP. The lobster has given up.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 40,
+    "sourceSkill": "cooking",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "heal",
+        "chance": 1.0,
+        "magnitude": 25
+      }
+    ]
+  },
+  {
+    "id": "mystic_gem",
+    "name": "Small Mystic Gem (1hr)",
+    "description": "Peer deeply into the mystical gem to teleport forward in time 1 hour with your current activity.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "grantAfkTime",
+        "chance": 1.0,
+        "magnitude": 3600
+      }
+    ]
+  },
+  {
+    "id": "mystic_gem_medium",
+    "name": "Medium Mystic Gem (4hr)",
+    "description": "Four hours of your current activity, gone in the time it takes to blink.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "grantAfkTime",
+        "chance": 1.0,
+        "magnitude": 14400
+      }
+    ]
+  },
+  {
+    "id": "mystic_gem_large",
+    "name": "Large Mystic Gem (12hr)",
+    "description": "Half a day passes inside the stone. You do not age. Your ore does not mine itself any slower.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "grantAfkTime",
+        "chance": 1.0,
+        "magnitude": 43200
+      }
+    ]
+  },
+  {
+    "id": "mystic_gem_massive",
+    "name": "Massive Mystic Gem (24hr)",
+    "description": "A full day, surrendered willingly. Check your materials before you look into it.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "grantAfkTime",
+        "chance": 1.0,
+        "magnitude": 86400
+      }
+    ]
+  },
+  {
+    "id": "mystic_gem_gigantic",
+    "name": "Gigantic Mystic Gem (72hr)",
+    "description": "Three days. The gem is warm and slightly heavier than it should be. Bring supplies.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "grantAfkTime",
+        "chance": 1.0,
+        "magnitude": 259200
+      }
+    ]
+  },
+  {
+    "id": "shifting_sigil",
+    "name": "Shifting Sigil",
+    "description": "Break the sigil to become something else entirely. Your levels, skills and belongings come with you; your talents are refunded and the tree emptied.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "changeClass",
+        "chance": 1.0,
+        "magnitude": 1
+      }
+    ]
+  },
+  {
+    "id": "mirror_of_faces",
+    "name": "Mirror of Faces",
+    "description": "Look into it and decide what looks back. Changes only your appearance — level, skills, equipment and talents are untouched.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "changeAppearance",
+        "chance": 1.0,
+        "magnitude": 1
+      }
+    ]
+  },
+  {
+    "id": "proving_hammer",
+    "name": "Proving Hammer",
+    "description": "A smith's test hammer. One tap on a piece of what you are wearing tells you how close it is to giving out — by bringing it a good deal closer. For finding out what breaking feels like without waiting to be hit for an hour.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "damageEquipment",
+        "chance": 1.0,
+        "magnitude": 20
+      }
+    ]
+  },
+  {
+    "id": "resetting_draught",
+    "name": "Draught of Unlearning",
+    "description": "TESTING TOOL. Sets every skill back to level 1 with no experience. Character level, talents and equipment are untouched. Does nothing outside a development build.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "resetSkills",
+        "chance": 1.0,
+        "magnitude": 1
+      }
+    ]
+  },
+  {
+    "id": "tin_bar",
+    "name": "Tin Bar",
+    "description": "Soft, dull, and honest about both. Everyone starts here.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "smithing"
+  },
+  {
+    "id": "copper_bar",
+    "name": "Copper Bar",
+    "description": "Warm to the touch and faintly smug about it.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 10,
+    "sourceSkill": "smithing"
+  },
+  {
+    "id": "bronze_bar",
+    "name": "Bronze Bar",
+    "description": "Copper + tin, melted together in their shared grief.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 20,
+    "sourceSkill": "smithing"
+  },
+  {
+    "id": "iron_bar",
+    "name": "Iron Bar",
+    "description": "Forged. Dense. Dependable.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 15,
+    "sourceSkill": "smithing"
+  },
+  {
+    "id": "chaos_rune",
+    "name": "Chaos Rune",
+    "description": "Vibrates anxiously even when nothing is happening.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "gleaning"
+  },
+  {
+    "id": "death_rune",
+    "name": "Death Rune",
+    "description": "Extremely calm about everything. Suspicious.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "gleaning"
+  },
+  {
+    "id": "magic_staff",
+    "name": "Magic Staff",
+    "description": "Still charged with something. Doesn't say what.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "combat",
+    "equipSlot": "mainhand",
+    "maxDurability": 90,
+    "weaponType": "ranged",
+    "attackRange": 9.0,
+    "attackSpeedSeconds": 2.0,
+    "damageMin": 5,
+    "damageMax": 9,
+    "projectilesPerShot": 1
+  },
+  {
+    "id": "iron_sword",
+    "name": "Iron Sword",
+    "description": "Reliable. Won't start conversations.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "maxDurability": 120,
+    "weaponType": "melee",
+    "attackRange": 2.2,
+    "attackSpeedSeconds": 1.6,
+    "damageMin": 4,
+    "damageMax": 7
+  },
+  {
+    "id": "troll_hide",
+    "name": "Troll Hide",
+    "description": "Tough. Smells of bridge and regret.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "gold_ore",
+    "name": "Gold Ore",
+    "description": "Shiny. The trolls hoard it but never explain why.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 40,
+    "sourceSkill": "mining"
+  },
+  {
+    "id": "dragon_bones",
+    "name": "Dragon Bones",
+    "description": "Worth an incredible amount. Also weigh an incredible amount.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "dragon_scale",
+    "name": "Dragon Scales",
+    "description": "Iridescent. The dragon didn't want to give them up.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": "combat"
+  },
+  {
+    "id": "faint_residue",
+    "name": "Faint Residue",
+    "description": "A trace of something that used to matter. You can feel it resisting.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 20,
+    "sourceSkill": "gleaning"
+  },
+  {
+    "id": "iron_helm",
+    "name": "Iron Helm",
+    "description": "Dented in a way that suggests it did its job at least once.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "smithing",
+    "equipSlot": "helmet",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_4",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 15,
+        "equipText": "Equip: +15 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "travelers_cape",
+    "name": "Traveller's Cape",
+    "description": "Weathered, patched, and quietly proud of both.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "cape",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_1"
+  },
+  {
+    "id": "bronze_platebody",
+    "name": "Bronze Chestplate",
+    "description": "Heavy enough that you notice, light enough that you forgive it.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 250,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 60,
+        "equipText": "Equip: +60 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_helmet",
+    "name": "Tin Helmet",
+    "description": "It dents if you look at it firmly. Still better than nothing.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_1",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "helmet",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_1",
+    "setId": "weak_tin_man",
+    "maxDurability": 70,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 6,
+        "equipText": "Equip: +6 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_shoulders",
+    "name": "Tin Shoulders",
+    "description": "Two plates that ring like a dropped saucepan. Somehow reassuring.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_1#Left",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "shoulders",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_1",
+    "setId": "weak_tin_man",
+    "maxDurability": 70,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 7,
+        "equipText": "Equip: +7 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_platebody",
+    "name": "Tin Chestplate",
+    "description": "Covers the important parts. Rattles on the way down.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_1#Body",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_1",
+    "setId": "weak_tin_man",
+    "maxDurability": 100,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 15,
+        "equipText": "Equip: +15 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_gloves",
+    "name": "Tin Gauntlets",
+    "description": "Grip is fine. Dexterity is a memory.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_2#Right",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "gloves",
+    "setId": "weak_tin_man",
+    "maxDurability": 60,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "minHit",
+        "magnitude": 1,
+        "equipText": "Equip: +1 attack damage."
+      },
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "maxHit",
+        "magnitude": 1
+      }
+    ]
+  },
+  {
+    "id": "tin_boots",
+    "name": "Tin Boots",
+    "description": "Loud. Every goblin in the camp knows you are coming.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1#Left",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "weak_tin_man",
+    "maxDurability": 60,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 5,
+        "equipText": "Equip: +5 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_buckler",
+    "name": "Tin Buckler",
+    "description": "Dents on contact, which is technically absorbing the blow.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "offhand",
+    "maxDurability": 100,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "armor",
+        "magnitude": 3,
+        "equipText": "Equip: +3 armor."
+      }
+    ]
+  },
+  {
+    "id": "tin_legguards",
+    "name": "Tin Legguards",
+    "description": "Hinged at the knee, in theory. You walk like a gate.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2#Left",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "weak_tin_man",
+    "maxDurability": 80,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 10,
+        "equipText": "Equip: +10 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "tin_bracers",
+    "name": "Tin Bracers",
+    "description": "Two cuffs of soft metal. They have stopped exactly one thing so far.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_2#Left",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "bracers",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_2",
+    "maxDurability": 60,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 4,
+        "equipText": "Equip: +4 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_helmet",
+    "name": "Copper Helmet",
+    "description": "Turns green eventually. So does the wearer, in fairness.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_2",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "helmet",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_2",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 110,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 14,
+        "equipText": "Equip: +14 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_shoulders",
+    "name": "Copper Shoulders",
+    "description": "Broad enough to change how doorways feel.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_2#Left",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "shoulders",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_2",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 110,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 16,
+        "equipText": "Equip: +16 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_platebody",
+    "name": "Copper Chestplate",
+    "description": "Warmer than it has any right to be. Nobody has explained why.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_2#Body",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_2",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 160,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 32,
+        "equipText": "Equip: +32 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_gloves",
+    "name": "Copper Gauntlets",
+    "description": "Heavy knuckles. Things notice when they connect.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5#Right",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "gloves",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 100,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "minHit",
+        "magnitude": 3,
+        "equipText": "Equip: +3 attack damage."
+      },
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "maxHit",
+        "magnitude": 3
+      }
+    ]
+  },
+  {
+    "id": "copper_boots",
+    "name": "Copper Boots",
+    "description": "Still loud, but now it is a nicer note.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3#Left",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 100,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 11,
+        "equipText": "Equip: +11 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_legguards",
+    "name": "Copper Legguards",
+    "description": "Articulated. You can almost kneel, which is progress.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4#Left",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_4",
+    "setId": "verdigris_vanguard",
+    "maxDurability": 130,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 21,
+        "equipText": "Equip: +21 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "copper_bracers",
+    "name": "Copper Bracers",
+    "description": "Fitted properly this time. The smith was having a good day.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5#Left",
+    "stackable": false,
+    "levelReq": 10,
+    "sourceSkill": "smithing",
+    "equipSlot": "bracers",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_5",
+    "maxDurability": 100,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 9,
+        "equipText": "Equip: +9 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "bronze_helmet",
+    "name": "Bronze Helmet",
+    "description": "The first helmet that feels like it was made for a fight rather than a fair.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_3",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "helmet",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/4_Helmet/Helmet_3",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 175,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 30,
+        "equipText": "Equip: +30 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "bronze_shoulders",
+    "name": "Bronze Shoulders",
+    "description": "Cast in one piece. Whoever poured them was showing off.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3#Left",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "shoulders",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_3",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 175,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 34,
+        "equipText": "Equip: +34 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "bronze_gloves",
+    "name": "Bronze Gauntlets",
+    "description": "You can punch through a door. You should not, but you can.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8#Right",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "gloves",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 150,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "minHit",
+        "magnitude": 6,
+        "equipText": "Equip: +6 attack damage."
+      },
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "maxHit",
+        "magnitude": 6
+      }
+    ]
+  },
+  {
+    "id": "bronze_boots",
+    "name": "Bronze Boots",
+    "description": "Bone-reinforced at the ankle. The goblins contributed unwillingly.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1#Right",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 150,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 22,
+        "equipText": "Equip: +22 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "bronze_legguards",
+    "name": "Bronze Legguards",
+    "description": "Heavy enough that sitting down is a decision.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3#Right",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_3",
+    "setId": "bronze_age_reenactor",
+    "maxDurability": 200,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 42,
+        "equipText": "Equip: +42 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "bronze_bracers",
+    "name": "Bronze Bracers",
+    "description": "Scored all over. Every mark is a blow that did not reach you.",
+    "iconAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8#Left",
+    "stackable": false,
+    "levelReq": 20,
+    "sourceSkill": "smithing",
+    "equipSlot": "bracers",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_8",
+    "maxDurability": 150,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 18,
+        "equipText": "Equip: +18 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "linen_shirt",
+    "name": "Linen Shirt",
+    "description": "Comfortable. Offers approximately no protection.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "shirt",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_1"
+  },
+  {
+    "id": "leather_gloves",
+    "name": "Leather Gloves",
+    "description": "Worn soft at the fingertips.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "gloves"
+  },
+  {
+    "id": "guild_tabard",
+    "name": "Guild Tabard",
+    "description": "The guild it belonged to no longer exists. The tabard has not been told.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "tabard",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_7"
+  },
+  {
+    "id": "emberlight_aura",
+    "name": "Emberlight",
+    "description": "A slow drift of warm sparks that follows you everywhere.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "aura",
+    "equipSpriteAddress": "aura_ember"
+  },
+  {
+    "id": "ring_of_the_glutton",
+    "name": "Ring of the Glutton",
+    "description": "Hungry on your behalf.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "ring",
+    "effects": [
+      {
+        "trigger": "onCraft",
+        "action": "doubleOutput",
+        "param": "cooking",
+        "chance": 0.15,
+        "magnitude": 2,
+        "equipText": "Equip: has a chance to double how many items are produced at a campfire."
+      }
+    ]
+  },
+  {
+    "id": "stormcallers_band",
+    "name": "Stormcaller's Band",
+    "description": "Faintly warm. Occasionally opinionated.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "ring",
+    "effects": [
+      {
+        "trigger": "onAbilityUse",
+        "action": "castEffect",
+        "param": "lightning_ball",
+        "chance": 0.2,
+        "magnitude": 25,
+        "equipText": "Equip: you have a chance to hurl a ball of lightning when you use an ability."
+      }
+    ]
+  },
+  {
+    "id": "miners_charm",
+    "name": "Miner's Charm",
+    "description": "Someone rubbed the engraving away entirely. It still works.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "amulet",
+    "effects": [
+      {
+        "trigger": "onGather",
+        "action": "bonusXp",
+        "param": "mining",
+        "chance": 0.25,
+        "magnitude": 15,
+        "equipText": "Equip: has a chance to grant bonus Mining experience when you gather."
+      }
+    ]
+  },
+  {
+    "id": "pendant_of_vigor",
+    "name": "Pendant of Vigor",
+    "description": "Beats very faintly, slightly out of time with you.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "amulet",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 25,
+        "equipText": "Equip: +25 maximum health."
+      }
+    ]
+  },
+  {
+    "id": "whetstone_trinket",
+    "name": "Keen Whetstone",
+    "description": "Never wears down. Never explains itself.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "trinket",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "minHit",
+        "magnitude": 5,
+        "equipText": "Equip: +5 attack damage."
+      },
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "maxHit",
+        "magnitude": 5
+      }
+    ]
+  },
+  {
+    "id": "swiftness_trinket",
+    "name": "Quickstep Charm",
+    "description": "You keep arriving slightly before you meant to.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "trinket",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "attackSpeedMultiplier",
+        "magnitude": 0.1,
+        "equipText": "Equip: attack 10% faster."
+      }
+    ]
+  },
+  {
+    "id": "campfire_sprite",
+    "name": "Campfire Sprite",
+    "description": "It watches you cook and offers no advice.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "companion",
+    "effects": [
+      {
+        "trigger": "onCraft",
+        "action": "doubleOutput",
+        "chance": 0.1,
+        "magnitude": 2,
+        "equipText": "Equip: has a chance to double anything you craft."
+      }
+    ]
+  },
+  {
+    "id": "goblin_spear",
+    "name": "Goblin Spear",
+    "description": "Longer than it looks. The previous owner was also surprised.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "mainhand",
+    "maxDurability": 150,
+    "weaponType": "melee",
+    "attackRange": 3.0,
+    "attackSpeedSeconds": 1.9,
+    "damageMin": 6,
+    "damageMax": 11,
+    "effects": [
+      {
+        "trigger": "onHit",
+        "action": "summonAlly",
+        "param": "goblin",
+        "chance": 0.06,
+        "magnitude": 30,
+        "equipText": "6% on hit: a goblin fights for you for 30 seconds."
+      }
+    ]
+  },
+  {
+    "id": "swiftstride_boots",
+    "name": "Swiftstride Boots",
+    "description": "Worn by something that spent its whole life running away successfully.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "boots",
+    "maxDurability": 120,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "moveSpeed",
+        "magnitude": 1.4,
+        "equipText": "Equip: +1.4 movement speed."
+      }
+    ]
+  },
+  {
+    "id": "trisong_bow",
+    "name": "Trisong Bow",
+    "description": "Three strings, three notes, three arrows. Nobody has explained the notes.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "mainhand",
+    "maxDurability": 130,
+    "weaponType": "ranged",
+    "attackRange": 12.0,
+    "attackSpeedSeconds": 2.4,
+    "damageMin": 6,
+    "damageMax": 11,
+    "projectilesPerShot": 3
+  },
+  {
+    "id": "goblin_slasher",
+    "name": "Goblin Slasher",
+    "description": "Half of a pair. It knows it, and sulks.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "mainhand",
+    "maxDurability": 200,
+    "weaponType": "melee",
+    "attackRange": 2.4,
+    "attackSpeedSeconds": 1.4,
+    "damageMin": 9,
+    "damageMax": 15,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "fuseInto",
+        "param": "goblin_destroyer",
+        "requires": "goblin_smasher",
+        "equipText": "Use: consumes a Goblin Smasher to forge the Goblin Destroyer."
+      }
+    ]
+  },
+  {
+    "id": "goblin_smasher",
+    "name": "Goblin Smasher",
+    "description": "The other half. Equally aware, equally sulky.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "offhand",
+    "maxDurability": 200,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "maxHit",
+        "magnitude": 4,
+        "equipText": "Equip: +4 maximum hit."
+      },
+      {
+        "trigger": "onConsume",
+        "action": "fuseInto",
+        "param": "goblin_destroyer",
+        "requires": "goblin_slasher",
+        "equipText": "Use: consumes a Goblin Slasher to forge the Goblin Destroyer."
+      }
+    ]
+  },
+  {
+    "id": "goblin_destroyer",
+    "name": "Goblin Destroyer",
+    "description": "Both halves, finally reconciled. Now it only sulks about the handle.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "mainhand",
+    "maxDurability": 300,
+    "weaponType": "melee",
+    "attackRange": 2.8,
+    "attackSpeedSeconds": 1.5,
+    "damageMin": 18,
+    "damageMax": 30,
+    "twoHanded": true,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "whirling_throw",
+        "equipText": "Equip: grants Whirling Throw."
+      }
+    ]
+  },
+  {
+    "id": "kings_crown",
+    "name": "The King's Crown",
+    "description": "Tin, painted gold, and worth more than either.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "combat",
+    "equipSlot": "helmet",
+    "maxDurability": 150,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "insight",
+        "magnitude": 0.15,
+        "equipText": "Equip: +0.15 insight."
+      }
+    ]
+  },
+  {
+    "id": "smiths_apron",
+    "name": "Smith's Apron",
+    "description": "Scorched in a pattern that suggests a long argument with a forge.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "shirt",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_6"
+  },
+  {
+    "id": "tinplate_tabard",
+    "name": "Tinplate Tabard",
+    "description": "Hammered flat, punched with a hole, worn with conviction.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "tabard",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_4"
+  },
+  {
+    "id": "chainlink_drape",
+    "name": "Chainlink Drape",
+    "description": "Nine hundred bars of copper, arranged to keep no rain off whatsoever.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "cape",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_2"
+  },
+  {
+    "id": "emberforge_aura",
+    "name": "Emberforge Aura",
+    "description": "The forge got into you somewhere around the thousandth bar.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "smithing",
+    "equipSlot": "aura",
+    "equipSpriteAddress": "aura_forge",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "castEffect",
+        "param": "aura_ember",
+        "equipText": "Equip: wreathed in forge-embers."
+      }
+    ]
+  },
+  {
+    "id": "starlit_aura",
+    "name": "Starlit Aura",
+    "description": "Somebody insists these are real stars. Nobody has checked.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "aura",
+    "equipSpriteAddress": "aura_starlit",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "castEffect",
+        "param": "aura_glow",
+        "equipText": "Equip: haloed in slow light."
+      }
+    ]
+  },
+  {
+    "id": "gilded_aura",
+    "name": "Gilded Aura",
+    "description": "Gold leaf, suspended, going nowhere. Much like the wearer at 3am.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "aura",
+    "equipSpriteAddress": "aura_gilded",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "castEffect",
+        "param": "aura_runic",
+        "equipText": "Equip: gilded and drifting."
+      }
+    ]
+  },
+  {
+    "id": "spectral_veil",
+    "name": "Spectral Veil",
+    "description": "Cold to hold. Colder to wear. Extremely worth it.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "aura",
+    "equipSpriteAddress": "aura_spectral",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "castEffect",
+        "param": "smoke",
+        "equipText": "Equip: trailing a thin cold mist."
+      }
+    ]
+  },
+  {
+    "id": "wanderers_cape",
+    "name": "Wanderer's Cape",
+    "description": "Has been somewhere. Declines to say where.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "cape",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/7_Back/Back_3"
+  },
+  {
+    "id": "heralds_tabard",
+    "name": "Herald's Tabard",
+    "description": "Announces someone. The someone is not specified.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "tabard",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_6"
+  },
+  {
+    "id": "festival_shirt",
+    "name": "Festival Shirt",
+    "description": "Bought at a festival nobody else remembers attending.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 0,
+    "sourceSkill": "",
+    "equipSlot": "shirt",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/2_Cloth/Cloth_9"
+  },
+  {
+    "id": "starter_warrior_tunic",
+    "name": "Dented Tunic",
+    "description": "Someone else dented it first.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
+    "setId": "starter_warrior",
+    "maxDurability": 40,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 6,
+        "equipText": "Equip: +6 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_warrior_trews",
+    "name": "Dented Trews",
+    "description": "Someone else dented it first.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "starter_warrior",
+    "maxDurability": 30,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 6,
+        "equipText": "Equip: +6 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_warrior_shoes",
+    "name": "Dented Shoes",
+    "description": "Someone else dented it first.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "starter_warrior",
+    "maxDurability": 20,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 6,
+        "equipText": "Equip: +6 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_ranger_tunic",
+    "name": "Patched Tunic",
+    "description": "More patch than cloth by now.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
+    "setId": "starter_ranger",
+    "maxDurability": 40,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "moveSpeed",
+        "magnitude": 1,
+        "equipText": "Equip: +1 moveSpeed."
+      }
+    ]
+  },
+  {
+    "id": "starter_ranger_trews",
+    "name": "Patched Trews",
+    "description": "More patch than cloth by now.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "starter_ranger",
+    "maxDurability": 30,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "moveSpeed",
+        "magnitude": 1,
+        "equipText": "Equip: +1 moveSpeed."
+      }
+    ]
+  },
+  {
+    "id": "starter_ranger_shoes",
+    "name": "Patched Shoes",
+    "description": "More patch than cloth by now.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "starter_ranger",
+    "maxDurability": 20,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "moveSpeed",
+        "magnitude": 1,
+        "equipText": "Equip: +1 moveSpeed."
+      }
+    ]
+  },
+  {
+    "id": "starter_sorcerer_tunic",
+    "name": "Faded Tunic",
+    "description": "The dye gave up before the wearer did.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
+    "setId": "starter_sorcerer",
+    "maxDurability": 40,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 6,
+        "equipText": "Equip: +6 mana."
+      }
+    ]
+  },
+  {
+    "id": "starter_sorcerer_trews",
+    "name": "Faded Trews",
+    "description": "The dye gave up before the wearer did.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "starter_sorcerer",
+    "maxDurability": 30,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 6,
+        "equipText": "Equip: +6 mana."
+      }
+    ]
+  },
+  {
+    "id": "starter_sorcerer_shoes",
+    "name": "Faded Shoes",
+    "description": "The dye gave up before the wearer did.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "starter_sorcerer",
+    "maxDurability": 20,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 6,
+        "equipText": "Equip: +6 mana."
+      }
+    ]
+  },
+  {
+    "id": "starter_tinkerer_tunic",
+    "name": "Oily Tunic",
+    "description": "It has been used to wipe things.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
+    "setId": "starter_tinkerer",
+    "maxDurability": 40,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 5,
+        "equipText": "Equip: +5 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_tinkerer_trews",
+    "name": "Oily Trews",
+    "description": "It has been used to wipe things.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "starter_tinkerer",
+    "maxDurability": 30,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 5,
+        "equipText": "Equip: +5 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_tinkerer_shoes",
+    "name": "Oily Shoes",
+    "description": "It has been used to wipe things.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "starter_tinkerer",
+    "maxDurability": 20,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 5,
+        "equipText": "Equip: +5 health."
+      }
+    ]
+  },
+  {
+    "id": "starter_specter_tunic",
+    "name": "Threadbare Tunic",
+    "description": "You can see the road through it.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "chest",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/5_Armor/Armor_5",
+    "setId": "starter_specter",
+    "maxDurability": 40,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 5,
+        "equipText": "Equip: +5 mana."
+      }
+    ]
+  },
+  {
+    "id": "starter_specter_trews",
+    "name": "Threadbare Trews",
+    "description": "You can see the road through it.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "legs",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_2",
+    "setId": "starter_specter",
+    "maxDurability": 30,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 5,
+        "equipText": "Equip: +5 mana."
+      }
+    ]
+  },
+  {
+    "id": "starter_specter_shoes",
+    "name": "Threadbare Shoes",
+    "description": "You can see the road through it.",
+    "stackable": false,
+    "levelReq": 1,
+    "sourceSkill": "",
+    "equipSlot": "boots",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/3_Pant/Foot_1",
+    "setId": "starter_specter",
+    "maxDurability": 20,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "mana",
+        "magnitude": 5,
+        "equipText": "Equip: +5 mana."
+      }
+    ]
+  },
+  {
+    "id": "bulwark_cleaver",
+    "name": "Bulwark Cleaver",
+    "description": "Heavy enough that the swing is a commitment. Warriors describe this as an advantage.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_4",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 2.4,
+    "attackSpeedSeconds": 2.2,
+    "damageMin": 14,
+    "damageMax": 26,
+    "classReq": "warrior",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "shieldbreak",
+        "equipText": "Equip: Shieldbreak — a swing that lands on everything in front of you."
+      }
+    ]
+  },
+  {
+    "id": "windcut_bow",
+    "name": "Windcut Bow",
+    "description": "Strung with something that hums in a breeze. It is not a pleasant sound.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/2_Bow/Bow_1",
+    "maxDurability": 400,
+    "weaponType": "ranged",
+    "attackRange": 12,
+    "attackSpeedSeconds": 1.8,
+    "damageMin": 10,
+    "damageMax": 19,
+    "classReq": "ranger",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "windvolley",
+        "equipText": "Equip: Windvolley — a fan of arrows that finds everything nearby."
+      }
+    ],
+    "projectilesPerShot": 2
+  },
+  {
+    "id": "emberward_rod",
+    "name": "Emberward Rod",
+    "description": "Warm at the grip, and warmer the longer you hold it. Sorcerers consider this normal.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/5_Wand/Ward_1",
+    "maxDurability": 400,
+    "weaponType": "ranged",
+    "attackRange": 10,
+    "attackSpeedSeconds": 1.9,
+    "damageMin": 11,
+    "damageMax": 22,
+    "classReq": "sorcerer",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "emberburst",
+        "equipText": "Equip: Emberburst — everything close to you catches."
+      }
+    ]
+  },
+  {
+    "id": "piston_maul",
+    "name": "Piston Maul",
+    "description": "It hits itself first, and passes the result along. The Tinkerer who built it is very proud.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/6_Hammer/F_SR_Hammer",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 2.6,
+    "attackSpeedSeconds": 2.4,
+    "damageMin": 16,
+    "damageMax": 28,
+    "classReq": "tinkerer",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "piston_overdrive",
+        "equipText": "Equip: Overclock — swing far faster than the maul was designed for."
+      }
+    ]
+  },
+  {
+    "id": "grave_pike",
+    "name": "Grave Pike",
+    "description": "Reaches further than it looks, which is the last thing several goblins have thought.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 28,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/4_Spear/Spear_1",
+    "maxDurability": 400,
+    "weaponType": "melee",
+    "attackRange": 3.2,
+    "attackSpeedSeconds": 2,
+    "damageMin": 12,
+    "damageMax": 24,
+    "classReq": "specter",
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "gravetether",
+        "equipText": "Equip: Gravetether — what it takes from them, it gives to you."
+      }
+    ]
+  },
+  {
+    "id": "draught_of_fury",
+    "name": "Draught of Fury",
+    "description": "Hits harder for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackDamagePercent",
+        "magnitude": 0.25,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "draught_of_swiftness",
+    "name": "Draught of Swiftness",
+    "description": "Swings faster for ten minutes. Drink it BEFORE a boss fight — the King is measured against you at the moment you walk in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackSpeedPercent",
+        "magnitude": 0.2,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "draught_of_vigour",
+    "name": "Draught of Vigour",
+    "description": "A great deal more of you, for ten minutes. Useful for surviving the parts of a fight that come before the damage matters.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "maxHpPercent",
+        "magnitude": 0.3,
+        "durationSeconds": 600
+      }
+    ]
+  },
+  {
+    "id": "kingsbane_tonic",
+    "name": "Kingsbane Tonic",
+    "description": "Five minutes, and a great deal of damage. Brewed for one purpose, and the purpose is sitting on a stump. Drink it BEFORE you go in.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 1,
+    "effects": [
+      {
+        "trigger": "onConsume",
+        "action": "buff",
+        "param": "attackDamagePercent",
+        "magnitude": 0.45,
+        "durationSeconds": 300
+      }
+    ]
+  },
+  {
+    "id": "relic_coins",
+    "name": "Relic Coins",
+    "description": "Older than the realm and harder to come by. The Goblin King has a few, though he could not tell you why.",
+    "iconAddress": "",
+    "stackable": true,
+    "levelReq": 0,
+    "sourceSkill": ""
+  },
+  {
+    "id": "bonecarver",
+    "name": "Bonecarver",
+    "description": "Ground down from the camp’s leavings. It remembers being part of something.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 12,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/0_Sword/Sword_5",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "bone_harvest",
+        "equipText": "Equip: Bone Harvest — what it takes out of them goes into you."
+      }
+    ],
+    "weaponType": "melee",
+    "attackRange": 2.3,
+    "attackSpeedSeconds": 1.9,
+    "damageMin": 9,
+    "damageMax": 17
+  },
+  {
+    "id": "gravewarden",
+    "name": "Gravewarden",
+    "description": "A shield of stacked ribs, lashed tight. Surprisingly reassuring.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 15,
+    "sourceSkill": "smithing",
+    "equipSlot": "offhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/3_Shield/Shield_1",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "statBonus",
+        "param": "health",
+        "magnitude": 45,
+        "equipText": "Equip: +45 health. The dead are good at not dying twice."
+      }
+    ]
+  },
+  {
+    "id": "marrow_reaver",
+    "name": "Marrow Reaver",
+    "description": "Two hands, and both of them regret it. Somewhere inside is a goblin femur that has done rather well for itself.",
+    "iconAddress": "",
+    "stackable": false,
+    "levelReq": 30,
+    "sourceSkill": "smithing",
+    "equipSlot": "mainhand",
+    "equipSpriteAddress": "Addons/Legacy/0_Unit/0_Sprite/6_Weapons/1_Axe/Axe_1",
+    "maxDurability": 350,
+    "effects": [
+      {
+        "trigger": "onEquipPassive",
+        "action": "grantAbility",
+        "param": "marrowcall",
+        "equipText": "Equip: Marrowcall — something gets up and fights for you."
+      }
+    ],
+    "weaponType": "melee",
+    "attackRange": 2.7,
+    "attackSpeedSeconds": 2.5,
+    "damageMin": 18,
+    "damageMax": 31,
+    "twoHanded": true
+  }
 ]

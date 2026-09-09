@@ -1,0 +1,233 @@
+using System.Collections.Generic;
+using UnityEngine;
+
+/// <summary>
+/// Assembles a character's live stats from every source, in one place.
+///
+/// Sources, summed in this order:
+///
+///   1. The shared baseline from base_stats.json — what every character has before
+///      being anything in particular.
+///   2. One contribution per specced class. Additive, which is the whole point of
+///      cross-speccing: a second class broadens you rather than trading away the first.
+///   3. Worn equipment, via its onEquipPassive statBonus effects.
+///   4. Armour set bonuses that are currently active.
+///   5. Talents.
+///
+/// Cached, and recomputed only when something that feeds it changes. The alternative —
+/// recomputing on read — would walk every equipped item and every talent node several
+/// times per frame, since PlayerController asks for damage on every swing.
+/// </summary>
+public class StatsManager : MonoBehaviour
+{
+    private StatBlock _current;
+    private bool      _dirty = true;
+
+    /// <summary>
+    /// The active character's stats. Never null — a character with no class and no
+    /// gear still has the baseline, and returning null here would mean a null check
+    /// at every combat site.
+    /// </summary>
+    public StatBlock Current
+    {
+        get
+        {
+            if (_dirty || _current == null) Recompute();
+            return _current;
+        }
+    }
+
+    // Deliberately NOT subscribed to OnDurabilityChanged. Ordinary wear does not
+    // change any stat — only breaking or repairing a piece does, and both of those
+    // also raise OnEquipmentChanged. Listening to wear would invalidate the cache on
+    // roughly a third of every hit the player takes and rebuild the whole block for
+    // an answer that had not moved.
+    void OnEnable()
+    {
+        GameEvents.OnEquipmentChanged  += MarkDirty;
+        GameEvents.OnTalentsChanged    += MarkDirty;
+        GameEvents.OnClassChanged      += OnClassChanged;
+        GameEvents.OnCharacterSelected += OnCharacterSelected;
+
+        // A potion starting, being refreshed, or running out all change the block.
+        // Without this a Draught of Fury would apply on the next unrelated
+        // invalidation and expire on the one after -- which is to say, at random.
+        BuffManager.OnChanged          += MarkDirty;
+    }
+
+    void OnDisable()
+    {
+        GameEvents.OnEquipmentChanged  -= MarkDirty;
+        GameEvents.OnTalentsChanged    -= MarkDirty;
+        GameEvents.OnClassChanged      -= OnClassChanged;
+        GameEvents.OnCharacterSelected -= OnCharacterSelected;
+        BuffManager.OnChanged          -= MarkDirty;
+    }
+
+    private void OnClassChanged(string _)              => MarkDirty();
+    private void OnCharacterSelected(CharacterData _)  => MarkDirty();
+
+    /// <summary>
+    /// Ends buffs whose time is up.
+    ///
+    /// Here rather than in BuffManager, which is a static store with no tick of its
+    /// own, and here rather than in the HUD, because a buff wearing off changes what
+    /// the character HITS FOR — it must happen whether or not anything is drawing a
+    /// timer. Expiry is the one change to a buff no player action causes.
+    ///
+    /// Once a second: the granularity a countdown is displayed at, and a hundredth of
+    /// the work of doing it per frame.
+    /// </summary>
+    private float _nextBuffSweepAt;
+
+    void Update()
+    {
+        if (Time.unscaledTime < _nextBuffSweepAt) return;
+
+        _nextBuffSweepAt = Time.unscaledTime + 1f;
+        BuffManager.PruneExpired();
+    }
+
+    /// <summary>
+    /// Invalidates the cache. Deliberately does NOT recompute immediately — several of
+    /// these events fire together (equipping one item raises both OnEquipmentChanged
+    /// and OnDurabilityChanged), and recomputing per event would do the work three
+    /// times before anyone read the result.
+    /// </summary>
+    public void MarkDirty()
+    {
+        _dirty = true;
+        GameEvents.OnStatsChanged?.Invoke();
+    }
+
+    // ── Assembly ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Guards against a contributor reading Current while it is being built.
+    ///
+    /// Nothing does today, but the contributors reach into equipment, sets and
+    /// talents, and any of those growing a stat lookup would turn this into infinite
+    /// recursion and a stack overflow — a crash with a hundred identical frames and no
+    /// obvious cause. Serving the previous block instead is both safe and correct: the
+    /// value being asked for is the one from before this recompute.
+    /// </summary>
+    private bool _recomputing;
+
+    private void Recompute()
+    {
+        if (_recomputing)
+        {
+            Debug.LogWarning("[Stats] Something read the stat block while it was being " +
+                             "rebuilt. Serving the previous one. Check what a stat " +
+                             "contributor is reading.");
+            _current ??= new StatBlock();
+            return;
+        }
+
+        _recomputing = true;
+        try
+        {
+            var block = GameManager.Content?.BaseStats?.Clone() ?? new StatBlock();
+
+            AddClasses(block);
+            GameManager.Equipment?.ContributeTo(block);
+            SetBonusResolver.ContributeTo(block);
+            AddTalents(block);
+
+            // ══ AND WHATEVER THEY DRANK ═══════════════════════════════════════
+            //
+            // Last, and in the same position the server applies it: a buff is a
+            // percentage OF the assembled block, so everything it multiplies has to
+            // already be in there.
+            //
+            // Through the SHARED Buffs.Apply that SettlementService.ResolveStatsAsync
+            // calls, which is what stops the number on screen and the number the
+            // server pays from drifting apart.
+            BuffManager.Apply(block);
+
+            _current = block;
+            _dirty   = false;
+        }
+        finally
+        {
+            _recomputing = false;
+        }
+    }
+
+    private static void AddClasses(StatBlock block)
+    {
+        var character = CharacterManager.Current;
+        if (character == null) return;
+
+        foreach (var classId in character.ClassIds())
+        {
+            var cls = GameManager.Content?.GetClass(classId);
+            if (cls?.stats == null) continue;
+
+            block.Add(cls.stats);
+        }
+    }
+
+    /// <summary>
+    /// Talent effect types that are character STATS, and which stat each becomes.
+    ///
+    /// The rest of TalentManager's effect types are not stats and stay where they are:
+    /// cooldown and ability power belong to abilities, craft and gather speed belong to
+    /// the activity loop, skill XP belongs to SkillManager. Forcing those into a stat
+    /// block would mean inventing stats nothing displays in order to move a number from
+    /// one system to another.
+    /// </summary>
+    private static readonly (string Effect, string Stat)[] TalentStatMap =
+    {
+        (TalentManager.MaxHpPercent,       Stats.HealthMultiplier),
+        (TalentManager.AttackSpeedPercent, Stats.AttackSpeedMultiplier),
+        (TalentManager.HealthRegenFlat,    Stats.HealthRegen),
+        (TalentManager.DropQuantityPercent, Stats.DropRateMultiplier),
+        (TalentManager.AfkRatePercent,     Stats.Diligence),
+    };
+
+    private static void AddTalents(StatBlock block)
+    {
+        foreach (var (effect, stat) in TalentStatMap)
+        {
+            float bonus = TalentManager.Bonus(effect);
+            if (!Mathf.Approximately(bonus, 0f)) block.Add(stat, bonus);
+        }
+
+        // "Attack damage" means the whole band, not just its ceiling — a talent that
+        // reads "+3% attack damage" should raise what you hit for at both ends, or
+        // stacking it would widen the spread rather than improve the average.
+        float damage = TalentManager.Bonus(TalentManager.AttackDamagePercent);
+        if (!Mathf.Approximately(damage, 0f))
+        {
+            block.Add(Stats.MinHitMultiplier, damage);
+            block.Add(Stats.MaxHitMultiplier, damage);
+        }
+    }
+
+    // ── Convenience ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// A skill's rate multiplier from class affinities. 1.0 when no class favours it.
+    ///
+    /// Floored well above zero: a negative affinity from some future class must never
+    /// be able to stop a skill progressing entirely.
+    /// </summary>
+    public float SkillMultiplier(string skillId) =>
+        Mathf.Max(0.25f, 1f + Current.GetSkillAffinity(skillId));
+
+    /// <summary>Every skill this character is better than average at, best first.</summary>
+    public List<(string SkillId, float Bonus)> Affinities()
+    {
+        var results = new List<(string, float)>();
+
+        var affinities = Current.skillAffinity;
+        if (affinities == null) return results;
+
+        foreach (var entry in affinities)
+            if (entry != null && entry.value > 0.001f) results.Add((entry.skillId, entry.value));
+
+        results.Sort((a, b) => b.Item2.CompareTo(a.Item2));
+        return results;
+    }
+}

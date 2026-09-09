@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.Networking;
+using IdleExplorers.Rules;
 
 /// <summary>
 /// Loads all JSON content files from StreamingAssets and provides typed lookups.
@@ -18,14 +19,44 @@ using UnityEngine.Networking;
 public class ContentManager : MonoBehaviour
 {
     // ── Typed catalogues ─────────────────────────────────────────────────────
-    public Dictionary<string, ItemData>    Items       { get; } = new Dictionary<string, ItemData>();
-    public Dictionary<string, MonsterData> Monsters    { get; } = new Dictionary<string, MonsterData>();
-    public Dictionary<string, ZoneData>    Zones       { get; } = new Dictionary<string, ZoneData>();
-    public Dictionary<string, MapData>     Maps        { get; } = new Dictionary<string, MapData>();
-    public Dictionary<string, SkillData>   Skills      { get; } = new Dictionary<string, SkillData>();
-    public Dictionary<string, ClassData>   Classes     { get; } = new Dictionary<string, ClassData>();
-    public List<MergeRecipe>               MergeRecipes { get; } = new List<MergeRecipe>();
-    public List<SlotUnlockRequirement>     SlotUnlocks  { get; } = new List<SlotUnlockRequirement>();
+
+    /// <summary>
+    /// The authored game, indexed -- and indexed by code the SERVER also runs.
+    ///
+    /// This used to be thirteen dictionaries and lists owned here, with the lookups
+    /// written beside them. They moved into the shared rules tree, because the server
+    /// has to answer the same questions from the same twelve files and a second index
+    /// over the same data is a second thing to get wrong.
+    ///
+    /// What is left on this side is the half the two hosts genuinely cannot share:
+    /// fetching the files (UnityWebRequest here, the filesystem there), parsing them
+    /// (JsonUtility here, System.Text.Json there), and sprites, which mean nothing to
+    /// a server. The properties below forward so that every existing call site --
+    /// GameManager.Content.Items[id] and the rest -- keeps working unchanged.
+    /// </summary>
+    public GameContent Catalogue { get; } = new GameContent();
+
+    public Dictionary<string, ItemData>    Items        => Catalogue.Items;
+    public Dictionary<string, MonsterData> Monsters     => Catalogue.Monsters;
+    public Dictionary<string, ZoneData>    Zones        => Catalogue.Zones;
+    public Dictionary<string, MapData>     Maps         => Catalogue.Maps;
+    public Dictionary<string, SkillData>   Skills       => Catalogue.Skills;
+    public Dictionary<string, ClassData>   Classes      => Catalogue.Classes;
+    public Dictionary<string, ItemSetData> ItemSets     => Catalogue.ItemSets;
+    public List<MergeRecipe>               MergeRecipes => Catalogue.MergeRecipes;
+    public List<SlotUnlockRequirement>     SlotUnlocks  => Catalogue.SlotUnlocks;
+    public List<CraftRecipe>               CraftRecipes => Catalogue.CraftRecipes;
+    public List<RelicCoinPack>             CoinPacks    => Catalogue.CoinPacks;
+    public List<ShopProduct>               ShopProducts => Catalogue.ShopProducts;
+    public List<SpecCombo>                 SpecCombos   => Catalogue.SpecCombos;
+
+    /// <summary>
+    /// The stat baseline every character starts from, before any class.
+    ///
+    /// Never null: a missing or malformed base_stats.json leaves an empty block rather
+    /// than a null reference, so combat still runs — badly, and loudly, but it runs.
+    /// </summary>
+    public StatBlock BaseStats => Catalogue.BaseStats;
 
     public bool IsLoaded { get; private set; }
 
@@ -40,64 +71,178 @@ public class ContentManager : MonoBehaviour
     [Serializable] private class ClassList   { public ClassData[]            classes;  }
     [Serializable] private class MergeList   { public MergeRecipe[]          recipes;  }
     [Serializable] private class SlotList    { public SlotUnlockRequirement[] slots;   }
+    [Serializable] private class CraftList   { public CraftRecipe[]          recipes;  }
+    [Serializable] private class SetList     { public ItemSetData[]          sets;     }
+    [Serializable] private class SpecList    { public SpecCombo[]            specs;    }
+    [Serializable] private class AbilityList { public AbilityData[]          abilities; }
 
     // ── Public API ────────────────────────────────────────────────────────────
     public void LoadAll(Action onComplete)
     {
         _onComplete   = onComplete;
-        _pendingLoads = 7;
+        _pendingLoads = 13;
 
-        LoadJson<ItemList>   ("item_data",     "items",    j => { foreach (var x in j.items)    Items[x.id]    = x; });
-        LoadJson<MonsterList>("monster_data",  "monsters", j => { foreach (var x in j.monsters) Monsters[x.id] = x; });
-        // zone_data embeds maps — extract both in one pass
-        LoadJson<ZoneList>   ("zone_data",     "zones",    j =>
-        {
-            foreach (var zone in j.zones)
-            {
-                Zones[zone.id] = zone;
-                if (zone.maps != null)
-                    foreach (var map in zone.maps)
-                        Maps[map.id] = map;
-            }
-        });
-        LoadJson<SkillList>  ("skill_data",    "skills",   j => { foreach (var x in j.skills)  Skills[x.id]  = x; });
-        LoadJson<ClassList>  ("class_data",    "classes",  j => { foreach (var x in j.classes) Classes[x.id] = x; });
-        LoadJson<MergeList>  ("merge_recipes", "recipes",  j => MergeRecipes.AddRange(j.recipes));
-        LoadJson<SlotList>   ("slot_unlock",   "slots",    j => SlotUnlocks.AddRange(j.slots));
+        // Parsing is ours; indexing belongs to the shared catalogue. The server calls
+        // the same Ingest methods with the same arrays, having read the same files a
+        // different way — see IdleExplorers.Content.ContentFiles. The SET of files
+        // here and there has to stay in step, which is why both sides list them.
+        LoadJson<ItemList>   ("item_data",     "items",    j => Catalogue.IngestItems(j.items));
+        LoadJson<MonsterList>("monster_data",  "monsters", j => Catalogue.IngestMonsters(j.monsters));
+        LoadJson<ZoneList>   ("zone_data",     "zones",    j => Catalogue.IngestZones(j.zones));
+        LoadJson<SkillList>  ("skill_data",    "skills",   j => Catalogue.IngestSkills(j.skills));
+        LoadJson<ClassList>  ("class_data",    "classes",  j => Catalogue.IngestClasses(j.classes));
+        LoadJson<MergeList>  ("merge_recipes", "recipes",  j => Catalogue.IngestMergeRecipes(j.recipes));
+        LoadJson<SlotList>   ("slot_unlock",   "slots",    j => Catalogue.IngestSlotUnlocks(j.slots));
+        LoadJson<CraftList>  ("recipe_data",   "recipes",  j => Catalogue.IngestCraftRecipes(j.recipes));
+        LoadJson<SetList>    ("set_data",      "sets",     j => Catalogue.IngestItemSets(j.sets));
+        LoadJson<SpecList>   ("spec_data",     "specs",    j => Catalogue.IngestSpecCombos(j.specs));
+
+        // Abilities that belong to no class -- the ones items grant. The
+        // thirteenth file, and _pendingLoads above counts it.
+        LoadJson<AbilityList>("ability_data",  "abilities", j => Catalogue.IngestAbilities(j.abilities));
+
+        // The two root OBJECTS. They are not lists, so the array wrapper in
+        // LoadJsonRoutine is bypassed and their wrapField goes unused.
+        LoadJson<StatBlock>  ("base_stats",    "",         j => Catalogue.IngestBaseStats(j));
+        LoadJson<ShopCatalog>("shop_data",     "",         j => Catalogue.IngestShop(j));
     }
 
-    // ── Sprite loading (stub — wire to Resources or Addressables in Phase 2) ─
-    public void LoadSprite(string address, Action<Sprite> callback)
+    // ── Shop ──────────────────────────────────────────────────────────────────
+
+    public RelicCoinPack GetCoinPack(string id)    => Catalogue.GetCoinPack(id);
+    public ShopProduct   GetShopProduct(string id) => Catalogue.GetShopProduct(id);
+
+    // ── Crafting recipes ──────────────────────────────────────────────────────
+
+    public CraftRecipe GetRecipe(string recipeId) => Catalogue.GetRecipe(recipeId);
+
+    /// <summary>Every recipe a given station offers, in file order.</summary>
+    public List<CraftRecipe> GetRecipesForStation(string stationType) =>
+        Catalogue.GetRecipesForStation(stationType);
+
+    // ── Sprite loading ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Resolves a sprite by address, falling back to a generated placeholder so a
+    /// slot is never blank. Phase 1 loads from Resources; swap for Addressables
+    /// once the package is installed.
+    /// </summary>
+    public void LoadSprite(string address, Action<Sprite> callback, string fallbackId = null)
     {
-        // Phase 1: load from Resources folder by address string
-        if (string.IsNullOrEmpty(address)) { callback?.Invoke(null); return; }
-        var sprite = Resources.Load<Sprite>(address);
-        callback?.Invoke(sprite); // null is acceptable — icon will be blank
+        callback?.Invoke(GetSprite(address, fallbackId));
+    }
+
+    /// <summary>Synchronous sprite lookup with placeholder fallback.</summary>
+    public Sprite GetSprite(string address, string fallbackId = null)
+    {
+        // Through SpriteLoader, not Resources.Load — half the art in the SPUM packs is
+        // in Multiple-mode sheets, for which Resources.Load returns null with no error.
+        var sprite = SpriteLoader.Load(address);
+        if (sprite != null) return sprite;
+
+        return UIFactory.PlaceholderIcon(fallbackId ?? address);
+    }
+
+    // ── Icon library (real art from the imported packs) ────────────────────────
+
+    private IconLibrary _icons;
+    private bool        _iconsLoaded;
+
+    private IconLibrary Icons
+    {
+        get
+        {
+            if (!_iconsLoaded)
+            {
+                _icons = Resources.Load<IconLibrary>("IconLibrary");
+                _iconsLoaded = true;
+                if (_icons == null)
+                    Debug.Log("[ContentManager] No IconLibrary asset — using placeholder icons. " +
+                              "Run: Idle Explorers → Rebuild Icon Library");
+            }
+            return _icons;
+        }
+    }
+
+    /// <summary>
+    /// Icon for an item. Resolution order: explicit iconAddress → the icon library
+    /// built from the art packs → a generated placeholder. Never returns null.
+    /// </summary>
+    public Sprite GetItemIcon(string itemId)
+    {
+        var item = GetItem(itemId);
+
+        if (!string.IsNullOrEmpty(item?.iconAddress))
+        {
+            var direct = SpriteLoader.Load(item.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        var mapped = Icons?.GetItemIcon(itemId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(itemId);
+    }
+
+    /// <summary>
+    /// Emblem for a class. Never null — the HUD shows it in place of the class name,
+    /// so a missing mapping has to be a shape rather than a gap.
+    /// </summary>
+    public Sprite GetClassIcon(string classId)
+    {
+        var mapped = Icons?.GetClassIcon(classId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(classId);
+    }
+
+    /// <summary>Icon for a skill, with the same resolution order as items.</summary>
+    public Sprite GetSkillIcon(string skillId)
+    {
+        var skill = GetSkill(skillId);
+
+        if (!string.IsNullOrEmpty(skill?.iconAddress))
+        {
+            var direct = SpriteLoader.Load(skill.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        var mapped = Icons?.GetSkillIcon(skillId);
+        if (mapped != null) return mapped;
+
+        return UIFactory.PlaceholderIcon(skillId);
+    }
+
+    /// <summary>
+    /// Icon for an ability. Unlike items and skills this returns null when unmapped
+    /// rather than a placeholder — the action bar already shows the ability's name,
+    /// and a coloured square behind the text would only make it harder to read.
+    /// </summary>
+    public Sprite GetAbilityIcon(AbilityData ability)
+    {
+        if (ability == null) return null;
+
+        if (!string.IsNullOrEmpty(ability.iconAddress))
+        {
+            var direct = SpriteLoader.Load(ability.iconAddress);
+            if (direct != null) return direct;
+        }
+
+        return Icons?.GetAbilityIcon(ability.id);
     }
 
     // ── Lookup helpers ────────────────────────────────────────────────────────
-    public ItemData    GetItem(string id)    => Items.TryGetValue(id,    out var v) ? v : null;
-    public MonsterData GetMonster(string id) => Monsters.TryGetValue(id, out var v) ? v : null;
-    public SkillData   GetSkill(string id)   => Skills.TryGetValue(id,   out var v) ? v : null;
-    public ClassData   GetClass(string id)   => Classes.TryGetValue(id,  out var v) ? v : null;
-    public MapData     GetMap(string id)     => Maps.TryGetValue(id,     out var v) ? v : null;
-    public ZoneData    GetZone(string id)    => Zones.TryGetValue(id,    out var v) ? v : null;
+    public ItemData    GetItem(string id)    => Catalogue.GetItem(id);
+    public MonsterData GetMonster(string id) => Catalogue.GetMonster(id);
+    public SkillData   GetSkill(string id)   => Catalogue.GetSkill(id);
+    public ClassData   GetClass(string id)   => Catalogue.GetClass(id);
+    public MapData     GetMap(string id)     => Catalogue.GetMap(id);
+    public ZoneData    GetZone(string id)    => Catalogue.GetZone(id);
 
-    public MergeRecipe GetMergeRecipe(string inputItemId)
-    {
-        foreach (var r in MergeRecipes)
-            if (r.inputItemId == inputItemId) return r;
-        return null;
-    }
+    public MergeRecipe GetMergeRecipe(string inputItemId) => Catalogue.GetMergeRecipe(inputItemId);
 
-    public bool IsSlotUnlocked(int slotIndex, int accountLevel, int highestCharLevel)
-    {
-        foreach (var req in SlotUnlocks)
-            if (req.slot == slotIndex)
-                return accountLevel >= req.reqAccountLevel &&
-                       highestCharLevel >= req.reqAnyCharLevel;
-        return false;
-    }
+    public bool IsSlotUnlocked(int slotIndex, int accountLevel, int highestCharLevel) =>
+        Catalogue.IsSlotUnlocked(slotIndex, accountLevel, highestCharLevel);
 
     // ── Private: load from StreamingAssets ────────────────────────────────────
     private void LoadJson<T>(string fileName, string wrapField, Action<T> onParsed)
@@ -107,11 +252,21 @@ public class ContentManager : MonoBehaviour
 
     private IEnumerator LoadJsonRoutine<T>(string fileName, string wrapField, Action<T> onParsed)
     {
-        // StreamingAssets requires UnityWebRequest on all platforms (including Android)
+        // StreamingAssets requires UnityWebRequest on every platform, but what
+        // streamingAssetsPath MEANS differs by three, and getting it wrong is total:
+        // the catalogue comes back empty and the game boots into a world with no
+        // items, no monsters and no recipes.
         string uri = Path.Combine(Application.streamingAssetsPath, fileName);
-#if UNITY_ANDROID && !UNITY_EDITOR
-        // Android StreamingAssets are inside the APK — must use jar:// URI as-is
+
+#if UNITY_WEBGL && !UNITY_EDITOR
+        // Already an absolute http(s) URL on the web -- the build is being served,
+        // not read. Prefixing file:/// produces "file:///https://..." and every one
+        // of the twelve loads fails.
+        uri = uri.Replace("\\", "/");
+#elif UNITY_ANDROID && !UNITY_EDITOR
+        // Android StreamingAssets live inside the APK -- the jar:// URI is used as-is.
 #else
+        // A real path on disk, which UnityWebRequest needs as a file URL.
         uri = "file:///" + uri.Replace("\\", "/");
 #endif
 
@@ -148,7 +303,14 @@ public class ContentManager : MonoBehaviour
         {
             IsLoaded = true;
             Debug.Log($"[ContentManager] Loaded: {Items.Count} items, {Monsters.Count} monsters, " +
-                      $"{Zones.Count} zones, {Maps.Count} maps, {Skills.Count} skills, {Classes.Count} classes.");
+                      $"{Zones.Count} zones, {Maps.Count} maps, {Skills.Count} skills, " +
+                      $"{Classes.Count} classes, {ItemSets.Count} armor sets.");
+
+            // Checked once, here, rather than discovered in a playtest: a set bonus
+            // that names an action nothing implements costs the player six armour
+            // slots and gives no sign that it is doing nothing at all.
+            ItemSetManager.ValidateContent();
+
             _onComplete?.Invoke();
         }
     }

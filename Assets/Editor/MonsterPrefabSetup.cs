@@ -1,0 +1,351 @@
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+using UnityEngine.AI;
+
+/// <summary>
+/// Builds one Resources/Monsters/{id}.prefab per entry in the table below, from a
+/// SPUM character rig plus the component configuration already proven on
+/// _default.prefab.
+///
+/// MonsterSpawner resolves Monsters/{id} before falling back to Monsters/_default,
+/// so a monster appears purely by being built here. The working _default is left
+/// untouched, which makes this reversible: delete a generated file and the fallback
+/// takes over again.
+///
+/// ══ THIS WAS A MENU ITEM NOBODY RAN ═══════════════════════════════════════════
+///
+/// It built exactly one prefab and was not part of Setup Everything, so
+/// Resources/Monsters held only _default and skeleton — meaning every goblin in the
+/// game since the day this file was written has actually been the fallback stand-in.
+/// A table plus a place in the setup sequence is what stops that recurring for the
+/// next monster.
+///
+/// The project's design rule is ONE MONSTER PER AREA: a map names a single
+/// defaultMonsterId, and a new map means authoring a new monster rather than reusing
+/// one. Every id below is the sole inhabitant of somewhere.
+///
+/// Menu: Idle Explorers → Build Monster Prefabs
+/// </summary>
+public static class MonsterPrefabSetup
+{
+    private const string SOURCE_PREFAB = "Assets/Resources/Monsters/_default.prefab";
+    private const string OUTPUT_DIR    = "Assets/Resources/Monsters";
+
+    private const string SpumRoot = "Assets/Imports/SPUM/Resources/Addons/BasicPack/2_Prefab/";
+
+    /// <summary>
+    /// One entry per monster: which rig it wears and, optionally, what colour its skin
+    /// is. The tint is applied to the body layers only — tinting the whole rig would
+    /// take the eyes and the weapon with it and read as a lighting fault.
+    /// </summary>
+    private readonly struct Recipe
+    {
+        public readonly string MonsterId;
+        public readonly string RigPath;
+        public readonly string SkinTint;
+        public readonly string Note;
+
+        /// <summary>
+        /// How tall this monster stands, as a fraction of a person.
+        ///
+        /// The absolute number lives in SpumRig.CharacterHeight, so a monster is
+        /// described the way anybody would describe one — "a head shorter than you" —
+        /// rather than in world units nobody can picture.
+        /// </summary>
+        public readonly float HeightVsPlayer;
+
+        public Recipe(string monsterId, string rigPath, string skinTint, float heightVsPlayer,
+                      string note)
+        {
+            MonsterId      = monsterId;
+            RigPath        = rigPath;
+            SkinTint       = skinTint;
+            HeightVsPlayer = heightVsPlayer;
+            Note           = note;
+        }
+    }
+
+    private static readonly Recipe[] Recipes =
+    {
+        new Recipe("goblin", SpumRoot + "Devil/SPUM_20240911215637878.prefab", null, 0.82f,
+                   "Goblin Camp. The Devil race reads much closer to a goblin than the " +
+                   "Skeleton rig that stood in for it, and a goblin should be shorter " +
+                   "than the person fighting it."),
+
+        new Recipe("bramblekin", SpumRoot + "Elf/SPUM_20240911215638048.prefab", "#4E7A38", 0.95f,
+                   "Hollow of the Fading Light. An elf silhouette under a mossy green " +
+                   "reads as something that grew rather than something that arrived."),
+
+        // ══ THE KING HAD NO BODY AT ALL ═══════════════════════════════════════
+        //
+        // GoblinThroneSetup placed `new GameObject("GoblinKing")` with a BossController
+        // and nothing else -- no rig, no renderer, no animator. So the arena had an
+        // invisible boss: the health bar appeared, because that is drawn by the HUD
+        // from the server's numbers, and there was nothing to fight.
+        //
+        // A Devil rig like the goblin, because he is one -- and half again as tall as
+        // the player, because the whole read of a boss at a distance is that it is
+        // bigger than the things you have been killing.
+        new Recipe("goblin_king", SpumRoot + "Devil/SPUM_20240911215637772.prefab", "#8B2F3A", 1.55f,
+                   "The Goblin Throne. The same race as his subjects and half again the " +
+                   "player's height, in a deep red -- so he reads as a goblin, as a boss, " +
+                   "and as neither of the two rigs already in the game."),
+    };
+
+    [MenuItem("Idle Explorers/Build Monster Prefabs")]
+    public static void BuildMenu() => BuildAll(showDialog: true);
+
+    public static int BuildAll(bool showDialog)
+    {
+        var source = AssetDatabase.LoadAssetAtPath<GameObject>(SOURCE_PREFAB);
+        if (source == null)
+        {
+            Debug.LogError($"[MonsterSetup] Missing {SOURCE_PREFAB} — it supplies the component " +
+                           "settings every monster copies.");
+            if (showDialog)
+                EditorUtility.DisplayDialog("Missing source",
+                    $"Expected {SOURCE_PREFAB}.\n\nIt supplies the component settings to copy.", "OK");
+            return 0;
+        }
+
+        var sourceController = source.GetComponent<MonsterController>();
+        if (sourceController == null)
+        {
+            Debug.LogError("[MonsterSetup] _default.prefab has no MonsterController to copy.");
+            return 0;
+        }
+
+        int built = 0;
+        foreach (var recipe in Recipes)
+            if (Build(recipe, source, sourceController)) built++;
+
+        Debug.Log($"[MonsterSetup] Built {built} of {Recipes.Length} monster prefab(s) in {OUTPUT_DIR}.");
+
+        if (showDialog)
+            EditorUtility.DisplayDialog("Monster Prefabs Built",
+                $"{built} of {Recipes.Length} built in {OUTPUT_DIR}.\n\n" +
+                "MonsterSpawner resolves Monsters/{id} before falling back to _default, so each " +
+                "map picks its own up on the next Play with no code change.",
+                "OK");
+
+        return built;
+    }
+
+    private static bool Build(Recipe recipe, GameObject source, MonsterController sourceController)
+    {
+        var rig = AssetDatabase.LoadAssetAtPath<GameObject>(recipe.RigPath);
+        if (rig == null)
+        {
+            Debug.LogError($"[MonsterSetup] '{recipe.MonsterId}': rig missing at {recipe.RigPath}.");
+            return false;
+        }
+
+        string outputPath = $"{OUTPUT_DIR}/{recipe.MonsterId}.prefab";
+
+        // Work on an instance; the asset itself is never modified.
+        var instance = (GameObject)PrefabUtility.InstantiatePrefab(rig);
+        instance.name = recipe.MonsterId;
+
+        // Break the SPUM prefab link so the result is a standalone prefab rather than
+        // a variant that would inherit future changes to the pack.
+        PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+
+        try
+        {
+            // The height this monster is scaled to, worked out once: the collider and
+            // the agent both have to agree with the artwork, and the artwork is scaled
+            // from this same number below.
+            float height = SpumRig.CharacterHeight * recipe.HeightVsPlayer;
+
+            ConfigureNavigation(instance, source, height);
+            ConfigureCollision(instance, source, height);
+            ConfigureController(instance, sourceController);
+
+            // Monsters are the same flat artwork the player is, and turned edge-on for
+            // the same reason: the agent rotates them to face where they are walking.
+            // Attach billboards AND mirrors, so a goblin walking left looks left.
+            SpriteFacing.Attach(instance);
+
+            // Same reason the player is scaled: the sprite is authored at 32 pixels to
+            // the unit, and the world was built for a two-unit person.
+            SpumRig.NormaliseHeight(instance.transform, height);
+
+            // Same as the player: drawn in front of world geometry, so a goblin
+            // standing behind a tent is a goblin you can see and click.
+            CharacterSpriteMaterial.ApplyTo(instance);
+
+            int unbillboarded = Billboard.CountUnbillboardedSprites(instance);
+            if (unbillboarded > 0)
+                Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + unbillboarded +
+                                 " sprite(s) no Billboard turns — they will go edge-on as it walks.");
+
+            // The failure mode of the mirror: text under a SpriteFacing renders
+            // backwards the first time the character turns around. Obvious to a
+            // player, invisible to a compiler.
+            int mirrored = SpriteFacing.CountMirroredText(instance);
+            if (mirrored > 0)
+                Debug.LogWarning("[MonsterSetup] " + recipe.MonsterId + ": " + mirrored +
+                                 " text object(s) under the mirrored art — they will read " +
+                                 "backwards whenever it faces left.");
+
+            if (!string.IsNullOrEmpty(recipe.SkinTint))
+            {
+                int tinted = SpumAppearance.TintBody(instance.transform, recipe.SkinTint);
+                if (tinted == 0)
+                    Debug.LogWarning($"[MonsterSetup] '{recipe.MonsterId}': tint {recipe.SkinTint} " +
+                                     "matched no body layer — the rig may not be a SPUM unit.");
+            }
+
+            Directory.CreateDirectory(OUTPUT_DIR);
+            PrefabUtility.SaveAsPrefabAsset(instance, outputPath, out bool saved);
+
+            if (!saved)
+            {
+                Debug.LogError($"[MonsterSetup] Failed to save {outputPath}.");
+                return false;
+            }
+
+            Debug.Log($"[MonsterSetup] {recipe.MonsterId} → {outputPath} " +
+                      $"({Path.GetFileNameWithoutExtension(recipe.RigPath)}). {recipe.Note}");
+            return true;
+        }
+        finally
+        {
+            Object.DestroyImmediate(instance);
+        }
+    }
+
+    private static void ConfigureNavigation(GameObject target, GameObject source, float height)
+    {
+        var sourceAgent = source.GetComponent<NavMeshAgent>();
+        if (sourceAgent == null) return;
+
+        // Not `GetComponent() ?? AddComponent()`. `??` compares by reference and cannot
+        // see Unity's overloaded ==, so the live-wrapper-around-nothing that
+        // GetComponent returns for an absent component reads as "not null", the
+        // AddComponent never runs, and the next line throws MissingComponentException
+        // against the object instead of against the operator that skipped it.
+        var agent = target.GetComponent<NavMeshAgent>();
+        if (agent == null) agent = target.AddComponent<NavMeshAgent>();
+        if (agent == null)
+        {
+            Debug.LogError($"[MonsterSetup] Could not add a NavMeshAgent to '{target.name}'.");
+            return;
+        }
+
+        agent.speed                 = sourceAgent.speed;
+        agent.angularSpeed          = sourceAgent.angularSpeed;
+        agent.acceleration          = sourceAgent.acceleration;
+        agent.stoppingDistance      = sourceAgent.stoppingDistance;
+        agent.radius                = Mathf.Max(0.2f, height * 0.22f);
+        // Matched to the artwork, not copied. An agent taller than the monster it
+        // steers walks it through doorways it visibly does not fit under.
+        agent.height                = height;
+        agent.baseOffset            = sourceAgent.baseOffset;
+        agent.obstacleAvoidanceType = sourceAgent.obstacleAvoidanceType;
+        agent.areaMask              = sourceAgent.areaMask;
+    }
+
+    /// <summary>
+    /// Copies the colliders. Without these the goblin is unclickable and the player's
+    /// raycast targeting slides straight through it.
+    /// </summary>
+    /// <summary>
+    /// Gives the monster a collider the size of the monster.
+    ///
+    /// ══ WHY THEY WERE SO HARD TO CLICK ════════════════════════════════════════
+    ///
+    /// This used to copy _default.prefab's capsule verbatim: radius 0.24, height 1.02,
+    /// centred 0.31 above the feet. Those numbers described a SPUM rig at its authored
+    /// sub-metre scale, and were already generous when the artwork was that small. Once
+    /// rigs were normalised to SpumRig.CharacterHeight the art roughly tripled and the
+    /// collider did not, so a goblin stood a metre and a half tall with half a metre of
+    /// clickable shin — and the player had to aim at its ankles to select it.
+    ///
+    /// Derived from the height the rig is actually scaled to, so the two cannot drift
+    /// apart again. The radius is a bit wider than a person really is: a target you
+    /// have to be precise about is a target you fight the camera to hit.
+    /// </summary>
+    private static void ConfigureCollision(GameObject target, GameObject source, float height)
+    {
+        foreach (var existing in target.GetComponents<Collider>())
+            Object.DestroyImmediate(existing);
+
+        var capsule = target.AddComponent<CapsuleCollider>();
+        if (capsule == null)
+        {
+            Debug.LogError($"[MonsterSetup] Could not add a CapsuleCollider to '{target.name}'.");
+            return;
+        }
+
+        capsule.direction = 1;                                   // Y
+        capsule.height    = height;
+        capsule.radius    = Mathf.Max(0.25f, height * 0.32f);
+        capsule.center    = new Vector3(0f, height * 0.5f, 0f);  // stands on its feet
+        capsule.isTrigger = false;
+
+        // Trigger colliders from the source are still copied — those are aggro and
+        // pickup volumes, not the body, and nothing here knows what they are for.
+        foreach (var sourceCollider in source.GetComponents<Collider>())
+        {
+            if (!sourceCollider.isTrigger) continue;
+
+            switch (sourceCollider)
+            {
+                case SphereCollider sphere:
+                {
+                    var copy = target.AddComponent<SphereCollider>();
+                    copy.center    = sphere.center;
+                    copy.radius    = sphere.radius;
+                    copy.isTrigger = true;
+                    break;
+                }
+                case BoxCollider box:
+                {
+                    var copy = target.AddComponent<BoxCollider>();
+                    copy.center    = box.center;
+                    copy.size      = box.size;
+                    copy.isTrigger = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Copies MonsterController wholesale, then re-points the references that must
+    /// address the new rig rather than the old one.
+    /// </summary>
+    private static void ConfigureController(GameObject target, MonsterController source)
+    {
+        UnityEditorInternal.ComponentUtility.CopyComponent(source);
+
+        var controller = target.GetComponent<MonsterController>();
+        if (controller != null) UnityEditorInternal.ComponentUtility.PasteComponentValues(controller);
+        else
+        {
+            UnityEditorInternal.ComponentUtility.PasteComponentAsNew(target);
+            controller = target.GetComponent<MonsterController>();
+        }
+
+        if (controller == null)
+        {
+            Debug.LogError($"[MonsterSetup] Could not attach MonsterController to '{target.name}'.");
+            return;
+        }
+
+        // These pointed at the source prefab's own components; left alone they would
+        // be null on the new rig and it would neither animate nor path.
+        controller.agent = target.GetComponent<NavMeshAgent>();
+        controller.anim  = target.GetComponentInChildren<Animator>();
+
+        // The health bar used to be three serialised references into the donor rig,
+        // nulled here because following them dressed the wrong prefab — which is why
+        // every monster this builder produced had no health bar at all. It attaches
+        // itself at runtime now, so there is nothing left to null.
+
+        if (controller.anim == null)
+            Debug.LogWarning($"[MonsterSetup] No Animator on '{target.name}' — it will not animate.");
+    }
+}

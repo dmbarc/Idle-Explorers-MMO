@@ -112,3 +112,24 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Local check harness output (Tools/check.sh)
+/Tools/verify/build/
+/Tools/**/bin/
+/server/**/bin/
+/server/**/obj/
+/Tools/**/obj/
+
+# ...but the harness and server projects are real, hand-written ones. The rule above
+# exists to exclude the .csproj files Unity regenerates for the IDE; these are not
+# those, and losing them would lose the build.
+!/Tools/**/*.csproj
+!/server/**/*.csproj
+!/server/**/*.sln
+!/server/**/*.slnx
+
+# WebGL and standalone build output. An artefact, not source.
+Build/
+
+# Batch build log. Regenerated on every build.
+webgl-build.log

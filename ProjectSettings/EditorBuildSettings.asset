@@ -6,7 +6,20 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/Scenes/Bootstrap.unity
+    guid: 7c054c74bdaea8e4b89129a743e7712a
+  - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/Map_GoblinCamp.unity
+    guid: 739dac68d6baf214a882243d1f4c35c1
+  - enabled: 1
+    path: Assets/Scenes/Map_FadingHollow.unity
+    guid: d25e410ad35a45842b4cfb48f5eca783
+  - enabled: 1
+    path: Assets/Scenes/Map_GoblinThrone.unity
+    guid: 21258f4462b188245b2f29a2cf4c58f8
   m_configObjects:
+    com.unity.dt.app-ui: {fileID: 11400000, guid: 1b1c20d82303e4b5781c3ef50ac1449f, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
