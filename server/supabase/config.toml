@@ -177,10 +177,34 @@ refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
+#
 # On, so "play as guest" needs no email. The rate limit below (anonymous_users)
-# is what keeps that from being a free account factory, and the sweep in
-# 20260909_guest_accounts.sql is what keeps the ones that are made from
-# accumulating.
+# is what keeps that from being a free account factory, and GuestSweeper in the
+# API is what keeps the ones that are made from accumulating.
+#
+# ══ THIS FILE IS THE LOCAL STACK, NOT PRODUCTION ══════════════════════════════
+#
+# Setting it here does NOT enable it on the hosted project. That is a separate
+# switch under Authentication -> Sign In / Providers, and until it is flipped the
+# client's PLAY AS GUEST button gets back:
+#
+#     {"code":422,"error_code":"anonymous_provider_disabled"}
+#
+# ══ AND DO NOT REACH FOR `supabase config push` ═══════════════════════════════
+#
+# It would enable it, and it would take the rest of this file with it. There is
+# no way to push one setting and no dry run. What else is in here:
+#
+#     site_url                = "http://127.0.0.1:3000"
+#     additional_redirect_urls = ["https://127.0.0.1:3000"]
+#     enable_confirmations     = false
+#
+# So the cost of enabling one boolean that way is a production project whose
+# sign-in redirects point at a machine that is not on the internet, and which
+# has stopped confirming email addresses. Both break real accounts, and neither
+# announces itself -- the push succeeds.
+#
+# Use the dashboard. It is one click and it changes one thing.
 enable_anonymous_sign_ins = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
