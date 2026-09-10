@@ -84,10 +84,15 @@ public sealed class GuestSweeper(Db db, ILogger<GuestSweeper> logger) : Backgrou
             where u.is_anonymous
               and u.created_at < now() - @grace
               and not exists (
-                  select 1 from character c
+                  -- The heartbeat lives on activity, not on character: it is a
+                  -- property of what the character is DOING, and settlement reads
+                  -- it from the same row it writes progress into.
+                  select 1
+                  from character c
+                  join activity a on a.character_id = c.id
                   where c.account_id = u.id
-                    and c.last_heartbeat_at is not null
-                    and c.last_heartbeat_at > now() - @idle
+                    and a.last_heartbeat_at is not null
+                    and a.last_heartbeat_at > now() - @idle
               )
               and not exists (
                   select 1 from account_session s
