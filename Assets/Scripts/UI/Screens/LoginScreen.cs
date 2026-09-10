@@ -81,6 +81,20 @@ public class LoginScreen : UIScreen
 
         // ══ ONLY WHEN THERE IS SOMEWHERE TO SIGN IN TO ════════════════════════
         //
+        // ══ THE GUEST BUTTON, ABOVE THE REST ══════════════════════════════════
+        //
+        // Most people arriving here have no intention of making an account for a
+        // game they have not seen yet, and a sign-up form is where they leave. This
+        // is the first thing they can press and it asks for nothing.
+        //
+        // Placed before the Google check on purpose: it works whether or not a
+        // provider is configured, so it must not sit behind that early return.
+        if (Connected)
+        {
+            var guestBtn = UIFactory.Button(transform, "PLAY AS GUEST", AttemptGuest, width: 0f);
+            UIFactory.At(guestBtn, 0.35f, 0.02f, 0.65f, 0.09f);
+        }
+
         // Offline there is no provider, and a Google button that explains it cannot
         // work is worse than no button -- it reads as broken rather than as absent.
         if (!IdleExplorers.Backend.GoogleSignIn.IsAvailable) return;
@@ -207,6 +221,41 @@ public class LoginScreen : UIScreen
     /// process listens on for a few minutes; on the web the page itself goes to Google
     /// and a later page load finishes the job.
     /// </summary>
+    /// <summary>
+    /// Signs in without an account, for someone who just wants to look.
+    /// </summary>
+    /// <remarks>
+    /// The warning is given before the sign-in rather than after, because after is
+    /// too late to matter: the point is that nothing here is kept, and somebody who
+    /// plays for an hour and then discovers that has been misled by silence.
+    /// </remarks>
+    private async void AttemptGuest()
+    {
+        if (_busy) return;
+
+        _busy = true;
+        ShowHint("Creating a temporary character…");
+
+        try
+        {
+            var result = await IdleExplorers.Backend.Session.SignInAsGuestAsync();
+
+            if (result.Ok)
+            {
+                await LoadAccountAsync();
+                return;
+            }
+
+            ShowHint(string.IsNullOrEmpty(result.Message)
+                ? "Could not start a guest session."
+                : result.Message);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     private async void AttemptGoogle()
     {
         if (_busy) return;

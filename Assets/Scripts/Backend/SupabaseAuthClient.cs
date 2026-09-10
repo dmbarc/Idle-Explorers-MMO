@@ -113,6 +113,28 @@ namespace IdleExplorers.Backend
             PostAsync("/auth/v1/token?grant_type=password", Credentials(email, password));
 
         /// <summary>
+        /// Signs in without an email, for a player who wants to try the game.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The same signup endpoint with no credentials in the body. GoTrue reads
+        /// the absence of an email as a request for an anonymous user and issues a
+        /// real session for one, carrying <c>is_anonymous: true</c> in the token.
+        /// Every other call in this class works on it unchanged, which is the
+        /// point: a guest is not a second kind of player the game has to reason
+        /// about, it is an ordinary account whose token says how it was made.
+        /// </para>
+        /// <para>
+        /// The refresh token is stored like any other, so a guest who reloads the
+        /// page keeps their character. What ends a guest is silence — the sweep
+        /// deletes accounts that stop sending heartbeats — not the tab closing,
+        /// which cannot be detected reliably enough to build on.
+        /// </para>
+        /// </remarks>
+        public Awaitable<AuthResult> SignInAsGuestAsync() =>
+            PostAsync("/auth/v1/signup", "{}");
+
+        /// <summary>
         /// Picks up where the last session left off.
         ///
         /// Called at startup before the login screen is shown, so a returning player

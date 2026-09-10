@@ -260,6 +260,33 @@ namespace IdleExplorers.Backend
         }
 
         /// <summary>
+        /// Sign in as a guest, with no email and no password.
+        ///
+        /// The account is real in every way the server cares about -- it owns
+        /// characters, it settles, it is subject to the same rules -- and it is
+        /// temporary: the server deletes guests that stop sending heartbeats for half
+        /// an hour, and everything they own goes with them.
+        ///
+        /// Nothing here marks the account as a guest. The token says so, because
+        /// Supabase issues it with is_anonymous set, and a flag of ours would be a
+        /// second source of truth that could disagree with the first.
+        /// </summary>
+        public static async Awaitable<AuthResult> SignInAsGuestAsync()
+        {
+            if (_auth == null) return AuthResult.Failed("This build is not connected to a server.");
+
+            AuthResult result = await _auth.SignInAsGuestAsync();
+
+            if (result.Ok)
+            {
+                await ClaimAsync();
+                SignedInChanged?.Invoke(true);
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Sign in with Google.
         ///
         /// On the web this does not return in the ordinary sense -- the page navigates

@@ -1,3 +1,4 @@
+using IdleExplorers.Api.Background;
 using IdleExplorers.Api.Auth;
 using IdleExplorers.Api.Endpoints;
 using IdleExplorers.Api.Infrastructure;
@@ -117,6 +118,12 @@ public class Program
         // a connection per call and holds nothing between them -- the map's state is in
         // the table, which is the whole point of it being shared.
         builder.Services.AddScoped<PopulationService>();
+
+        // Collects guest accounts that have gone quiet. Nothing announces a departure --
+        // beforeunload does not fire for a backgrounded phone, a killed browser or a dead
+        // network -- so silence is the signal, and this is what keeps anonymous sign-ins
+        // from accumulating rows forever.
+        builder.Services.AddHostedService<GuestSweeper>();
 
         builder.Services.AddSupabaseAuth(builder.Configuration);
 
