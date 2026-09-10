@@ -169,6 +169,18 @@ public static class WebGLBuild
         // to a second visit.
         PlayerSettings.WebGL.dataCaching = true;
 
+        // ══ NO SPLASH ═════════════════════════════════════════════════════════
+        //
+        // The web build is embedded in a page that has already said what this is.
+        // A logo screen in front of it is a second wait after the download, on a
+        // build the visitor is only sampling.
+        //
+        // Optional rather than a violation: Unity made the splash a choice for
+        // Personal licences from 2023.1 onward, and this project is on Unity 6.
+        // On an older editor the setting would silently do nothing.
+        PlayerSettings.SplashScreen.show = false;
+        PlayerSettings.SplashScreen.showUnityLogo = false;
+
         // Explicitly-thrown only. Full exception support inserts checks around every
         // array access and costs real frame time; this keeps the exceptions the game
         // actually throws while dropping the ones the runtime would synthesise.
